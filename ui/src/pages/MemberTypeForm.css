@@ -1,0 +1,229 @@
+.member-type-form-content {
+  flex: 1;
+  padding: 1rem;
+  padding-top: calc(1rem + 60px + 1rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 100px;
+}
+
+.type-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.type-selector-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.type-selector-btn.selected {
+  border-color: #000000;
+  background-color: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+.form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #333;
+  background-color: #ffffff;
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #9333ea;
+}
+
+.gender-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gender-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gender-button.selected {
+  background-color: #9333ea;
+  border-color: #9333ea;
+  color: #ffffff;
+}
+
+.resident-number-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resident-number-inputs .form-input {
+  flex: 1;
+}
+
+.hyphen {
+  font-size: 1.25rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.address-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.address-search-btn {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  background-color: #9333ea;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.address-search-btn:hover {
+  background-color: #7e22ce;
+}
+
+.address-input {
+  flex: 1;
+}
+
+.address-input:disabled {
+  background-color: #f3f4f6;
+  color: #333;
+  cursor: not-allowed;
+}
+
+.date-input {
+  position: relative;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.form-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.prev-btn {
+  flex: 1;
+  padding: 1rem;
+  background-color: #ffffff;
+  border: 1px solid #9333ea;
+  border-radius: 8px;
+  color: #9333ea;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prev-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.next-btn {
+  flex: 1;
+  padding: 1rem;
+  background-color: #d1d5db;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #9ca3af;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  transition: all 0.2s;
+}
+
+.next-btn.active {
+  background-color: #9333ea;
+  border-color: #9333ea;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.next-btn.active:hover {
+  background-color: #7e22ce;
+}
+
+/* 모바일 앱 컨테이너 내부에서 footer 위치 조정 */
+.payment-container {
+  position: relative;
+  padding-bottom: 80px;
+}
+
+/* PC/태블릿에서 form-footer 위치 조정 */
+@media (min-width: 768px) {
+  .form-footer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    max-width: 100%;
+  }
+}
+

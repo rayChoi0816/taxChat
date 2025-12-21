@@ -1,0 +1,196 @@
+.product-category-registration-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.product-category-registration-modal {
+  background-color: #ffffff;
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.product-category-registration-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.product-category-registration-modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.product-category-registration-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.product-category-registration-modal-close:hover {
+  color: #666;
+}
+
+.product-category-registration-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.product-category-registration-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.product-category-registration-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.product-category-registration-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.product-category-registration-input:focus {
+  outline: none;
+  border-color: #6b46c1;
+}
+
+.product-category-registration-input::placeholder {
+  color: #9ca3af;
+}
+
+.product-category-registration-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+}
+
+.product-category-registration-textarea:focus {
+  outline: none;
+  border-color: #6b46c1;
+}
+
+.product-category-registration-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.product-category-registration-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.product-category-registration-cancel-btn {
+  padding: 0.5rem 1.5rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.product-category-registration-cancel-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.product-category-registration-save-btn {
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.product-category-registration-save-btn.enabled {
+  background-color: #333;
+  color: #ffffff;
+}
+
+.product-category-registration-save-btn.enabled:hover {
+  background-color: #000;
+}
+
+.product-category-registration-save-btn.disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.product-category-registration-edit-btn {
+  padding: 0.5rem 1.5rem;
+  background-color: #333;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.product-category-registration-edit-btn:hover {
+  background-color: #000;
+}
+
+.product-category-registration-display {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #333;
+  background-color: #f9f9f9;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

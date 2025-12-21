@@ -1,0 +1,360 @@
+.product-registration-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.product-registration-modal {
+  background-color: #ffffff;
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: auto;
+}
+
+.product-registration-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.product-registration-modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.product-registration-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.product-registration-modal-close:hover {
+  color: #666;
+}
+
+.product-registration-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.product-registration-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.product-registration-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.product-registration-input,
+.product-registration-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.product-registration-input:focus,
+.product-registration-select:focus {
+  outline: none;
+  border-color: #6b46c1;
+}
+
+.product-registration-input::placeholder {
+  color: #9ca3af;
+}
+
+.product-registration-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+}
+
+.product-registration-textarea:focus {
+  outline: none;
+  border-color: #6b46c1;
+}
+
+.product-registration-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.product-registration-product-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.product-registration-product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.product-registration-product-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.product-registration-product-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.product-registration-add-btn {
+  padding: 0.5rem 1rem;
+  background-color: #6b46c1;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.product-registration-add-btn:hover {
+  background-color: #5b21b6;
+}
+
+.product-registration-delete-btn {
+  padding: 0.5rem 1rem;
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.product-registration-delete-btn:hover {
+  background-color: #b91c1c;
+}
+
+.product-registration-checkbox-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.product-registration-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #333;
+}
+
+.product-registration-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.product-registration-price-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.product-registration-price-group .product-registration-input {
+  flex: 1;
+}
+
+.product-registration-price-unit {
+  font-size: 0.875rem;
+  color: #333;
+  white-space: nowrap;
+}
+
+.product-registration-attachment-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.product-registration-attachment-group .product-registration-select {
+  flex: 1;
+}
+
+.product-registration-attachment-add-btn {
+  padding: 0.5rem 1rem;
+  background-color: #6b46c1;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  min-width: 40px;
+  transition: background-color 0.2s;
+}
+
+.product-registration-attachment-add-btn:hover {
+  background-color: #5b21b6;
+}
+
+.product-registration-attachment-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.product-registration-attachment-label {
+  font-size: 0.875rem;
+  color: #333;
+  min-width: 80px;
+}
+
+.product-registration-attachment-item .product-registration-select {
+  flex: 1;
+}
+
+.product-registration-attachment-delete-btn {
+  padding: 0.5rem 1rem;
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  min-width: 40px;
+  transition: background-color 0.2s;
+}
+
+.product-registration-attachment-delete-btn:hover {
+  background-color: #b91c1c;
+}
+
+.product-registration-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.product-registration-cancel-btn {
+  padding: 0.5rem 1.5rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.product-registration-cancel-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.product-registration-save-btn {
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.product-registration-save-btn.enabled {
+  background-color: #333;
+  color: #ffffff;
+}
+
+.product-registration-save-btn.enabled:hover {
+  background-color: #000;
+}
+
+.product-registration-save-btn.disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.product-registration-edit-btn {
+  padding: 0.5rem 1.5rem;
+  background-color: #333;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.product-registration-edit-btn:hover {
+  background-color: #000;
+}
+
+.product-registration-display {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #333;
+  background-color: #f9f9f9;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

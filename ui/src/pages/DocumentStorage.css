@@ -1,0 +1,196 @@
+.document-storage-content {
+  flex: 1;
+  padding: 1rem;
+  padding-top: calc(1rem + 60px + 1rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 서류 첨부 버튼 */
+.document-attach-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.document-attach-btn:hover {
+  background-color: #333333;
+}
+
+.document-attach-btn:active {
+  transform: scale(0.98);
+}
+
+/* 첨부된 서류 영역 */
+.document-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.document-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.document-list-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+/* 정렬 버튼 */
+.sort-container {
+  position: relative;
+}
+
+.sort-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.sort-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.sort-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.sort-menu-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sort-menu-item:last-child {
+  border-bottom: none;
+}
+
+.sort-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.sort-menu-item.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* 서류 카드 */
+.document-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.document-card {
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.document-name {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+}
+
+.document-date {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0;
+}
+
+.document-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.document-action-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.document-action-btn.view-btn {
+  background-color: #6b46c1;
+  color: #ffffff;
+}
+
+.document-action-btn.view-btn:hover {
+  background-color: #5b21b6;
+}
+
+.document-action-btn.delete-btn {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+.document-action-btn.delete-btn:hover {
+  background-color: #b91c1c;
+}
+
+.document-action-btn:active {
+  transform: scale(0.98);
+}
+
+/* 빈 상태 */
+.empty-documents {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #999;
+}
+
+.empty-documents p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+

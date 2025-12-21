@@ -1,0 +1,397 @@
+/* SMS 전송 모달 스타일 */
+.sms-send-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.sms-send-modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.sms-send-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sms-send-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.sms-send-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.sms-send-modal-close:hover {
+  color: #333;
+}
+
+.sms-send-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sms-send-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.sms-send-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.sms-send-radio-group {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sms-send-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #333;
+}
+
+.sms-send-radio-label input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #6b46c1;
+}
+
+.sms-send-combobox-wrapper {
+  position: relative;
+}
+
+.sms-send-combobox-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+.sms-send-combobox-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-top: 0.25rem;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.sms-send-combobox-item {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.sms-send-combobox-item:hover {
+  background-color: #f5f5f5;
+}
+
+.sms-send-combobox-item:last-child {
+  border-bottom: none;
+}
+
+.sms-send-member-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.sms-send-member-phone {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.sms-send-form-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+.sms-send-form-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: #ffffff;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.sms-send-amount-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sms-send-amount-input-wrapper .sms-send-form-input {
+  flex: 1;
+}
+
+.sms-send-amount-unit {
+  font-size: 0.875rem;
+  color: #333;
+  white-space: nowrap;
+}
+
+.sms-send-form-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.sms-send-modal-actions {
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sms-send-preview-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-send-preview-btn.disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.sms-send-preview-btn.enabled {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.sms-send-preview-btn.enabled:hover {
+  background-color: #e5e5e5;
+}
+
+.sms-send-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sms-send-cancel-btn {
+  flex: 1;
+  padding: 0.75rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-send-cancel-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.sms-send-register-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-send-register-btn.disabled {
+  background-color: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.sms-send-register-btn.enabled {
+  background-color: #6b46c1;
+  color: #ffffff;
+}
+
+.sms-send-register-btn.enabled:hover {
+  background-color: #5b21b6;
+}
+
+/* SMS 미리보기 모달 스타일 */
+.sms-preview-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.sms-preview-modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.sms-preview-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sms-preview-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.sms-preview-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.sms-preview-modal-close:hover {
+  color: #333;
+}
+
+.sms-preview-modal-content {
+  padding: 1.5rem;
+}
+
+.sms-preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sms-preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sms-preview-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.sms-preview-value {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.sms-preview-message {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.sms-preview-modal-actions {
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: center;
+}
+
+.sms-preview-close-btn {
+  padding: 0.75rem 2rem;
+  background-color: #6b46c1;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-preview-close-btn:hover {
+  background-color: #5b21b6;
+}
+

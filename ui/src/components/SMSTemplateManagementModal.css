@@ -1,0 +1,210 @@
+/* SMS 템플릿 관리 모달 스타일 */
+.sms-template-management-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.sms-template-management-modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #000;
+}
+
+.sms-template-management-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sms-template-management-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.sms-template-management-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.sms-template-management-modal-close:hover {
+  color: #333;
+}
+
+.sms-template-management-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sms-template-register-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #6b46c1;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 1.5rem;
+}
+
+.sms-template-register-btn:hover {
+  background-color: #5b21b6;
+}
+
+.sms-template-empty-message {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.sms-template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sms-template-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  gap: 1rem;
+}
+
+.sms-template-name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #333;
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #ffffff;
+}
+
+.sms-template-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sms-template-usage-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-template-usage-btn.active {
+  background-color: #333;
+  color: #ffffff;
+}
+
+.sms-template-usage-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.sms-template-usage-btn.active:hover {
+  background-color: #1a1a1a;
+}
+
+.sms-template-detail-btn,
+.sms-template-delete-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-template-detail-btn:hover,
+.sms-template-delete-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.sms-template-delete-btn {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.sms-template-delete-btn:hover {
+  background-color: #fee2e2;
+}
+
+.sms-template-management-modal-actions {
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.sms-template-cancel-btn {
+  padding: 0.75rem 2rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-template-cancel-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.sms-template-save-btn {
+  padding: 0.75rem 2rem;
+  background-color: #333;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sms-template-save-btn:hover {
+  background-color: #1a1a1a;
+}
+
