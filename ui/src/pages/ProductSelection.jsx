@@ -100,9 +100,9 @@ const ProductSelection = () => {
 
         {/* Description */}
         {category && (
-          <div className="product-description">
+        <div className="product-description">
             <p>{category.detailed_description || category.brief_description || ''}</p>
-          </div>
+        </div>
         )}
 
         {/* Product List */}

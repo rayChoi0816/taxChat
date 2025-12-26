@@ -60,3 +60,50 @@
 .admin-product-category-close-btn:active {
   background-color: #e0e0e0;
 }
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .admin-product-category-page > * {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .admin-product-category-header {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    margin-top: 1rem;
+  }
+
+  .admin-product-category-title {
+    font-size: 1.25rem;
+  }
+
+  .admin-product-category-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-product-category-page > * {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .admin-product-category-header {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .admin-product-category-title {
+    font-size: 1.1rem;
+  }
+
+  .admin-product-category-close-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1.25rem;
+  }
+}

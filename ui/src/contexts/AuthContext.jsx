@@ -27,8 +27,8 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', response.token)
         localStorage.setItem('userPhone', phoneNumber)
         localStorage.setItem('user', JSON.stringify(response.member))
-        setIsAuthenticated(true)
-        setUserPhone(phoneNumber)
+    setIsAuthenticated(true)
+    setUserPhone(phoneNumber)
         setUser(response.member)
         return { success: true }
       }

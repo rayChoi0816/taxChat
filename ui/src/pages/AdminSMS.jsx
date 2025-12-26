@@ -487,7 +487,7 @@ const AdminSMS = () => {
                 <th>SMS 내용</th>
                 <th>성공 여부</th>
                 <th>메모</th>
-                <th>기능</th>
+                <th>재발송</th>
               </tr>
             </thead>
             <tbody>

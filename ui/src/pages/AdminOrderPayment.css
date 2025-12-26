@@ -206,3 +206,56 @@
   background-color: #f9fafb;
 }
 
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .admin-status-btn {
+    min-width: 100px;
+    width: 100px;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .admin-status-modal,
+  .admin-cancel-modal {
+    min-width: 90%;
+    max-width: 90%;
+    padding: 1rem;
+  }
+
+  .admin-status-option-btn {
+    min-width: auto;
+  }
+
+  .admin-modal-header h3 {
+    font-size: 1rem;
+  }
+
+  .admin-modal-actions {
+    flex-direction: column;
+  }
+
+  .admin-modal-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-status-btn {
+    min-width: 80px;
+    width: 80px;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .admin-status-modal,
+  .admin-cancel-modal {
+    min-width: 95%;
+    max-width: 95%;
+    padding: 0.75rem;
+  }
+
+  .admin-modal-header h3 {
+    font-size: 0.9rem;
+  }
+}
+

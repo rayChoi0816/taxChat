@@ -46,8 +46,8 @@ const Login = () => {
       try {
         const result = await login(phoneNumber)
         if (result.success) {
-          // 로그인 성공 시 메인 화면으로 이동
-          navigate('/')
+      // 로그인 성공 시 메인 화면으로 이동
+      navigate('/')
         } else {
           alert(result.error || '로그인에 실패했습니다')
         }

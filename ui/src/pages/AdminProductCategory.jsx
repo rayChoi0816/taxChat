@@ -14,7 +14,7 @@ const AdminProductCategory = () => {
   
   // 검색 필터 상태
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
-  const [searchType, setSearchType] = useState('상품 카테고리 코드')
+  const [searchType, setSearchType] = useState('상품 카테고리 ID')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [displayStatus, setDisplayStatus] = useState({
     진열: true,
@@ -94,7 +94,7 @@ const AdminProductCategory = () => {
 
   const handleReset = () => {
     setDateRange({ start: '', end: '' })
-    setSearchType('상품 카테고리 코드')
+    setSearchType('상품 카테고리 ID')
     setSearchKeyword('')
     setDisplayStatus({
       진열: true,
@@ -269,7 +269,7 @@ const AdminProductCategory = () => {
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
               >
-                <option value="상품 카테고리 코드">상품 카테고리 코드</option>
+                <option value="상품 카테고리 ID">상품 카테고리 ID</option>
                 <option value="상품 카테고리명">상품 카테고리명</option>
               </select>
               <input
@@ -369,7 +369,7 @@ const AdminProductCategory = () => {
                   onChange={handleSelectAll}
                 />
               </th>
-              <th>상품 카테고리 코드</th>
+              <th>상품 카테고리 ID</th>
               <th>상품 카테고리명</th>
               <th>상품 간략 카테고리 설명</th>
               <th>상품 상세 카테고리 설명</th>

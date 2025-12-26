@@ -587,12 +587,12 @@ const AdminOrderPayment = () => {
                             취소 완료
                           </button>
                         ) : (
-                          <button 
-                            className="admin-table-btn danger"
-                            onClick={() => handleCancelClick(order)}
-                          >
-                            결제 취소
-                          </button>
+                        <button 
+                          className="admin-table-btn danger"
+                          onClick={() => handleCancelClick(order)}
+                        >
+                          결제 취소
+                        </button>
                         )}
                       </td>
                     </tr>

@@ -127,12 +127,12 @@ const MyPage = () => {
             <div style={{ textAlign: 'center', padding: '2rem' }}>로딩 중...</div>
           ) : (
             <>
-              {/* 회원 정보 영역 */}
-              <div className="member-info-section">
-                <div className="member-info-row">
-                  <div className="member-info-left">
+          {/* 회원 정보 영역 */}
+          <div className="member-info-section">
+            <div className="member-info-row">
+              <div className="member-info-left">
                     <span className="member-info-value">{getDisplayValue() || '정보 없음'}</span>
-                  </div>
+              </div>
               <div className="member-info-right">
                 <button className="member-type-label-btn">
                   {memberType}

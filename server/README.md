@@ -1,5 +1,21 @@
 # TaxChat Backend Server
 
+Express.js 기반 백엔드 서버입니다.
+
+## 프로젝트 구조
+
+```
+server/
+├── config/          # 설정 파일 (데이터베이스, 초기화 등)
+├── middleware/      # 미들웨어 (인증 등)
+├── routes/          # API 라우트
+├── utils/           # 유틸리티 함수 (로거, 에러 처리, 유효성 검사 등)
+├── uploads/         # 업로드된 파일 저장 디렉토리
+├── server.js        # 서버 진입점
+├── package.json     # 의존성 및 스크립트
+└── nodemon.json     # nodemon 설정
+```
+
 ## 설치
 
 ```bash
@@ -8,25 +24,30 @@ npm install
 
 ## 환경 변수 설정
 
-`.env.example` 파일을 복사하여 `.env` 파일을 생성하고 데이터베이스 정보를 입력하세요:
+`.env` 파일을 생성하고 다음 내용을 입력하세요:
 
-```bash
-cp .env.example .env
-```
-
-`.env` 파일 내용:
 ```env
+# 서버 포트
 PORT=3001
+
+# 환경 설정
 NODE_ENV=development
 
+# PostgreSQL 데이터베이스 설정
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=taxchat
 DB_USER=postgres
 DB_PASSWORD=postgres
 
+# JWT 시크릿 키 (프로덕션에서는 반드시 변경하세요)
 JWT_SECRET=your-secret-key-change-in-production
+
+# 파일 업로드 디렉토리
 UPLOAD_DIR=./uploads
+
+# CORS 설정 (필요시)
+CORS_ORIGIN=http://localhost:5173
 ```
 
 ## 데이터베이스 설정
@@ -48,6 +69,7 @@ CREATE DATABASE taxchat;
 ```bash
 npm run dev
 ```
+nodemon을 사용하여 파일 변경 시 자동으로 서버가 재시작됩니다.
 
 ### 프로덕션 모드
 ```bash
@@ -55,6 +77,28 @@ npm start
 ```
 
 서버는 기본적으로 `http://localhost:3001`에서 실행됩니다.
+
+## 주요 기능
+
+### 미들웨어
+- **CORS**: Cross-Origin Resource Sharing 지원
+- **Body Parser**: JSON 및 URL-encoded 요청 파싱
+- **요청 로깅**: 개발 환경에서 요청 로그 출력
+- **에러 핸들링**: 통합 에러 처리 미들웨어
+
+### 유틸리티
+- **logger.js**: 구조화된 로깅 유틸리티
+- **errors.js**: 커스텀 에러 클래스
+- **validators.js**: 유효성 검사 함수
+
+### 에러 처리
+서버는 다음 커스텀 에러를 지원합니다:
+- `ValidationError` (400): 유효성 검사 실패
+- `UnauthorizedError` (401): 인증 필요
+- `ForbiddenError` (403): 접근 권한 없음
+- `NotFoundError` (404): 리소스를 찾을 수 없음
+- `ConflictError` (409): 이미 존재하는 리소스
+- `AppError` (500): 일반 서버 오류
 
 ## API 엔드포인트
 

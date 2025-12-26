@@ -637,11 +637,11 @@ const AdminCustomer = () => {
                 
                 if (visibleCustomers.length === 0) {
                   return (
-                    <tr>
+                <tr>
                       <td colSpan="10" style={{ textAlign: 'center', padding: '2rem' }}>
-                        검색 결과가 없습니다.
-                      </td>
-                    </tr>
+                    검색 결과가 없습니다.
+                  </td>
+                </tr>
                   )
                 }
                 
@@ -726,13 +726,13 @@ const AdminCustomer = () => {
           
           if (startPage > 1) {
             pages.push(
-              <button
+          <button
                 key={1}
-                className={`admin-pagination-page ${currentPage === 1 ? 'active' : ''}`}
-                onClick={() => setCurrentPage(1)}
-              >
-                1
-              </button>
+            className={`admin-pagination-page ${currentPage === 1 ? 'active' : ''}`}
+            onClick={() => setCurrentPage(1)}
+          >
+            1
+          </button>
             )
             if (startPage > 2) {
               pages.push(<span key="ellipsis1" className="admin-pagination-ellipsis">...</span>)
@@ -741,13 +741,13 @@ const AdminCustomer = () => {
           
           for (let i = startPage; i <= endPage; i++) {
             pages.push(
-              <button
+          <button
                 key={i}
                 className={`admin-pagination-page ${currentPage === i ? 'active' : ''}`}
                 onClick={() => setCurrentPage(i)}
-              >
+          >
                 {i}
-              </button>
+          </button>
             )
           }
           
@@ -756,34 +756,34 @@ const AdminCustomer = () => {
               pages.push(<span key="ellipsis2" className="admin-pagination-ellipsis">...</span>)
             }
             pages.push(
-              <button
+          <button
                 key={totalPages}
                 className={`admin-pagination-page ${currentPage === totalPages ? 'active' : ''}`}
                 onClick={() => setCurrentPage(totalPages)}
-              >
+          >
                 {totalPages}
-              </button>
+          </button>
             )
           }
           
           return (
             <div className="admin-pagination">
-              <button
+          <button
                 className="admin-pagination-btn"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              >
+          >
                 이전
-              </button>
+          </button>
               {pages}
-              <button
-                className="admin-pagination-btn"
+          <button
+            className="admin-pagination-btn"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              >
-                다음
-              </button>
-            </div>
+          >
+            다음
+          </button>
+        </div>
           )
         })()}
       </div>
