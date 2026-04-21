@@ -13,12 +13,20 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || 'postgres',
 }
 
+// 원격(Render 등) PostgreSQL 연결 시 SSL 필요
+const shouldUseSSL =
+  process.env.DB_SSL === 'true' || /\.render\.com$/i.test(dbConfig.host)
+if (shouldUseSSL) {
+  dbConfig.ssl = { rejectUnauthorized: false }
+}
+
 console.log('데이터베이스 연결 설정:', {
   host: dbConfig.host,
   port: dbConfig.port,
   database: dbConfig.database,
   user: dbConfig.user,
-  password: dbConfig.password ? '***' : '없음'
+  password: dbConfig.password ? '***' : '없음',
+  ssl: Boolean(dbConfig.ssl),
 })
 
 const pool = new Pool(dbConfig)
