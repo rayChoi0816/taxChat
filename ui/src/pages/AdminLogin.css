@@ -1,0 +1,126 @@
+.admin-login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  padding: 1.5rem;
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 380px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2.5rem 2rem 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-login-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.admin-login-subtitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #64748b;
+}
+
+.admin-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-login-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #ffffff;
+  color: #1f2937;
+  box-sizing: border-box;
+  text-align: center;
+  letter-spacing: 0.15em;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-login-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.admin-login-input:disabled {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.admin-login-error {
+  margin: 0;
+  padding: 0 0.25rem;
+  font-size: 0.8125rem;
+  color: #dc2626;
+  text-align: center;
+}
+
+.admin-login-button {
+  width: 100%;
+  padding: 0.875rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.admin-login-button.enabled {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-login-button.enabled:hover {
+  background: #1d4ed8;
+}
+
+.admin-login-button.enabled:active {
+  transform: scale(0.99);
+}
+
+.admin-login-button.disabled {
+  background: #cbd5e1;
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+.admin-login-back {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.admin-login-back:hover {
+  color: #1e293b;
+  background: #f1f5f9;
+}

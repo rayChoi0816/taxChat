@@ -87,6 +87,29 @@ const generateCustomerId = async (memberType, signupDate = new Date()) => {
   }
 }
 
+// 관리자 로그인 (비밀번호만)
+router.post('/admin-login', (req, res) => {
+  try {
+    const { password } = req.body || {}
+    const expected = process.env.ADMIN_PASSWORD || '6369'
+
+    if (String(password || '') !== String(expected)) {
+      return res.status(401).json({ error: '비밀번호가 일치하지 않습니다' })
+    }
+
+    const token = jwt.sign(
+      { role: 'admin', isAdmin: true },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '1d' }
+    )
+
+    res.json({ success: true, token })
+  } catch (error) {
+    console.error('관리자 로그인 오류:', error)
+    res.status(500).json({ error: '관리자 로그인 처리 중 오류가 발생했습니다' })
+  }
+})
+
 // 휴대폰 번호 정규화
 const normalizePhone = (value) => String(value || '').replace(/[^\d]/g, '')
 const isValidKoreanPhone = (phone) => /^01\d{8,9}$/.test(phone)

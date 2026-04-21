@@ -1,8 +1,8 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
-// 토큰 가져오기
+// 토큰 가져오기 (관리자 세션 토큰이 있으면 우선 사용)
 const getToken = () => {
-  return localStorage.getItem('token')
+  return sessionStorage.getItem('adminToken') || localStorage.getItem('token')
 }
 
 // 기본 fetch 래퍼
@@ -62,6 +62,11 @@ export const authAPI = {
   verifySmsCode: (phoneNumber, code) => fetchAPI('/auth/sms/verify', {
     method: 'POST',
     body: JSON.stringify({ phoneNumber, code }),
+  }),
+
+  adminLogin: (password) => fetchAPI('/auth/admin-login', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
   }),
 }
 

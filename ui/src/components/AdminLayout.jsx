@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useAdminAuth } from '../contexts/AdminAuthContext'
 import './AdminLayout.css'
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { logout: adminLogout } = useAdminAuth()
   const [selectedItems, setSelectedItems] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -24,7 +26,8 @@ const AdminLayout = ({ children }) => {
 
   const handleLogout = () => {
     if (window.confirm('로그아웃 하시겠습니까?')) {
-      navigate('/')
+      adminLogout()
+      navigate('/admin/login', { replace: true })
     }
   }
 

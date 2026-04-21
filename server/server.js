@@ -29,12 +29,26 @@ const __dirname = dirname(__filename)
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// CORS 설정
+// CORS 설정 (콤마로 여러 도메인 허용)
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
+  origin: (origin, callback) => {
+    // 같은 서버·서버사이드 호출 (origin 없음) 은 허용
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    return callback(new Error(`CORS 차단: ${origin}`))
+  },
+  credentials: true,
 }
 app.use(cors(corsOptions))
+
+console.log('허용된 CORS Origin:', allowedOrigins)
 
 // Body 파싱 미들웨어
 app.use(express.json({ limit: '10mb' }))

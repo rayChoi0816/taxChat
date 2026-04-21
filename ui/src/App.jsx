@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay, Pagination } from 'swiper/modules'
 import 'swiper/css'
@@ -29,7 +29,10 @@ import AddMemberType from './pages/AddMemberType'
 import MemberTypeForm from './pages/MemberTypeForm'
 import Login from './pages/Login'
 import AuthVerify from './pages/AuthVerify'
+import AdminLogin from './pages/AdminLogin'
 import AdminSettings from './pages/AdminSettings'
+import AdminRoute from './components/AdminRoute'
+import { AdminAuthProvider } from './contexts/AdminAuthContext'
 
 function BannerSlider({ banners }) {
   const swiperRef = useRef(null)
@@ -307,6 +310,7 @@ function Home() {
 function App() {
   return (
     <AuthProvider>
+      <AdminAuthProvider>
       <CustomerMemoProvider>
     <BrowserRouter>
       <Routes>
@@ -374,17 +378,24 @@ function App() {
           <Route path="/auth-verify" element={<AuthVerify />} />
           <Route path="/add-member-type" element={<AddMemberType />} />
           <Route path="/member-type-form" element={<MemberTypeForm />} />
-          <Route path="/admin/customer" element={<AdminCustomer />} />
-        <Route path="/admin/product-category" element={<AdminProductCategory />} />
-        <Route path="/admin/product" element={<AdminProduct />} />
-        <Route path="/admin/document" element={<AdminDocument />} />
-          <Route path="/admin/document-management" element={<DocumentManagement />} />
-          <Route path="/admin/sms" element={<AdminSMS />} />
-          <Route path="/admin/payment" element={<AdminOrderPayment />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
+
+          {/* 관리자 로그인 */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+
+          {/* 관리자 보호 라우트 */}
+          <Route path="/admin" element={<AdminRoute><Navigate to="/admin/customer" replace /></AdminRoute>} />
+          <Route path="/admin/customer" element={<AdminRoute><AdminCustomer /></AdminRoute>} />
+          <Route path="/admin/product-category" element={<AdminRoute><AdminProductCategory /></AdminRoute>} />
+          <Route path="/admin/product" element={<AdminRoute><AdminProduct /></AdminRoute>} />
+          <Route path="/admin/document" element={<AdminRoute><AdminDocument /></AdminRoute>} />
+          <Route path="/admin/document-management" element={<AdminRoute><DocumentManagement /></AdminRoute>} />
+          <Route path="/admin/sms" element={<AdminRoute><AdminSMS /></AdminRoute>} />
+          <Route path="/admin/payment" element={<AdminRoute><AdminOrderPayment /></AdminRoute>} />
+          <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
       </Routes>
     </BrowserRouter>
       </CustomerMemoProvider>
+      </AdminAuthProvider>
     </AuthProvider>
   )
 }
