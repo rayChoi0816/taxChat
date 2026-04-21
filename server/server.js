@@ -13,8 +13,15 @@ import memberRoutes from './routes/members.js'
 import productRoutes from './routes/products.js'
 import orderRoutes from './routes/orders.js'
 import documentRoutes from './routes/documents.js'
+import smsRoutes from './routes/sms.js'
+import paymentRoutes from './routes/payments.js'
+import settingsRoutes from './routes/settings.js'
 
 dotenv.config()
+
+// 환경 변수 기본값 설정
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+process.env.SKIP_AUTH = process.env.SKIP_AUTH || 'true'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -56,7 +63,9 @@ app.get('/', (req, res) => {
       members: '/api/members',
       products: '/api/products',
       orders: '/api/orders',
-      documents: '/api/documents'
+      documents: '/api/documents',
+      sms: '/api/sms',
+      payments: '/api/payments'
     },
     documentation: 'See README.md for API documentation'
   })
@@ -78,6 +87,9 @@ app.use('/api/members', memberRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/documents', documentRoutes)
+app.use('/api/sms', smsRoutes)
+app.use('/api/payments', paymentRoutes)
+app.use('/api/settings', settingsRoutes)
 
 // 404 핸들러
 app.use((req, res) => {

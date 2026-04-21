@@ -1,12 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './SMSTemplateManagementModal.css'
 import SMSTemplateRegistrationModal from './SMSTemplateRegistrationModal'
 
 const SMSTemplateManagementModal = ({ onClose, templates: initialTemplates = [], onTemplatesChange }) => {
-  const [templates, setTemplates] = useState(initialTemplates)
+  // API 응답의 usage_status를 usageStatus로 변환하고 기본값 설정
+  const normalizeTemplates = (templates) => {
+    return templates.map(template => ({
+      ...template,
+      usageStatus: template.usageStatus || template.usage_status || '미사용'
+    }))
+  }
+  
+  const [templates, setTemplates] = useState(normalizeTemplates(initialTemplates))
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [isEditMode, setIsEditMode] = useState(false)
+  
+  // initialTemplates가 변경될 때 상태 업데이트
+  useEffect(() => {
+    const normalized = initialTemplates.map(template => ({
+      ...template,
+      usageStatus: template.usageStatus || template.usage_status || '미사용'
+    }))
+    setTemplates(normalized)
+  }, [initialTemplates])
 
   const handleTemplateSave = (templateData) => {
     let updatedTemplates
@@ -49,13 +66,35 @@ const SMSTemplateManagementModal = ({ onClose, templates: initialTemplates = [],
     }
   }
 
-  const handleUsageStatusToggle = (templateId) => {
+  const handleUsageStatusToggle = async (templateId) => {
+    const template = templates.find(t => t.id === templateId)
+    if (!template) return
+    
+    const currentStatus = template.usageStatus || template.usage_status || '미사용'
+    const newStatus = currentStatus === '미사용' ? '사용' : '미사용'
+    
+    // alert 메시지 표시
+    if (currentStatus === '사용') {
+      alert('미사용 상태로 변경합니다. 선택 리스트에 노출되지 않습니다.')
+    } else {
+      alert('사용 상태로 변경합니다. 선택 리스트에 노출됩니다.')
+    }
+    
     const updatedTemplates = templates.map(t => 
       t.id === templateId
-        ? { ...t, usageStatus: t.usageStatus === '미사용' ? '사용' : '미사용' }
+        ? { ...t, usageStatus: newStatus, usage_status: newStatus }
         : t
     )
     setTemplates(updatedTemplates)
+    
+    // API 호출하여 서버에 저장
+    try {
+      const { smsAPI } = await import('../utils/api')
+      await smsAPI.updateTemplateUsage(templateId, newStatus)
+    } catch (error) {
+      console.error('템플릿 사용 상태 변경 오류:', error)
+    }
+    
     if (onTemplatesChange) {
       onTemplatesChange(updatedTemplates)
     }
@@ -122,10 +161,10 @@ const SMSTemplateManagementModal = ({ onClose, templates: initialTemplates = [],
                     <div className="sms-template-name">{template.name}</div>
                     <div className="sms-template-actions">
                       <button
-                        className={`sms-template-usage-btn ${template.usageStatus === '사용' ? 'active' : ''}`}
+                        className={`sms-template-usage-btn ${(template.usageStatus || template.usage_status || '미사용') === '사용' ? 'active' : ''}`}
                         onClick={() => handleUsageStatusToggle(template.id)}
                       >
-                        {template.usageStatus}
+                        {template.usageStatus || template.usage_status || '미사용'}
                       </button>
                       <button
                         className="sms-template-detail-btn"

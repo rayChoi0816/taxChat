@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고객 관리 - 데이터 없음 (모바일 미리보기)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        /* AdminLayout Header */
+        .admin-header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 1rem;
+        }
+
+        .admin-header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-logo {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #333;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid #e0e0e0;
+            background-color: #f9f9f9;
+        }
+
+        .admin-logout-btn {
+            padding: 0.5rem 1.5rem;
+            background-color: #6b46c1;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .admin-main {
+            padding: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .admin-page {
+            background-color: #f5f5f5;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Search Area - 모바일에서 표시 */
+        .admin-search-area {
+            display: block !important;
+            position: relative;
+            z-index: 100 !important;
+            background-color: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Controls */
+        .admin-controls {
+            background-color: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            position: relative;
+            z-index: 100 !important;
+        }
+
+        .admin-controls-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            width: 100%;
+            position: relative;
+        }
+
+        .admin-count-text {
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        .admin-select-all-btn {
+            padding: 0.5rem 1rem;
+            background-color: #ffffff;
+            color: #333;
+            border: 1px solid #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .admin-filter-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            background-color: transparent;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .admin-controls-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .admin-action-btn {
+            padding: 0.5rem 1rem;
+            background-color: #6b46c1;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .admin-action-btn.primary {
+            background-color: #6b46c1;
+        }
+
+        .admin-sort-select,
+        .admin-page-size-select {
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .admin-page-size-label {
+            font-size: 0.875rem;
+            color: #666;
+            margin-right: 0.5rem;
+        }
+
+        /* No Results Overlay - 모바일 */
+        .admin-table-container {
+            position: relative;
+            min-height: 50vh;
+            z-index: 1;
+            background-color: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+        }
+
+        .admin-no-results-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        /* 모바일에서 테이블 컨테이너 내부 오버레이 활성화 */
+        @media (max-width: 768px) {
+            /* 검색 영역과 컨트롤 영역이 보이도록 z-index 설정 */
+            .admin-search-area,
+            .admin-controls {
+                position: relative !important;
+                z-index: 1000 !important;
+            }
+            
+            .admin-no-results-mobile-overlay {
+                display: flex !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-width: 100% !important;
+                min-height: 50vh !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                background-color: rgba(255, 255, 255, 0.95) !important;
+                justify-content: center !important;
+                align-items: center !important;
+                z-index: 1 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                transform: none !important;
+                will-change: auto !important;
+                pointer-events: none !important;
+            }
+            
+            /* 오버레이 내부 메시지는 클릭 가능 */
+            .admin-no-results-mobile-overlay .admin-no-results-mobile-message {
+                pointer-events: auto !important;
+            }
+
+            .admin-no-results-mobile-message {
+                font-size: 1.125rem !important;
+                font-weight: 500 !important;
+                color: #6b7280 !important;
+                text-align: center !important;
+                padding: 2rem !important;
+                background-color: #ffffff !important;
+                border-radius: 12px !important;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+                border: 1px solid #e5e7eb !important;
+                min-width: 200px !important;
+                max-width: 90vw !important;
+                margin: 0 !important;
+                position: static !important;
+                display: block !important;
+                box-sizing: border-box !important;
+            }
+
+            .admin-table-desktop-only {
+                display: none !important;
+            }
+        }
+
+        /* 데스크톱에서는 오버레이 숨김 */
+        @media (min-width: 769px) {
+            .admin-no-results-mobile-overlay {
+                display: none !important;
+            }
+
+            .admin-search-area {
+                display: block !important;
+            }
+
+            .admin-table-desktop-only {
+                display: table !important;
+            }
+        }
+
+        /* 데스크톱용 테이블 */
+        .admin-table-desktop-only {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #ffffff;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .admin-table-desktop-only th,
+        .admin-table-desktop-only td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .admin-table-desktop-only th {
+            background-color: #f9f9f9;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #333;
+        }
+
+        .admin-table-desktop-only tbody tr:last-child td {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="admin-header-content">
+                <div class="admin-logo">로고 이미지</div>
+                <button class="admin-logout-btn">로그아웃</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <div class="admin-page">
+                <!-- Search Area -->
+                <div class="admin-search-area">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">등록일시</label>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                            <button style="padding: 0.4rem 0.8rem; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">오늘</button>
+                            <button style="padding: 0.4rem 0.8rem; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">1주일</button>
+                            <button style="padding: 0.4rem 0.8rem; background: #333; color: #fff; border: 1px solid #333; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">3개월</button>
+                            <button style="padding: 0.4rem 0.8rem; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">6개월</button>
+                            <button style="padding: 0.4rem 0.8rem; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">1년</button>
+                            <button style="padding: 0.4rem 0.8rem; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">전체</button>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="date" style="padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.875rem; flex: 1;">
+                            <span style="color: #666; font-size: 0.875rem;">~</span>
+                            <input type="date" style="padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.875rem; flex: 1;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #333; margin-bottom: 0.5rem;">검색</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select style="padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.875rem; min-width: 120px;">
+                                <option>회원명</option>
+                                <option>연락처</option>
+                            </select>
+                            <input type="text" placeholder="검색어 입력" style="flex: 1; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.875rem;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem;">
+                        <button style="padding: 0.5rem 1.5rem; background: #9ca3af; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">검색</button>
+                        <button style="padding: 0.5rem 1.5rem; background: #fff; color: #333; border: 1px solid #333; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">초기화</button>
+                    </div>
+                </div>
+
+                <!-- Common Controls -->
+                <div class="admin-controls">
+                    <div class="admin-controls-left">
+                        <span class="admin-count-text">총 0</span>
+                        <span class="admin-count-text">선택 0 건</span>
+                        <button class="admin-select-all-btn">전체 선택</button>
+                        <button class="admin-filter-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="4" y1="21" x2="4" y2="14"></line>
+                                <line x1="4" y1="10" x2="4" y2="3"></line>
+                                <line x1="12" y1="21" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12" y2="3"></line>
+                                <line x1="20" y1="21" x2="20" y2="16"></line>
+                                <line x1="20" y1="12" x2="20" y2="3"></line>
+                                <line x1="1" y1="14" x2="7" y2="14"></line>
+                                <line x1="9" y1="8" x2="15" y2="8"></line>
+                                <line x1="17" y1="16" x2="23" y2="16"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="admin-controls-right">
+                        <div>
+                            <button class="admin-action-btn primary">회원 등록</button>
+                        </div>
+                        <div>
+                            <select class="admin-sort-select">
+                                <option>등록일시순</option>
+                                <option>등록일시 역순</option>
+                            </select>
+                        </div>
+                        <div>
+                            <span class="admin-page-size-label">페이지당 리스트 수</span>
+                            <select class="admin-page-size-select">
+                                <option>10</option>
+                                <option>20</option>
+                                <option>50</option>
+                                <option>100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="admin-table-container">
+                    <div class="admin-no-results-wrapper">
+                        <!-- 모바일용 전체 화면 중앙 메시지 -->
+                        <div class="admin-no-results-mobile-overlay">
+                            <div class="admin-no-results-mobile-message">
+                                검색 결과가 없습니다.
+                            </div>
+                        </div>
+                        
+                        <!-- 데스크톱용 테이블 -->
+                        <table class="admin-table-desktop-only">
+                            <thead>
+                                <tr>
+                                    <th>회원 유형</th>
+                                    <th>가입 방식</th>
+                                    <th>고객 ID</th>
+                                    <th>회원명</th>
+                                    <th>연락처</th>
+                                    <th>메모</th>
+                                    <th>회원 정보 입력 여부</th>
+                                    <th>삭제</th>
+                                    <th>등록일</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="10" style="text-align: center; padding: 2rem; color: #6b7280;">
+                                        검색 결과가 없습니다.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 모바일 화면 크기로 시뮬레이션 안내
+        console.log('📱 모바일 환경 미리보기');
+        console.log('이 페이지는 모바일 화면 크기(최대 768px)에서 정확히 표시됩니다.');
+        console.log('브라우저 개발자 도구(F12)에서 모바일 뷰로 확인하세요.');
+        
+        // 화면 크기에 따라 안내 메시지
+        function checkViewport() {
+            const width = window.innerWidth;
+            if (width <= 768) {
+                console.log('✅ 모바일 모드: "검색 결과가 없습니다." 메시지가 화면 정중앙에 표시됩니다.');
+            } else {
+                console.log('💻 데스크톱 모드: 테이블 형태로 표시됩니다.');
+                console.log('모바일 미리보기를 보려면 브라우저 창을 줄이거나 개발자 도구의 모바일 뷰를 사용하세요.');
+            }
+        }
+        
+        checkViewport();
+        window.addEventListener('resize', checkViewport);
+    </script>
+</body>
+</html>
+

@@ -1,3 +1,5 @@
+/* AdminCustomer.css - AdminLayout.css보다 나중에 로드되므로 우선순위가 높음 */
+
 /* Search Area */
 .admin-search-area {
   background-color: #ffffff;
@@ -15,14 +17,6 @@
 
 .admin-search-section {
   flex: 1;
-}
-
-.admin-search-section-left {
-  /* 등록일시 검색 영역 */
-}
-
-.admin-search-section-right {
-  /* 검색어 입력 영역 */
 }
 
 .admin-search-label {
@@ -278,12 +272,37 @@
   }
 }
 
-/* Memo Column - 25자 기준 고정 너비 (한글 기준 약 200px) */
+/* 회원명 컬럼 - 회원명과 동일한 너비 */
+.admin-table th:nth-child(5),
+.admin-table td:nth-child(5) {
+  width: 362px;
+  min-width: 362px;
+  max-width: 362px;
+  table-layout: fixed;
+  text-align: right;
+  padding-right: 1.5rem;
+}
+
+/* 연락처 컬럼 - 회원명과 동일한 너비 (5번째 컬럼과 동일) */
 .admin-table th:nth-child(6),
 .admin-table td:nth-child(6) {
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
+  width: 362px;
+  min-width: 362px;
+  max-width: 362px;
+  table-layout: fixed;
+  text-align: right;
+  padding-right: 1.5rem;
+}
+
+/* Memo Column - 25자 기준 고정 너비 (한글 기준 약 200px) */
+.admin-table th:nth-child(7),
+.admin-table td:nth-child(7) {
+  width: 362px;
+  min-width: 362px;
+  max-width: 362px;
+  height: 31.99px;
+  min-height: 31.99px;
+  max-height: 31.99px;
   table-layout: fixed;
 }
 
@@ -307,4 +326,546 @@
 .memo-cell-content:hover {
   color: #6b46c1;
   text-decoration: underline;
+}
+
+/* AdminCustomer 페이지: AdminProduct 페이지와 동일한 스타일 적용 */
+/* 검색 결과 없음 메시지는 AdminLayout.css의 공통 스타일 사용 */
+
+/* 모바일 환경에서 "검색 결과가 없습니다" 메시지 중앙 정렬 - AdminProduct와 동일 */
+@media (max-width: 768px) {
+  /* 모바일에서 colspan="10"인 td를 화면 정중앙에 배치 */
+  /* AdminLayout.css의 td 스타일을 오버라이드하기 위해 더 구체적인 선택자 사용 */
+  .admin-table-container .admin-table tbody tr td[colspan="10"],
+  .admin-table tbody tr td[colspan="10"],
+  .admin-page .admin-table tbody tr td[colspan="10"] {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    padding: 2rem;
+    margin: 0 auto;
+    position: relative;
+    left: auto;
+    right: auto;
+    transform: none;
+    gap: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  
+  /* td::before 제거 (모바일에서 라벨 숨김) */
+  .admin-table-container .admin-table tbody tr td[colspan="10"]:before,
+  .admin-table tbody tr td[colspan="10"]:before,
+  .admin-page .admin-table tbody tr td[colspan="10"]:before {
+    display: none;
+    content: none;
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+  }
+  
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-table-container .admin-table tbody tr td[colspan="10"] > *,
+  .admin-table tbody tr td[colspan="10"] > *,
+  .admin-page .admin-table tbody tr td[colspan="10"] > * {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+/* 반응형 디자인 - td::before 크기 조정 */
+@media (max-width: 768px) {
+
+  /* 회원명 컬럼 td::before - 108.59 × 16.8 */
+  .admin-table tbody td:nth-child(5):before {
+    min-width: 108.59px;
+    max-width: 108.59px;
+    width: 108.59px;
+    height: 16.8px;
+    line-height: 16.8px;
+  }
+
+  /* 연락처 컬럼 td::before - 회원명과 동일한 크기 (108.59 × 16.8) */
+  .admin-table tbody td:nth-child(6):before {
+    min-width: 108.59px;
+    max-width: 108.59px;
+    width: 108.59px;
+    height: 16.8px;
+    line-height: 16.8px;
+  }
+
+  /* 회원명 컬럼 - flex-end로 콘텐츠 오른쪽 정렬 */
+  .admin-table tbody td:nth-child(5) {
+    justify-content: flex-end !important;
+  }
+
+  /* 연락처 컬럼 - flex-end로 콘텐츠 오른쪽 정렬 */
+  .admin-table tbody td:nth-child(6) {
+    justify-content: flex-end !important;
+  }
+
+  /* 모바일에서 전체 화면 오버레이 활성화 - 화면 정중앙 배치 (AdminCustomer 페이지에만 적용) */
+  /* AdminCustomer 페이지에서만 적용되도록 더 구체적인 선택자 사용 */
+  /* 기본값: 모든 오버레이 숨김 */
+  .admin-no-results-mobile-overlay {
+    display: none !important;
+  }
+  
+  /* AdminCustomer 페이지에서만 오버레이 활성화 */
+  .admin-page .admin-no-results-wrapper .admin-no-results-mobile-overlay,
+  .admin-table-container .admin-no-results-wrapper .admin-no-results-mobile-overlay,
+  .admin-no-results-wrapper .admin-no-results-mobile-overlay {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    min-width: 100vw !important;
+    min-height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    transform: none !important;
+    will-change: auto !important;
+    pointer-events: auto !important;
+  }
+  
+  /* 다른 페이지에서 혹시 같은 클래스가 있을 경우를 대비해 기본값 설정 */
+  /* 기본적으로 모든 오버레이 숨김 (AdminCustomer 페이지에서만 활성화) */
+  .admin-no-results-mobile-overlay {
+    display: none !important;
+    z-index: -1 !important;
+    pointer-events: none !important;
+  }
+  
+  /* AdminCustomer 페이지에서만 오버레이 활성화 (더 구체적인 선택자 사용) */
+  .admin-page .admin-no-results-wrapper .admin-no-results-mobile-overlay,
+  .admin-table-container .admin-no-results-wrapper .admin-no-results-mobile-overlay {
+    display: flex !important;
+    z-index: 999999 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* 중앙 메시지 스타일 */
+  .admin-no-results-mobile-message {
+    font-size: 1.125rem !important;
+    font-weight: 500 !important;
+    color: #6b7280 !important;
+    text-align: center !important;
+    padding: 2rem !important;
+    background-color: #ffffff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid #e5e7eb !important;
+    min-width: 200px !important;
+    max-width: 90vw !important;
+    margin: 0 !important;
+    position: static !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
+    /* 테이블 관련 속성 제거 */
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    table-layout: auto !important;
+    /* flexbox 관련 속성 초기화 */
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+    align-self: auto !important;
+    order: 0 !important;
+  }
+  
+  /* 모바일에서 데스크톱용 테이블 완전히 숨김 - 더 강력한 선택자 사용 */
+  .admin-no-results-wrapper table.admin-table-desktop-only,
+  .admin-no-results-wrapper .admin-table-desktop-only,
+  .admin-table-container .admin-no-results-wrapper table.admin-table-desktop-only,
+  .admin-table-container .admin-no-results-wrapper .admin-table-desktop-only {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    max-height: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    pointer-events: none !important;
+  }
+  
+  /* 기존 테이블 관련 스타일 초기화 - AdminLayout.css의 display:block을 덮어씀 */
+  /* AdminCustomer 페이지에만 적용되도록 더 구체적인 선택자 사용 */
+  .admin-page .admin-no-results-wrapper table.admin-table,
+  .admin-page .admin-no-results-wrapper .admin-table,
+  .admin-table-container .admin-no-results-wrapper table.admin-table,
+  .admin-table-container .admin-no-results-wrapper .admin-table {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    max-height: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+  
+  /* 테이블 내부 요소들도 모두 숨김 - 하지만 admin-no-results-td-mobile 클래스가 있는 td는 예외 */
+  .admin-no-results-wrapper table.admin-table thead,
+  .admin-no-results-wrapper table.admin-table tbody,
+  .admin-no-results-wrapper table.admin-table tr,
+  .admin-no-results-wrapper table.admin-table td:not(.admin-no-results-td-mobile),
+  .admin-no-results-wrapper table.admin-table th {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    pointer-events: none !important;
+  }
+  
+  /* admin-no-results-td-mobile 클래스가 있는 td는 표시하고 정중앙 배치 - AdminLayout.css의 모든 스타일 덮어쓰기 */
+  /* 가장 구체적인 선택자부터 시작 - 실제 DOM 경로와 일치 */
+  /* 인라인 스타일을 덮어쓰지 않도록 !important 사용하지 않음 - 인라인 스타일이 우선 */
+  /* 하지만 CSS도 함께 작동하도록 보완 */
+  td[colspan="10"].admin-no-results-td-mobile,
+  td.admin-no-results-td-mobile[colspan="10"],
+  #root > div > main > div > div.admin-table-container > table > tbody > tr > td.admin-no-results-td-mobile,
+  #root > div > main > div > div.admin-table-container > table > tbody > tr > td[colspan="10"].admin-no-results-td-mobile,
+  #root > div > main > div > div.admin-table-container > div.admin-no-results-wrapper > table > tbody > tr > td.admin-no-results-td-mobile,
+  div.admin-layout main.admin-main div.admin-page div.admin-table-container div.admin-no-results-wrapper table.admin-table tbody tr td.admin-no-results-td-mobile,
+  div.admin-layout main.admin-main div.admin-page div.admin-table-container div.admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile,
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody tr td.admin-no-results-td-mobile,
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile,
+  .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody tr td.admin-no-results-td-mobile,
+  .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile,
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody tr td.admin-no-results-td-mobile,
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile,
+  .admin-no-results-wrapper table.admin-table tbody tr td.admin-no-results-td-mobile,
+  .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile,
+  .admin-no-results-wrapper table.admin-table td.admin-no-results-td-mobile {
+    /* 위치 - AdminLayout.css의 position: static을 덮어씀 */
+    /* 인라인 스타일이 있으므로 !important 없이도 작동해야 하지만, 확실히 하기 위해 !important 사용 */
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    /* 표시 */
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    /* 크기 */
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    /* 정렬 - AdminLayout.css의 justify-content: normal, text-align: left를 덮어씀 */
+    justify-content: center !important;
+    align-items: center !important;
+    align-content: center !important;
+    text-align: center !important;
+    /* 모든 flexbox 속성 명시적으로 설정 */
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    /* 여백/패딩 - AdminLayout.css의 padding: 0.5rem 0을 덮어씀 */
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    padding: 2rem !important;
+    padding-top: 2rem !important;
+    padding-right: 2rem !important;
+    padding-bottom: 2rem !important;
+    padding-left: 2rem !important;
+    gap: 0 !important;
+    /* 테두리 */
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-width: 0 !important;
+    /* flexbox */
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+    align-self: auto !important;
+    order: 0 !important;
+    /* 기타 */
+    z-index: 999999 !important;
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    pointer-events: auto !important;
+    /* AdminLayout.css의 font-size: 0.85rem, min-height: 1.5rem 덮어쓰기 */
+    font-size: 1.125rem !important;
+    min-height: auto !important;
+  }
+  
+  /* admin-no-results-td-mobile의 ::before 가상 요소 완전히 제거 */
+  .admin-no-results-wrapper table.admin-table td.admin-no-results-td-mobile::before,
+  .admin-table-container .admin-no-results-wrapper table.admin-table td.admin-no-results-td-mobile::before,
+  .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile::before,
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile::before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    flex: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+  
+  /* admin-no-results-td-mobile 내부의 모든 요소 중앙 정렬 */
+  .admin-no-results-wrapper table.admin-table td.admin-no-results-td-mobile > *,
+  .admin-table-container .admin-no-results-wrapper table.admin-table td.admin-no-results-td-mobile > *,
+  .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile > *,
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td.admin-no-results-td-mobile > * {
+    flex: none !important;
+    text-align: center !important;
+    margin: 0 auto !important;
+    width: auto !important;
+    justify-content: center !important;
+    align-items: center !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+  
+  /* colspan="10"인 td도 동일하게 처리 - AdminLayout.css의 모든 스타일 덮어쓰기 */
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody tr td[colspan="10"],
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody td[colspan="10"],
+  .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody tr td[colspan="10"],
+  .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table tbody td[colspan="10"],
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody tr td[colspan="10"],
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td[colspan="10"],
+  .admin-no-results-wrapper table.admin-table tbody tr td[colspan="10"],
+  .admin-no-results-wrapper table.admin-table tbody td[colspan="10"],
+  .admin-no-results-wrapper table.admin-table td[colspan="10"] {
+    /* 위치 관련 - AdminLayout.css의 position: static을 덮어씀 */
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    /* 표시 관련 */
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    /* 크기 관련 */
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    /* 정렬 관련 - AdminLayout.css의 justify-content: normal과 text-align: left를 덮어씀 */
+    justify-content: center !important;
+    align-items: center !important;
+    align-content: center !important;
+    text-align: center !important;
+    /* 여백/패딩 */
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    padding: 2rem !important;
+    padding-top: 2rem !important;
+    padding-right: 2rem !important;
+    padding-bottom: 2rem !important;
+    padding-left: 2rem !important;
+    gap: 0 !important;
+    /* 테두리 */
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-width: 0 !important;
+    /* flexbox 관련 */
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+    align-self: auto !important;
+    order: 0 !important;
+    /* 기타 */
+    pointer-events: auto !important;
+    z-index: 999999 !important;
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+  
+  /* td의 ::before 가상 요소 완전히 제거 */
+  .admin-no-results-wrapper table.admin-table td[colspan="10"]::before,
+  .admin-table-container .admin-no-results-wrapper table.admin-table td[colspan="10"]::before,
+  .admin-no-results-wrapper table.admin-table tbody td[colspan="10"]::before,
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td[colspan="10"]::before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    flex: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+  
+  /* td 내부의 모든 요소 중앙 정렬 */
+  .admin-no-results-wrapper table.admin-table td[colspan="10"] > *,
+  .admin-table-container .admin-no-results-wrapper table.admin-table td[colspan="10"] > *,
+  .admin-no-results-wrapper table.admin-table tbody td[colspan="10"] > *,
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td[colspan="10"] > *,
+  .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table td[colspan="10"] > *,
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-no-results-wrapper table.admin-table td[colspan="10"] > * {
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+    text-align: center !important;
+    margin: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    width: auto !important;
+    min-width: auto !important;
+    max-width: 100% !important;
+    justify-content: center !important;
+    align-items: center !important;
+    align-self: center !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* td 내부의 텍스트 노드도 중앙 정렬 */
+  .admin-no-results-wrapper table.admin-table td[colspan="10"],
+  .admin-table-container .admin-no-results-wrapper table.admin-table td[colspan="10"],
+  .admin-no-results-wrapper table.admin-table tbody td[colspan="10"],
+  .admin-table-container .admin-no-results-wrapper table.admin-table tbody td[colspan="10"] {
+    text-align: center !important;
+    /* 텍스트 정렬 강제 */
+    direction: ltr !important;
+    unicode-bidi: normal !important;
+  }
+  
+  /* 기존 no-results 관련 스타일 비활성화 */
+  .admin-no-results-wrapper .no-results-row,
+  .admin-no-results-wrapper .no-results-message {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  
+  /* admin-table-container의 overflow 제거 */
+  .admin-table-container {
+    overflow: visible !important;
+    position: relative !important;
+  }
+  
+  .admin-no-results-wrapper {
+    overflow: visible !important;
+    position: relative !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+
+  /* 회원명 컬럼 td::before - 108.59 × 16.8 */
+  .admin-table tbody td:nth-child(5):before {
+    min-width: 108.59px;
+    max-width: 108.59px;
+    width: 108.59px;
+    height: 16.8px;
+    line-height: 16.8px;
+  }
+
+  /* 연락처 컬럼 td::before - 회원명과 동일한 크기 (108.59 × 16.8) */
+  .admin-table tbody td:nth-child(6):before {
+    min-width: 108.59px;
+    max-width: 108.59px;
+    width: 108.59px;
+    height: 16.8px;
+    line-height: 16.8px;
+  }
+
+  /* 회원명 컬럼 - flex-end로 콘텐츠 오른쪽 정렬 */
+  .admin-table tbody td:nth-child(5) {
+    justify-content: flex-end !important;
+  }
+
+  /* 연락처 컬럼 - flex-end로 콘텐츠 오른쪽 정렬 */
+  .admin-table tbody td:nth-child(6) {
+    justify-content: flex-end !important;
+  }
+
+  /* 작은 모바일 화면에서도 동일한 스타일 유지 */
+  .admin-table-container .admin-table tbody tr td[colspan="10"],
+  .admin-table tbody tr td[colspan="10"],
+  .admin-page .admin-table tbody tr td[colspan="10"] {
+    padding: 2rem;
+  }
 }

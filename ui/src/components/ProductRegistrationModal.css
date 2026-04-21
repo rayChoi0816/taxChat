@@ -161,8 +161,14 @@
   transition: background-color 0.2s;
 }
 
-.product-registration-add-btn:hover {
+.product-registration-add-btn:hover:not(.disabled) {
   background-color: #5b21b6;
+}
+
+.product-registration-add-btn.disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .product-registration-delete-btn {
@@ -177,8 +183,14 @@
   transition: background-color 0.2s;
 }
 
-.product-registration-delete-btn:hover {
+.product-registration-delete-btn:hover:not(.disabled) {
   background-color: #b91c1c;
+}
+
+.product-registration-delete-btn.disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .product-registration-checkbox-group {

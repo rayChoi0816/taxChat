@@ -159,7 +159,8 @@ const MemberRegistrationModal = ({ onClose, onSave, initialMemberType = '비사�
               name: nonBusinessFields.name,
               gender: nonBusinessFields.gender,
               rrn: `${nonBusinessFields.rrnFront}-${nonBusinessFields.rrnBack}`,
-              address: `${nonBusinessFields.address} ${nonBusinessFields.detailAddress}`
+              baseAddress: nonBusinessFields.address || '',
+              detailAddress: nonBusinessFields.detailAddress || ''
             }
           : {
               businessName: businessFields.businessName,
@@ -167,7 +168,8 @@ const MemberRegistrationModal = ({ onClose, onSave, initialMemberType = '비사�
               businessNumber: businessFields.businessNumber,
               industry: businessFields.industry,
               businessType: businessFields.businessType,
-              address: `${businessFields.address} ${businessFields.detailAddress}`,
+              baseAddress: businessFields.address || '',
+              detailAddress: businessFields.detailAddress || '',
               startDate: businessFields.startDate
             }
         )

@@ -28,6 +28,15 @@ const fetchAPI = async (endpoint, options = {}) => {
 
     return await response.json()
   } catch (error) {
+    // 네트워크 오류인 경우 더 명확한 메시지 제공
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+      console.error('API 호출 오류: 서버에 연결할 수 없습니다.', {
+        endpoint: `${API_BASE_URL}${endpoint}`,
+        message: '백엔드 서버가 실행 중인지 확인해주세요. (http://localhost:3001)',
+        error: error.message
+      })
+      throw new Error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.')
+    }
     console.error('API 호출 오류:', error)
     throw error
   }
@@ -35,23 +44,49 @@ const fetchAPI = async (endpoint, options = {}) => {
 
 // 인증 API
 export const authAPI = {
-  login: (phoneNumber) => fetchAPI('/auth/login', {
+  login: (phoneNumber, password) => fetchAPI('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber, password }),
+  }),
+
+  signup: (phoneNumber, memberType, memberData, password) => fetchAPI('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber, memberType, memberData, password }),
+  }),
+
+  requestSmsCode: (phoneNumber) => fetchAPI('/auth/sms/request', {
     method: 'POST',
     body: JSON.stringify({ phoneNumber }),
   }),
-  
-  signup: (phoneNumber, memberType, memberData) => fetchAPI('/auth/signup', {
+
+  verifySmsCode: (phoneNumber, code) => fetchAPI('/auth/sms/verify', {
     method: 'POST',
-    body: JSON.stringify({ phoneNumber, memberType, memberData }),
+    body: JSON.stringify({ phoneNumber, code }),
   }),
 }
 
 // 회원 API
 export const memberAPI = {
   getMembers: (params = {}) => {
-    const queryString = new URLSearchParams(params).toString()
-    return fetchAPI(`/members?${queryString}`)
+    // URLSearchParams는 배열을 자동으로 처리하므로 그대로 사용
+    const queryParams = new URLSearchParams()
+    Object.keys(params).forEach(key => {
+      const value = params[key]
+      if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value)) {
+          // 배열인 경우 각 값을 별도로 추가
+          value.forEach(v => queryParams.append(key, v))
+        } else {
+          queryParams.append(key, value)
+        }
+      }
+    })
+    return fetchAPI(`/members?${queryParams.toString()}`)
   },
+  
+  getMember: (id) => fetchAPI(`/members/${id}`),
+  
+  getMemberTypes: (id) => fetchAPI(`/members/${id}/member-types`),
   
   createMember: (memberData) => fetchAPI('/members', {
     method: 'POST',
@@ -111,6 +146,11 @@ export const productAPI = {
     body: JSON.stringify(productData),
   }),
   
+  updateProduct: (id, productData) => fetchAPI(`/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(productData),
+  }),
+  
   updateProductDisplay: (id, displayStatus) => fetchAPI(`/products/${id}/display`, {
     method: 'PATCH',
     body: JSON.stringify({ displayStatus }),
@@ -144,6 +184,10 @@ export const documentAPI = {
     body: JSON.stringify({ name }),
   }),
   
+  deleteCategory: (id) => fetchAPI(`/documents/categories/${id}`, {
+    method: 'DELETE',
+  }),
+  
   getDocuments: (params = {}) => {
     const queryString = new URLSearchParams(params).toString()
     return fetchAPI(`/documents?${queryString}`)
@@ -153,6 +197,25 @@ export const documentAPI = {
     method: 'POST',
     body: JSON.stringify(documentData),
   }),
+  
+  updateDocument: (id, documentData) => fetchAPI(`/documents/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(documentData),
+  }),
+  
+  updateDocumentUsageStatus: (id, usageStatus) => fetchAPI(`/documents/${id}/usage-status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ usageStatus }),
+  }),
+  
+  deleteDocument: (id) => fetchAPI(`/documents/${id}`, {
+    method: 'DELETE',
+  }),
+  
+  getAttachments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString()
+    return fetchAPI(`/documents/attachments?${queryString}`)
+  },
   
   getMemberDocuments: (memberId) => fetchAPI(`/documents/member/${memberId}`),
   
@@ -179,7 +242,135 @@ export const documentAPI = {
   deleteDocument: (memberId, documentId) => fetchAPI(`/documents/member/${memberId}/${documentId}`, {
     method: 'DELETE',
   }),
+  
+  updateMemberDocument: (memberId, documentId, formData) => {
+    const token = getToken()
+    return fetch(`${API_BASE_URL}/documents/member/${memberId}/${documentId}`, {
+      method: 'PUT',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    }).then(res => res.json())
+  },
+}
+
+// SMS API
+export const smsAPI = {
+  getTemplates: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString()
+    return fetchAPI(`/sms/templates?${queryString}`)
+  },
+  
+  createTemplate: (templateData) => fetchAPI('/sms/templates', {
+    method: 'POST',
+    body: JSON.stringify(templateData),
+  }),
+  
+  updateTemplate: (id, templateData) => fetchAPI(`/sms/templates/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(templateData),
+  }),
+  
+  updateTemplateUsage: (id, usageStatus) => fetchAPI(`/sms/templates/${id}/usage`, {
+    method: 'PATCH',
+    body: JSON.stringify({ usageStatus }),
+  }),
+  
+  deleteTemplate: (id) => fetchAPI(`/sms/templates/${id}`, {
+    method: 'DELETE',
+  }),
+  
+  getMessages: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString()
+    return fetchAPI(`/sms?${queryString}`)
+  },
+  
+  sendSMS: (smsData) => fetchAPI('/sms/send', {
+    method: 'POST',
+    body: JSON.stringify(smsData),
+  }),
+  
+  resendSMS: (id) => fetchAPI(`/sms/${id}/resend`, {
+    method: 'POST',
+  }),
+}
+
+// 결제 API
+export const paymentAPI = {
+  getPayments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString()
+    return fetchAPI(`/payments?${queryString}`)
+  },
+  
+  createPayment: (paymentData) => fetchAPI('/payments', {
+    method: 'POST',
+    body: JSON.stringify(paymentData),
+  }),
+  
+  updatePaymentStatus: (id, statusData) => fetchAPI(`/payments/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify(statusData),
+  }),
+  
+  cancelPayment: (id, cancelData) => fetchAPI(`/payments/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(cancelData),
+  }),
+}
+
+// 환경 설정 (메인 배너 등)
+const multipartFetch = async (url, options = {}) => {
+  const token = getToken()
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(options.headers || {}),
+    },
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(body.error || `HTTP error! status: ${res.status}`)
+  }
+  return body
+}
+
+export const settingsAPI = {
+  // all=true 로 호출하면 비활성 배너까지 포함 (관리자용)
+  getMainBanners: (options = {}) => {
+    const q = options.all ? '?all=1' : ''
+    return fetchAPI(`/settings/main-banners${q}`)
+  },
+
+  createMainBanner: (formData) =>
+    multipartFetch(`${API_BASE_URL}/settings/main-banners`, {
+      method: 'POST',
+      body: formData,
+    }),
+
+  updateMainBanner: (id, formData) =>
+    multipartFetch(`${API_BASE_URL}/settings/main-banners/${id}`, {
+      method: 'PUT',
+      body: formData,
+    }),
+
+  toggleMainBanner: (id, isActive) =>
+    fetchAPI(`/settings/main-banners/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    }),
+
+  reorderMainBanners: (items) =>
+    fetchAPI('/settings/main-banners/reorder', {
+      method: 'PATCH',
+      body: JSON.stringify({ items }),
+    }),
+
+  deleteMainBanner: (id) =>
+    fetchAPI(`/settings/main-banners/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 export default fetchAPI
-

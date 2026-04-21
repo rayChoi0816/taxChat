@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../App.css'
 import './Login.css'
@@ -9,58 +9,67 @@ const Login = () => {
   const navigate = useNavigate()
   const { login, isAuthenticated } = useAuth()
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [isLoginEnabled, setIsLoginEnabled] = useState(false)
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  // 이미 로그인된 경우 메인 화면으로 리다이렉트
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/')
     }
   }, [isAuthenticated, navigate])
 
+  const isLoginEnabled = useMemo(() => {
+    const digits = phoneNumber.replace(/[^\d]/g, '')
+    return digits.length >= 10 && password.length > 0 && !submitting
+  }, [phoneNumber, password, submitting])
+
   const formatPhoneNumber = (value) => {
-    // 숫자만 추출
-    const numbers = value.replace(/[^\d]/g, '')
-    
-    // 하이픈 자동 추가
-    if (numbers.length <= 3) {
-      return numbers
-    } else if (numbers.length <= 7) {
-      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
-    } else {
-      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`
-    }
+    const numbers = value.replace(/[^\d]/g, '').slice(0, 11)
+    if (numbers.length <= 3) return numbers
+    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`
   }
 
   const handlePhoneNumberChange = (e) => {
-    const value = e.target.value
-    const formatted = formatPhoneNumber(value)
-    setPhoneNumber(formatted)
-    // 휴대폰번호가 입력되면 로그인 버튼 활성화 (최소 10자리 이상)
-    const numbers = formatted.replace(/[^\d]/g, '')
-    setIsLoginEnabled(numbers.length >= 10)
+    setPhoneNumber(formatPhoneNumber(e.target.value))
+    setErrorMsg('')
+  }
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value)
+    setErrorMsg('')
   }
 
   const handleLogin = async () => {
-    if (isLoginEnabled && phoneNumber.trim()) {
-      try {
-        const result = await login(phoneNumber)
-        if (result.success) {
-      // 로그인 성공 시 메인 화면으로 이동
-      navigate('/')
-        } else {
-          alert(result.error || '로그인에 실패했습니다')
-        }
-      } catch (error) {
-        console.error('로그인 오류:', error)
-        alert('로그인 중 오류가 발생했습니다')
+    if (!isLoginEnabled) return
+    setSubmitting(true)
+    setErrorMsg('')
+    try {
+      const result = await login(phoneNumber, password)
+      if (result.success) {
+        navigate('/')
+      } else {
+        setErrorMsg(result.error || '로그인에 실패했습니다')
       }
+    } catch (err) {
+      console.error('로그인 오류:', err)
+      setErrorMsg('로그인 중 오류가 발생했습니다')
+    } finally {
+      setSubmitting(false)
     }
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleLogin()
+  }
+
   const handleSignUp = () => {
-    // 회원가입 페이지로 이동 (추후 구현)
-    console.log('회원가입 페이지로 이동')
+    navigate('/auth-verify')
+  }
+
+  const handleResetPassword = () => {
+    alert('비밀번호 재설정 기능은 준비 중입니다.')
   }
 
   const handleKakaoChannel = () => {
@@ -69,7 +78,6 @@ const Login = () => {
 
   return (
     <div className="app-wrapper">
-      {/* Background Decoration for Desktop/Tablet */}
       <div className="background-decoration">
         <div className="decoration-circle circle-1"></div>
         <div className="decoration-circle circle-2"></div>
@@ -77,7 +85,6 @@ const Login = () => {
         <div className="decoration-pattern"></div>
       </div>
 
-      {/* Mobile App Container */}
       <div className="mobile-app-container">
         <div className="app">
           <div className="login-content">
@@ -95,39 +102,58 @@ const Login = () => {
             <div className="login-form">
               <input
                 type="tel"
-                className="login-phone-input"
-                placeholder="휴대전화번호를 입력하세요"
+                className="login-input"
+                placeholder="휴대전화번호 입력"
                 value={phoneNumber}
                 onChange={handlePhoneNumberChange}
+                onKeyDown={handleKeyDown}
                 maxLength={13}
+                inputMode="numeric"
+                autoComplete="tel"
               />
-              
+
+              <input
+                type="password"
+                className="login-input"
+                placeholder="비밀번호 입력"
+                value={password}
+                onChange={handlePasswordChange}
+                onKeyDown={handleKeyDown}
+                autoComplete="current-password"
+              />
+
               <button
                 className={`login-button ${isLoginEnabled ? 'enabled' : 'disabled'}`}
                 onClick={handleLogin}
                 disabled={!isLoginEnabled}
               >
-                로그인
+                {submitting ? '로그인 중...' : '로그인'}
               </button>
 
-              <button
-                className="login-signup-link"
-                onClick={handleSignUp}
-              >
-                회원 가입하기
-              </button>
+              {errorMsg && <p className="login-error">{errorMsg}</p>}
+
+              <div className="login-links">
+                <button type="button" className="login-link-btn" onClick={handleSignUp}>
+                  회원 가입하기
+                </button>
+                <span className="login-link-sep">|</span>
+                <button type="button" className="login-link-btn" onClick={handleResetPassword}>
+                  비밀번호 재설정
+                </button>
+              </div>
             </div>
 
             {/* Footer */}
             <div className="login-footer">
-              <div className="login-footer-item">사용문의</div>
+              <div className="login-footer-title">사용문의</div>
               <button
+                type="button"
                 className="login-footer-link"
                 onClick={handleKakaoChannel}
               >
                 카카오채널
               </button>
-              <div className="login-footer-item">byray</div>
+              <div className="login-footer-brand">byray</div>
             </div>
           </div>
         </div>

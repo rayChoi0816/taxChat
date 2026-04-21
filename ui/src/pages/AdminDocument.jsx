@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import { useCustomerMemo } from '../contexts/CustomerMemoContext'
+import { documentAPI } from '../utils/api'
 import '../components/AdminLayout.css'
 import './AdminProduct.css'
 import './AdminCustomer.css'
+import './AdminDocument.css'
 import MemoModal from '../components/MemoModal'
 
 const AdminDocument = () => {
@@ -14,9 +16,11 @@ const AdminDocument = () => {
   const [itemsPerPage, setItemsPerPage] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
   const [sortOrder, setSortOrder] = useState('첨부일시순')
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   
   // 검색 필터 상태
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [selectedPeriod, setSelectedPeriod] = useState('3개월') // 기본값 3개월
   const [searchType, setSearchType] = useState('주문 ID')
   const [searchKeyword, setSearchKeyword] = useState('')
   
@@ -45,67 +49,127 @@ const AdminDocument = () => {
       return `${year}-${month}-${day}`
     }
     
-    setDateRange({
-      start: formatDate(startDate),
-      end: formatDate(today)
-    })
+    if (!dateRange.start && !dateRange.end) {
+      setDateRange({
+        start: formatDate(startDate),
+        end: formatDate(today)
+      })
+      setSelectedPeriod('3개월')
+    }
   }, [location.search])
   
   // 메모 모달 상태
   const [selectedDocument, setSelectedDocument] = useState(null)
   const { customerMemos, addMemo, deleteMemo, getLatestMemo: getLatestMemoFromContext, initializeMemos } = useCustomerMemo()
 
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      attachmentDate: '2025-12-30 19:40:50',
-      orderId: '251230113227ab',
-      memberName: '홍길동',
-      documentName: '첨부 서류 A',
-      memo: [
-        { id: 1, content: '첫 번째 메모입니다.', createdAt: '2025-12-30 10:00:00' },
-        { id: 2, content: '두 번째 메모입니다.', createdAt: '2025-12-30 11:00:00' }
-      ],
-      deleted: false,
-      customerId: 1
-    },
-    {
-      id: 2,
-      attachmentDate: '2025-12-27 17:30:20',
-      orderId: '-',
-      memberName: '암꺽정',
-      documentName: '첨부 서류 B',
-      memo: [],
-      deleted: false,
-      customerId: 2
-    },
-    {
-      id: 3,
-      attachmentDate: '2025-12-26 16:20:10',
-      orderId: '251228091530ef',
-      memberName: '장길산',
-      documentName: '첨부 서류 C',
-      memo: [
-        { id: 3, content: '세 번째 메모입니다.', createdAt: '2025-12-26 15:00:00' }
-      ],
-      deleted: false,
-      customerId: 3
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // 첨부 서류 로드
+  const loadDocuments = async () => {
+    try {
+      setLoading(true)
+      const params = {}
+      
+      if (dateRange.start) {
+        params.startDate = dateRange.start
+      }
+      if (dateRange.end) {
+        params.endDate = dateRange.end
+      }
+      if (searchKeyword) {
+        params.searchType = searchType
+        params.searchKeyword = searchKeyword
+      }
+      if (sortOrder) {
+        params.sortOrder = sortOrder
+      }
+
+      const response = await documentAPI.getAttachments(params)
+      
+      console.log('첨부 서류 API 응답:', response) // 디버깅용
+      
+      if (response && response.success && response.data) {
+        // response.data가 배열인지 확인
+        const dataArray = Array.isArray(response.data) ? response.data : []
+        
+        if (dataArray.length === 0) {
+          console.warn('첨부 서류 데이터가 비어있습니다. 응답:', response)
+        }
+        
+        // API 응답을 프론트엔드 형식으로 변환
+        const formattedDocuments = dataArray.map((doc) => {
+          // 날짜 포맷팅
+          const formatDate = (dateStr) => {
+            if (!dateStr) return ''
+            const date = new Date(dateStr)
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            const hours = String(date.getHours()).padStart(2, '0')
+            const minutes = String(date.getMinutes()).padStart(2, '0')
+            const seconds = String(date.getSeconds()).padStart(2, '0')
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+          }
+
+          return {
+            id: doc.id,
+            attachmentDate: formatDate(doc.attachmentDate),
+            orderId: doc.orderId || '-', // orderId가 null이면 "-"로 표시
+            memberName: doc.memberName,
+            documentName: doc.documentName,
+            fileName: doc.fileName,
+            description: doc.description,
+            memo: [],
+            deleted: false,
+            customerId: doc.memberId
+          }
+        })
+        
+        setDocuments(formattedDocuments)
+      } else {
+        console.error('첨부 서류 조회 실패:', response)
+        setDocuments([])
+        if (response && response.error) {
+          console.error('API 오류:', response.error)
+        }
+      }
+    } catch (error) {
+      console.error('첨부 서류 조회 오류:', error)
+      if (error.message && error.message.includes('서버에 연결할 수 없습니다')) {
+        console.error('백엔드 서버가 실행 중인지 확인해주세요. (http://localhost:3001)')
+      }
+      setDocuments([])
+    } finally {
+      setLoading(false)
     }
-  ])
+  }
+
+  // 메모 초기화 및 첨부 서류 로드
+  useEffect(() => {
+    loadDocuments()
+  }, [currentPage, itemsPerPage, sortOrder, dateRange, searchKeyword, searchType])
 
   // 메모 초기화 - customerId 기준으로 메모 관리
   useEffect(() => {
-    initializeMemos(documents, 'customerId')
-  }, [])
+    if (documents.length > 0) {
+      initializeMemos(documents, 'customerId')
+    }
+  }, [documents])
 
   const handleDateQuickSelect = (period) => {
+    setSelectedPeriod(period) // 선택된 기간 업데이트
+    
     const today = new Date()
     let startDate = new Date()
     
     switch (period) {
       case '오늘':
-        startDate = new Date(today)
-        break
+        // 오늘 날짜로 설정 (시작일과 종료일 모두 오늘)
+        const todayStr = today.toISOString().split('T')[0]
+        setDateRange({ start: todayStr, end: todayStr })
+        // useEffect가 자동으로 loadDocuments 호출
+        return
       case '1주일':
         startDate.setDate(today.getDate() - 7)
         break
@@ -123,6 +187,7 @@ const AdminDocument = () => {
         break
       case '전체':
         setDateRange({ start: '', end: '' })
+        // useEffect가 자동으로 loadDocuments 호출
         return
       default:
         return
@@ -139,17 +204,39 @@ const AdminDocument = () => {
       start: formatDate(startDate),
       end: formatDate(today)
     })
+    // useEffect가 자동으로 loadDocuments 호출
   }
 
   const handleSearch = () => {
-    // 검색 로직 구현
-    console.log('검색 실행', { dateRange, searchType, searchKeyword })
+    setCurrentPage(1) // 검색 시 첫 페이지로 이동
+    loadDocuments()
   }
 
   const handleReset = () => {
-    setDateRange({ start: '', end: '' })
+    // 3개월 기본값으로 초기화
+    const today = new Date()
+    const startDate = new Date()
+    startDate.setMonth(today.getMonth() - 3)
+    
+    const formatDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    
+    setDateRange({
+      start: formatDate(startDate),
+      end: formatDate(today)
+    })
+    setSelectedPeriod('3개월')
     setSearchType('주문 ID')
     setSearchKeyword('')
+    setCurrentPage(1)
+    // 초기화 후 데이터 다시 로드
+    setTimeout(() => {
+      loadDocuments()
+    }, 0)
   }
 
   const handleSelectAll = () => {
@@ -227,7 +314,7 @@ const AdminDocument = () => {
                 {['오늘', '1주일', '1개월', '3개월', '6개월', '1년', '전체'].map((period) => (
                   <button
                     key={period}
-                    className={`admin-date-quick-btn ${dateRange.start && period === '3개월' ? 'active' : ''}`}
+                    className={`admin-date-quick-btn ${period === selectedPeriod ? 'active' : ''}`}
                     onClick={() => handleDateQuickSelect(period)}
                   >
                     {period}
@@ -294,6 +381,22 @@ const AdminDocument = () => {
             <button className="admin-select-all-btn" onClick={handleSelectAll}>
               전체 선택
             </button>
+            <button 
+              className="admin-filter-btn"
+              onClick={() => setIsFilterModalOpen(true)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
+            </button>
           </div>
           <div className="admin-controls-right">
             <div className="admin-action-buttons">
@@ -344,18 +447,18 @@ const AdminDocument = () => {
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th>첨부일시</th>
                 <th>주문 ID</th>
                 <th>회원</th>
                 <th>서류명</th>
                 <th>메모</th>
                 <th>기능</th>
+                <th>첨부일시</th>
               </tr>
             </thead>
             <tbody>
               {visibleDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan="7" className="admin-table-empty">
                     검색 결과가 없습니다.
                   </td>
                 </tr>
@@ -372,11 +475,10 @@ const AdminDocument = () => {
                         onChange={() => handleSelectItem(document.id)}
                       />
                     </td>
-                      <td>{document.attachmentDate}</td>
-                      <td>{document.orderId}</td>
-                      <td>{document.memberName}</td>
-                      <td>{document.documentName}</td>
-                      <td>
+                      <td data-label="주문 ID">{document.orderId}</td>
+                      <td data-label="회원">{document.memberName}</td>
+                      <td data-label="서류명">{document.documentName}</td>
+                      <td data-label="메모">
                         {latestMemo ? (
                           <div className="memo-cell">
                             <div className="memo-cell-content" onClick={() => handleMemoClick(document)}>
@@ -392,7 +494,7 @@ const AdminDocument = () => {
                           </button>
                         )}
                       </td>
-                    <td>
+                    <td data-label="기능">
                         <button 
                           className="admin-table-btn"
                           onClick={() => handleDownload(document)}
@@ -406,6 +508,7 @@ const AdminDocument = () => {
                           삭제
                         </button>
                     </td>
+                      <td data-label="첨부일시">{document.attachmentDate}</td>
                   </tr>
                   )
                 })
@@ -467,6 +570,93 @@ const AdminDocument = () => {
           onSave={handleSaveMemo}
           onDelete={handleDeleteMemo}
         />
+      )}
+
+      {/* Filter Modal (Mobile) */}
+      {isFilterModalOpen && (
+        <div className="admin-filter-overlay" onClick={() => setIsFilterModalOpen(false)}>
+          <div className="admin-filter-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-filter-header">
+              <span className="admin-filter-title">필터</span>
+              <button className="admin-filter-close" onClick={() => setIsFilterModalOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div className="admin-filter-content">
+              <div className="admin-search-area">
+                {/* 첨부일시 검색과 검색어 입력을 한 줄에 배치 */}
+                <div className="admin-search-row">
+                  {/* 첨부일시 검색 */}
+                  <div className="admin-search-section admin-search-section-left">
+                    <label className="admin-search-label">첨부일시</label>
+                    <div className="admin-date-quick-buttons">
+                      {['오늘', '1주일', '1개월', '3개월', '6개월', '1년', '전체'].map((period) => (
+                        <button
+                          key={period}
+                          className={`admin-date-quick-btn ${period === selectedPeriod ? 'active' : ''}`}
+                          onClick={() => handleDateQuickSelect(period)}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="admin-date-inputs">
+                      <input
+                        type="date"
+                        className="admin-date-input"
+                        value={dateRange.start}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      />
+                      <span className="admin-date-separator">~</span>
+                      <input
+                        type="date"
+                        className="admin-date-input"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 검색어 입력 */}
+                  <div className="admin-search-section admin-search-section-right">
+                    <label className="admin-search-label">검색</label>
+                    <div className="admin-search-input-group">
+                      <select
+                        className="admin-search-select"
+                        value={searchType}
+                        onChange={(e) => setSearchType(e.target.value)}
+                      >
+                        <option value="주문 ID">주문 ID</option>
+                        <option value="고객">고객</option>
+                        <option value="서류명">서류명</option>
+                      </select>
+                      <input
+                        type="text"
+                        className="admin-search-input"
+                        placeholder="검색어 입력"
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 검색/초기화 버튼 */}
+                <div className="admin-search-actions">
+                  <button className="admin-search-btn" onClick={() => { handleSearch(); setIsFilterModalOpen(false); }}>
+                    검색
+                  </button>
+                  <button className="admin-reset-btn" onClick={() => { handleReset(); setIsFilterModalOpen(false); }}>
+                    초기화
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   )

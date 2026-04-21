@@ -56,6 +56,158 @@
   background-color: #5b21b6;
 }
 
+/* Mobile Menu Button */
+.admin-menu-btn {
+  display: none;
+  padding: 0.5rem;
+  background-color: transparent;
+  color: #333;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: color 0.2s;
+}
+
+.admin-menu-btn:hover {
+  color: #6b46c1;
+}
+
+.admin-menu-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Mobile Menu Modal */
+.admin-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 0;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.admin-menu-panel {
+  width: 280px;
+  max-width: 90vw;
+  height: 100vh;
+  background-color: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.admin-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.admin-menu-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.admin-menu-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.admin-menu-close:hover {
+  color: #6b46c1;
+}
+
+.admin-menu-close svg {
+  width: 24px;
+  height: 24px;
+}
+
+.admin-menu-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.admin-menu-item {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background-color: transparent;
+  color: #333;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.admin-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-menu-item.active {
+  background-color: #f0f0f0;
+  color: #6b46c1;
+  font-weight: 500;
+}
+
+.admin-menu-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.admin-menu-logout {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: transparent;
+  color: #666;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: color 0.2s;
+}
+
+.admin-menu-logout:hover {
+  color: #333;
+}
+
 /* Navigation Bar */
 .admin-nav {
   background-color: #ffffff;
@@ -116,6 +268,110 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  position: relative;
+}
+
+/* Filter Button */
+.admin-filter-btn {
+  display: none; /* 기본 숨김, 모바일에서만 표시 */
+  padding: 0.5rem;
+  background-color: transparent;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.admin-filter-btn:hover {
+  background-color: #f5f5f5;
+  border-color: #333;
+}
+
+.admin-filter-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Filter Modal */
+.admin-filter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.admin-filter-modal {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.admin-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.admin-filter-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.admin-filter-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.admin-filter-close:hover {
+  color: #6b46c1;
+}
+
+.admin-filter-close svg {
+  width: 24px;
+  height: 24px;
+}
+
+.admin-filter-content {
+  overflow-y: auto;
+  padding: 1rem;
 }
 
 .admin-controls-right {
@@ -210,6 +466,11 @@
   table-layout: auto;
 }
 
+/* 모바일 카드 스타일 (기본 숨김) */
+.admin-table-mobile {
+  display: none;
+}
+
 .admin-table thead {
   background-color: #f9f9f9;
 }
@@ -229,6 +490,70 @@
   font-size: 0.875rem;
   color: #333;
   border-bottom: 1px solid #e0e0e0;
+}
+
+/* 데스크톱 환경에서 "검색 결과가 없습니다" 메시지 가운데 정렬 */
+/* 데스크톱 전용 미디어 쿼리 (769px 이상) */
+@media (min-width: 769px) {
+  /* admin-table-empty 클래스에 대한 가운데 정렬 */
+  /* colspan 속성과 admin-table-empty 클래스를 함께 가진 요소에 대한 최고 특이성 선택자 */
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty,
+  .admin-layout .admin-main .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-layout .admin-main .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-layout .admin-main .admin-table-container .admin-table tbody tr td.admin-table-empty,
+  .admin-page .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty,
+  .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-table-container .admin-table tbody tr td.admin-table-empty,
+  .admin-layout .admin-main .admin-page .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-layout .admin-main .admin-page .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-layout .admin-main .admin-page .admin-table tbody tr td.admin-table-empty,
+  .admin-layout .admin-main .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-layout .admin-main .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-layout .admin-main .admin-table tbody tr td.admin-table-empty,
+  .admin-page .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-page .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-page .admin-table tbody tr td.admin-table-empty,
+  .admin-table tbody tr td[colspan].admin-table-empty,
+  .admin-table tbody tr td.admin-table-empty[colspan],
+  .admin-table tbody tr td.admin-table-empty {
+    text-align: center;
+    display: table-cell;
+    padding: 2rem;
+  }
+
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-layout .admin-main .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty > *,
+  .admin-layout .admin-main .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-layout .admin-main .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-layout .admin-main .admin-table-container .admin-table tbody tr td.admin-table-empty > *,
+  .admin-page .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty > *,
+  .admin-table-container .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-table-container .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-table-container .admin-table tbody tr td.admin-table-empty > *,
+  .admin-layout .admin-main .admin-page .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-layout .admin-main .admin-page .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-layout .admin-main .admin-page .admin-table tbody tr td.admin-table-empty > *,
+  .admin-layout .admin-main .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-layout .admin-main .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-layout .admin-main .admin-table tbody tr td.admin-table-empty > *,
+  .admin-page .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-page .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-page .admin-table tbody tr td.admin-table-empty > *,
+  .admin-table tbody tr td[colspan].admin-table-empty > *,
+  .admin-table tbody tr td.admin-table-empty[colspan] > *,
+  .admin-table tbody tr td.admin-table-empty > * {
+    text-align: center;
+    width: 100%;
+  }
 }
 
 .admin-table tbody tr:hover {
@@ -335,19 +660,16 @@
   }
 
   .admin-logout-btn {
-    padding: 0.4rem 1rem;
-    font-size: 0.8rem;
+    display: none; /* 모바일에서 로그아웃 버튼 숨김 */
   }
 
-  /* Navigation Bar */
+  .admin-menu-btn {
+    display: block; /* 모바일에서 메뉴 버튼 표시 */
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
   .admin-nav {
-    padding: 0.5rem 1rem;
-    top: 50px;
-  }
-
-  .admin-nav-item {
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+    display: none;
   }
 
   /* Main Content */
@@ -366,6 +688,22 @@
   .admin-controls-left {
     flex-wrap: wrap;
     width: 100%;
+    position: relative;
+  }
+
+  /* Filter Button - 모바일에서 표시 */
+  .admin-filter-btn {
+    display: block;
+  }
+
+  /* Search Area - 모바일에서 숨김 (단, 모달 내부는 제외) */
+  .admin-page > .admin-search-area {
+    display: none;
+  }
+
+  /* 모달 내부의 admin-search-area는 항상 표시 */
+  .admin-filter-modal .admin-search-area {
+    display: block;
   }
 
   .admin-controls-right {
@@ -385,15 +723,211 @@
     min-width: 120px;
   }
 
-  /* Table */
-  .admin-table th,
-  .admin-table td {
-    padding: 0.5rem;
-    font-size: 0.75rem;
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+    border: none;
   }
 
-  .admin-table th {
-    font-size: 0.7rem;
+  .admin-table {
+    display: block;
+    border: none;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody tr:hover {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border: none;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 35%;
+    max-width: 40%;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 80px;
+    margin-right: 0;
+  }
+  
+  /* 모바일에서 admin-table-btn.danger의 border-bottom 보이게 */
+  .admin-table tbody td:last-child .admin-table-btn.danger {
+    border-bottom: 1px solid #dc2626 !important;
+  }
+  
+  /* 모바일에서 nth-child(5)와 nth-child(6) 왼쪽 정렬 */
+  .admin-table tbody td:nth-child(5),
+  .admin-table tbody td:nth-child(6) {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+  
+  .admin-table tbody td:nth-child(5) > *,
+  .admin-table tbody td:nth-child(6) > * {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  /* 모바일에서 "검색 결과가 없습니다" 메시지 중앙 정렬 */
+  /* 모든 colspan 값을 지원 (7, 8, 9, 11 등) */
+  .admin-table tbody tr td[colspan],
+  .admin-table tbody tr td.admin-table-empty {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 2rem !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    gap: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* td::before 제거 (모바일에서 라벨 숨김) */
+  .admin-table tbody tr td[colspan]:before,
+  .admin-table tbody tr td.admin-table-empty:before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+  }
+  
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-table tbody tr td[colspan] > *,
+  .admin-table tbody tr td.admin-table-empty > * {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    flex: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* 첫 번째 td가 colspan을 가지고 있는 경우는 예외 처리 */
+  .admin-table tbody td:first-child[colspan],
+  .admin-table tbody td:first-child.admin-table-empty {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* 메모 셀 스타일 */
+  .admin-table tbody td .memo-cell {
+    width: 100%;
   }
 
   /* Pagination */
@@ -426,14 +960,9 @@
     font-size: 0.75rem;
   }
 
-  /* Navigation Bar */
+  /* Navigation Bar - 모바일에서 숨김 */
   .admin-nav {
-    padding: 0.5rem 0.5rem;
-  }
-
-  .admin-nav-item {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.75rem;
+    display: none;
   }
 
   /* Main Content */
@@ -469,21 +998,130 @@
     font-size: 0.75rem;
   }
 
-  /* Table */
-  .admin-table th,
-  .admin-table td {
-    padding: 0.4rem;
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+  }
+
+  .admin-table {
+    display: block;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0;
+    border: none;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 30%;
+    max-width: 35%;
+    font-weight: 600;
     font-size: 0.7rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
   }
 
-  .admin-table th {
-    font-size: 0.65rem;
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .admin-table-btn {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.65rem;
-    margin-right: 0.25rem;
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 70px;
+    margin-right: 0;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
   }
 
   /* Pagination */
@@ -498,3 +1136,1724 @@
   }
 }
 
+
+  cursor: pointer;
+}
+
+.admin-table-btn {
+  padding: 0.25rem 0.75rem;
+  margin-right: 0.5rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.admin-table-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-table-btn.danger {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.admin-table-btn.danger:hover {
+  background-color: #fee2e2;
+}
+
+/* Pagination */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+
+.admin-pagination-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.admin-pagination-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.admin-pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-pagination-page {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.admin-pagination-page:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-pagination-page.active {
+  background-color: #333;
+  color: #ffffff;
+  border-color: #333;
+}
+
+.admin-pagination-ellipsis {
+  padding: 0.5rem;
+  color: #666;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  /* Header */
+  .admin-header-content {
+    padding: 1rem;
+  }
+
+  .admin-logo {
+    font-size: 1rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .admin-logout-btn {
+    display: none; /* 모바일에서 로그아웃 버튼 숨김 */
+  }
+
+  .admin-menu-btn {
+    display: block; /* 모바일에서 메뉴 버튼 표시 */
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
+  .admin-nav {
+    display: none;
+  }
+
+  /* Main Content */
+  .admin-main {
+    padding: 1rem;
+  }
+
+  /* Common Controls */
+  .admin-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .admin-controls-left {
+    flex-wrap: wrap;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Filter Button - 모바일에서 표시 */
+  .admin-filter-btn {
+    display: block;
+  }
+
+  /* Search Area - 모바일에서 숨김 (단, 모달 내부는 제외) */
+  .admin-page > .admin-search-area {
+    display: none;
+  }
+
+  /* 모달 내부의 admin-search-area는 항상 표시 */
+  .admin-filter-modal .admin-search-area {
+    display: block;
+  }
+
+  .admin-controls-right {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-action-buttons {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-action-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+    border: none;
+  }
+
+  .admin-table {
+    display: block;
+    border: none;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody tr:hover {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border: none;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 35%;
+    max-width: 40%;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 80px;
+    margin-right: 0;
+  }
+  
+  /* 모바일에서 admin-table-btn.danger의 border-bottom 보이게 */
+  .admin-table tbody td:last-child .admin-table-btn.danger {
+    border-bottom: 1px solid #dc2626 !important;
+  }
+  
+  /* 모바일에서 nth-child(5)와 nth-child(6) 왼쪽 정렬 */
+  .admin-table tbody td:nth-child(5),
+  .admin-table tbody td:nth-child(6) {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+  
+  .admin-table tbody td:nth-child(5) > *,
+  .admin-table tbody td:nth-child(6) > * {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  /* 모바일에서 "검색 결과가 없습니다" 메시지 중앙 정렬 */
+  /* 모든 colspan 값을 지원 (7, 8, 9, 11 등) */
+  .admin-table tbody tr td[colspan],
+  .admin-table tbody tr td.admin-table-empty {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 2rem !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    gap: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* td::before 제거 (모바일에서 라벨 숨김) */
+  .admin-table tbody tr td[colspan]:before,
+  .admin-table tbody tr td.admin-table-empty:before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+  }
+  
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-table tbody tr td[colspan] > *,
+  .admin-table tbody tr td.admin-table-empty > * {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    flex: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* 첫 번째 td가 colspan을 가지고 있는 경우는 예외 처리 */
+  .admin-table tbody td:first-child[colspan],
+  .admin-table tbody td:first-child.admin-table-empty {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* 메모 셀 스타일 */
+  .admin-table tbody td .memo-cell {
+    width: 100%;
+  }
+
+  /* Pagination */
+  .admin-pagination {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .admin-pagination-btn,
+  .admin-pagination-page {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Header */
+  .admin-header-content {
+    padding: 0.75rem;
+  }
+
+  .admin-logo {
+    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .admin-logout-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
+  .admin-nav {
+    display: none;
+  }
+
+  /* Main Content */
+  .admin-main {
+    padding: 0.75rem;
+  }
+
+  /* Common Controls */
+  .admin-controls {
+    padding: 0.75rem;
+  }
+
+  .admin-count-text {
+    font-size: 0.75rem;
+  }
+
+  .admin-select-all-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-page-size-label {
+    font-size: 0.75rem;
+  }
+
+  .admin-page-size-select {
+    padding: 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-action-btn {
+    padding: 0.4rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+  }
+
+  .admin-table {
+    display: block;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0;
+    border: none;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 30%;
+    max-width: 35%;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 70px;
+    margin-right: 0;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* Pagination */
+  .admin-pagination {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .admin-pagination-btn,
+  .admin-pagination-page {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+}
+
+
+  cursor: pointer;
+}
+
+.admin-table-btn {
+  padding: 0.25rem 0.75rem;
+  margin-right: 0.5rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.admin-table-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-table-btn.danger {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.admin-table-btn.danger:hover {
+  background-color: #fee2e2;
+}
+
+/* Pagination */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+
+.admin-pagination-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.admin-pagination-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.admin-pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-pagination-page {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.admin-pagination-page:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-pagination-page.active {
+  background-color: #333;
+  color: #ffffff;
+  border-color: #333;
+}
+
+.admin-pagination-ellipsis {
+  padding: 0.5rem;
+  color: #666;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  /* Header */
+  .admin-header-content {
+    padding: 1rem;
+  }
+
+  .admin-logo {
+    font-size: 1rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .admin-logout-btn {
+    display: none; /* 모바일에서 로그아웃 버튼 숨김 */
+  }
+
+  .admin-menu-btn {
+    display: block; /* 모바일에서 메뉴 버튼 표시 */
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
+  .admin-nav {
+    display: none;
+  }
+
+  /* Main Content */
+  .admin-main {
+    padding: 1rem;
+  }
+
+  /* Common Controls */
+  .admin-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .admin-controls-left {
+    flex-wrap: wrap;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Filter Button - 모바일에서 표시 */
+  .admin-filter-btn {
+    display: block;
+  }
+
+  /* Search Area - 모바일에서 숨김 (단, 모달 내부는 제외) */
+  .admin-page > .admin-search-area {
+    display: none;
+  }
+
+  /* 모달 내부의 admin-search-area는 항상 표시 */
+  .admin-filter-modal .admin-search-area {
+    display: block;
+  }
+
+  .admin-controls-right {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-action-buttons {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-action-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+    border: none;
+  }
+
+  .admin-table {
+    display: block;
+    border: none;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody tr:hover {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border: none;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 35%;
+    max-width: 40%;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 80px;
+    margin-right: 0;
+  }
+  
+  /* 모바일에서 admin-table-btn.danger의 border-bottom 보이게 */
+  .admin-table tbody td:last-child .admin-table-btn.danger {
+    border-bottom: 1px solid #dc2626 !important;
+  }
+  
+  /* 모바일에서 nth-child(5)와 nth-child(6) 왼쪽 정렬 */
+  .admin-table tbody td:nth-child(5),
+  .admin-table tbody td:nth-child(6) {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+  
+  .admin-table tbody td:nth-child(5) > *,
+  .admin-table tbody td:nth-child(6) > * {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  /* 모바일에서 "검색 결과가 없습니다" 메시지 중앙 정렬 */
+  /* 모든 colspan 값을 지원 (7, 8, 9, 11 등) */
+  .admin-table tbody tr td[colspan],
+  .admin-table tbody tr td.admin-table-empty {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 2rem !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    gap: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* td::before 제거 (모바일에서 라벨 숨김) */
+  .admin-table tbody tr td[colspan]:before,
+  .admin-table tbody tr td.admin-table-empty:before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+  }
+  
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-table tbody tr td[colspan] > *,
+  .admin-table tbody tr td.admin-table-empty > * {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    flex: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* 첫 번째 td가 colspan을 가지고 있는 경우는 예외 처리 */
+  .admin-table tbody td:first-child[colspan],
+  .admin-table tbody td:first-child.admin-table-empty {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* 메모 셀 스타일 */
+  .admin-table tbody td .memo-cell {
+    width: 100%;
+  }
+
+  /* Pagination */
+  .admin-pagination {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .admin-pagination-btn,
+  .admin-pagination-page {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Header */
+  .admin-header-content {
+    padding: 0.75rem;
+  }
+
+  .admin-logo {
+    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .admin-logout-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
+  .admin-nav {
+    display: none;
+  }
+
+  /* Main Content */
+  .admin-main {
+    padding: 0.75rem;
+  }
+
+  /* Common Controls */
+  .admin-controls {
+    padding: 0.75rem;
+  }
+
+  .admin-count-text {
+    font-size: 0.75rem;
+  }
+
+  .admin-select-all-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-page-size-label {
+    font-size: 0.75rem;
+  }
+
+  .admin-page-size-select {
+    padding: 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-action-btn {
+    padding: 0.4rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+  }
+
+  .admin-table {
+    display: block;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0;
+    border: none;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 30%;
+    max-width: 35%;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 70px;
+    margin-right: 0;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* Pagination */
+  .admin-pagination {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .admin-pagination-btn,
+  .admin-pagination-page {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+}
+
+
+  cursor: pointer;
+}
+
+.admin-table-btn {
+  padding: 0.25rem 0.75rem;
+  margin-right: 0.5rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.admin-table-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-table-btn.danger {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.admin-table-btn.danger:hover {
+  background-color: #fee2e2;
+}
+
+/* Pagination */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+
+.admin-pagination-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.admin-pagination-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
+}
+
+.admin-pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-pagination-page {
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.admin-pagination-page:hover {
+  background-color: #f5f5f5;
+}
+
+.admin-pagination-page.active {
+  background-color: #333;
+  color: #ffffff;
+  border-color: #333;
+}
+
+.admin-pagination-ellipsis {
+  padding: 0.5rem;
+  color: #666;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  /* Header */
+  .admin-header-content {
+    padding: 1rem;
+  }
+
+  .admin-logo {
+    font-size: 1rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .admin-logout-btn {
+    display: none; /* 모바일에서 로그아웃 버튼 숨김 */
+  }
+
+  .admin-menu-btn {
+    display: block; /* 모바일에서 메뉴 버튼 표시 */
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
+  .admin-nav {
+    display: none;
+  }
+
+  /* Main Content */
+  .admin-main {
+    padding: 1rem;
+  }
+
+  /* Common Controls */
+  .admin-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .admin-controls-left {
+    flex-wrap: wrap;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Filter Button - 모바일에서 표시 */
+  .admin-filter-btn {
+    display: block;
+  }
+
+  /* Search Area - 모바일에서 숨김 (단, 모달 내부는 제외) */
+  .admin-page > .admin-search-area {
+    display: none;
+  }
+
+  /* 모달 내부의 admin-search-area는 항상 표시 */
+  .admin-filter-modal .admin-search-area {
+    display: block;
+  }
+
+  .admin-controls-right {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-action-buttons {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-action-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+    border: none;
+  }
+
+  .admin-table {
+    display: block;
+    border: none;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody tr:hover {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    border: none;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 35%;
+    max-width: 40%;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 80px;
+    margin-right: 0;
+  }
+  
+  /* 모바일에서 admin-table-btn.danger의 border-bottom 보이게 */
+  .admin-table tbody td:last-child .admin-table-btn.danger {
+    border-bottom: 1px solid #dc2626 !important;
+  }
+  
+  /* 모바일에서 nth-child(5)와 nth-child(6) 왼쪽 정렬 */
+  .admin-table tbody td:nth-child(5),
+  .admin-table tbody td:nth-child(6) {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+  
+  .admin-table tbody td:nth-child(5) > *,
+  .admin-table tbody td:nth-child(6) > * {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  /* 모바일에서 "검색 결과가 없습니다" 메시지 중앙 정렬 */
+  /* 모든 colspan 값을 지원 (7, 8, 9, 11 등) */
+  .admin-table tbody tr td[colspan],
+  .admin-table tbody tr td.admin-table-empty {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 2rem !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    gap: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* td::before 제거 (모바일에서 라벨 숨김) */
+  .admin-table tbody tr td[colspan]:before,
+  .admin-table tbody tr td.admin-table-empty:before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+  }
+  
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-table tbody tr td[colspan] > *,
+  .admin-table tbody tr td.admin-table-empty > * {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    flex: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* 첫 번째 td가 colspan을 가지고 있는 경우는 예외 처리 */
+  .admin-table tbody td:first-child[colspan],
+  .admin-table tbody td:first-child.admin-table-empty {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* 메모 셀 스타일 */
+  .admin-table tbody td .memo-cell {
+    width: 100%;
+  }
+
+  /* Pagination */
+  .admin-pagination {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .admin-pagination-btn,
+  .admin-pagination-page {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Header */
+  .admin-header-content {
+    padding: 0.75rem;
+  }
+
+  .admin-logo {
+    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .admin-logout-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  /* Navigation Bar - 모바일에서 숨김 */
+  .admin-nav {
+    display: none;
+  }
+
+  /* Main Content */
+  .admin-main {
+    padding: 0.75rem;
+  }
+
+  /* Common Controls */
+  .admin-controls {
+    padding: 0.75rem;
+  }
+
+  .admin-count-text {
+    font-size: 0.75rem;
+  }
+
+  .admin-select-all-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-page-size-label {
+    font-size: 0.75rem;
+  }
+
+  .admin-page-size-select {
+    padding: 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .admin-action-btn {
+    padding: 0.4rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  /* Table - 모바일에서 카드 형태로 변환 */
+  .admin-table-container {
+    overflow-x: visible;
+    padding: 0;
+  }
+
+  .admin-table {
+    display: block;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tbody {
+    display: block;
+  }
+
+  .admin-table tbody tr {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0;
+    border: none;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    text-align: left;
+    min-height: 1.5rem;
+  }
+
+  .admin-table tbody td:before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    min-width: 30%;
+    max-width: 35%;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: #666;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+  }
+
+  /* td 내부의 텍스트와 요소들 정렬 */
+  .admin-table tbody td > * {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 버튼이나 특수 요소는 예외 처리 */
+  .admin-table tbody td > button,
+  .admin-table tbody td > input[type="checkbox"],
+  .admin-table tbody td > .admin-table-btn,
+  .admin-table tbody td > .admin-memo-btn,
+  .admin-table tbody td > .admin-status-btn {
+    flex: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* td 내부에 직접 텍스트가 있는 경우 */
+  .admin-table tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .admin-table tbody td:first-child {
+    padding-left: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .admin-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:first-child input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* 마지막 td (기능 버튼) 스타일 */
+  .admin-table tbody td:last-child {
+    padding-left: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .admin-table tbody td:last-child:before {
+    display: none;
+  }
+
+  .admin-table tbody td:last-child .admin-table-btn {
+    flex: 1;
+    min-width: 70px;
+    margin-right: 0;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* Pagination */
+  .admin-pagination {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .admin-pagination-btn,
+  .admin-pagination-page {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+}

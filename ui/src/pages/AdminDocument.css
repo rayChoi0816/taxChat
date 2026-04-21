@@ -1,0 +1,31 @@
+/* AdminDocument 페이지 전용 스타일 */
+
+/* 테이블 th, td 왼쪽 정렬 (admin-table-empty 제외) */
+.admin-page .admin-table th,
+.admin-page .admin-table td:not(.admin-table-empty) {
+  text-align: left !important;
+}
+
+/* 데스크톱 환경에서도 왼쪽 정렬 보장 (admin-table-empty 제외) */
+.admin-table-container .admin-table th,
+.admin-table-container .admin-table td:not(.admin-table-empty) {
+  text-align: left !important;
+}
+
+/* 데스크톱 환경에서 admin-table-empty 클래스는 가운데 정렬 */
+@media (min-width: 769px) {
+  .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty,
+  .admin-page .admin-table tbody tr td.admin-table-empty,
+  .admin-table-container .admin-table tbody tr td.admin-table-empty,
+  .admin-table tbody tr td.admin-table-empty {
+    text-align: center;
+  }
+
+  .admin-page .admin-table-container .admin-table tbody tr td.admin-table-empty > *,
+  .admin-page .admin-table tbody tr td.admin-table-empty > *,
+  .admin-table-container .admin-table tbody tr td.admin-table-empty > *,
+  .admin-table tbody tr td.admin-table-empty > * {
+    text-align: center;
+  }
+}
+

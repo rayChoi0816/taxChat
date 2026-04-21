@@ -237,6 +237,17 @@
   .admin-modal-btn {
     width: 100%;
   }
+  
+  /* 모바일에서 nth-child(6) 왼쪽 정렬 */
+  .admin-table tbody td:nth-child(6) {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+  
+  .admin-table tbody td:nth-child(6) > * {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
 }
 
 @media (max-width: 480px) {

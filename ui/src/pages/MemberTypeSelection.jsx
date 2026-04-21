@@ -2,27 +2,21 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './Payment.css'
 import './MemberTypeSelection.css'
+import { useAuth } from '../contexts/AuthContext'
+import { memberAPI } from '../utils/api'
+import MemberInfoModal from '../components/MemberInfoModal'
 
 const MemberTypeSelection = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, updateUser } = useAuth()
   const [openMoreMenuId, setOpenMoreMenuId] = useState(null) // 더보기 메뉴가 열린 카드 ID
+  const [loading, setLoading] = useState(true)
+  const [detailModalOpen, setDetailModalOpen] = useState(false) // 상세보기 모달 상태
+  const [selectedMemberTypeForDetail, setSelectedMemberTypeForDetail] = useState(null) // 상세보기할 회원 유형
 
-  // 가입한 회원 유형 목록 (실제로는 API에서 가져올 데이터)
-  const [memberTypes, setMemberTypes] = useState([
-    {
-      id: 1,
-      name: '최민용',
-      type: '비사업자',
-      isActive: true
-    },
-    {
-      id: 2,
-      name: 'by ray',
-      type: '개인 사업자',
-      isActive: false
-    }
-  ])
+  // 가입한 회원 유형 목록
+  const [memberTypes, setMemberTypes] = useState([])
 
   // 초기 선택값: 첫 번째 회원 유형 또는 활성화된 회원 유형
   const getInitialSelectedId = () => {
@@ -30,36 +24,54 @@ const MemberTypeSelection = () => {
     return activeMemberType ? activeMemberType.id : (memberTypes.length > 0 ? memberTypes[0].id : null)
   }
 
-  const [selectedMemberTypeId, setSelectedMemberTypeId] = useState(getInitialSelectedId())
+  const [selectedMemberTypeId, setSelectedMemberTypeId] = useState(null)
 
-  // 회원 유형 추가 후 목록 업데이트
-  useEffect(() => {
-    if (location.state?.addedTypes && Array.isArray(location.state.addedTypes)) {
-      // 복수 개의 회원 유형 추가
-      setMemberTypes(prevTypes => {
-        let maxId = Math.max(...prevTypes.map(mt => mt.id), 0)
-        const newMemberTypes = location.state.addedTypes.map((addedType, index) => ({
-          id: maxId + index + 1,
-          name: '새 회원', // 실제로는 사용자 입력 또는 기본값
-          type: addedType,
-          isActive: false
+  // 회원 유형 목록 로드
+  const loadMemberTypes = async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      const response = await memberAPI.getMemberTypes(user.id)
+      
+      if (response.success && response.data) {
+        const formattedTypes = response.data.map((mt, index) => ({
+          id: mt.id || index + 1,
+          name: mt.name || '회원',
+          type: mt.type,
+          isActive: mt.isActive || false,
+          customerId: mt.customerId
         }))
-        return [...prevTypes, ...newMemberTypes]
-      })
-      // location.state 초기화
-      window.history.replaceState({}, document.title)
-    } else if (location.state?.addedType) {
-      // 단일 회원 유형 추가 (하위 호환성)
-      setMemberTypes(prevTypes => {
-        const newId = Math.max(...prevTypes.map(mt => mt.id)) + 1
-        const newMemberType = {
-          id: newId,
-          name: '새 회원', // 실제로는 사용자 입력 또는 기본값
-          type: location.state.addedType,
-          isActive: false
+        setMemberTypes(formattedTypes)
+        
+        // 초기 선택값 설정
+        const activeMemberType = formattedTypes.find(mt => mt.isActive)
+        if (activeMemberType) {
+          setSelectedMemberTypeId(activeMemberType.id)
+        } else if (formattedTypes.length > 0) {
+          setSelectedMemberTypeId(formattedTypes[0].id)
         }
-        return [...prevTypes, newMemberType]
-      })
+      }
+    } catch (error) {
+      console.error('회원 유형 목록 조회 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 초기 로드
+  useEffect(() => {
+    loadMemberTypes()
+  }, [user])
+
+  // 회원 유형 추가 후 목록 새로고침
+  useEffect(() => {
+    if (location.state?.addedTypes || location.state?.addedType) {
+      // 회원 유형 추가 후 목록 새로고침
+      loadMemberTypes()
       // location.state 초기화
       window.history.replaceState({}, document.title)
     }
@@ -87,10 +99,82 @@ const MemberTypeSelection = () => {
     setOpenMoreMenuId(openMoreMenuId === memberTypeId ? null : memberTypeId)
   }
 
-  const handleViewDetails = (memberTypeId) => {
+  const handleViewDetails = async (memberTypeId) => {
     setOpenMoreMenuId(null)
-    alert(`회원 유형 ID: ${memberTypeId} 상세보기 페이지로 이동`)
-    // navigate(`/member-type-detail/${memberTypeId}`)
+    
+    // 선택한 회원 유형 정보 찾기
+    const memberType = memberTypes.find(mt => mt.id === memberTypeId)
+    if (!memberType) {
+      alert('회원 정보를 찾을 수 없습니다.')
+      return
+    }
+
+    // 회원 상세 정보 조회
+    try {
+      const response = await memberAPI.getMember(memberType.id)
+      if (response.success && response.data) {
+        const memberData = response.data
+        
+        // 주민등록번호 분리
+        let rrnFront = ''
+        let rrnBack = ''
+        if (memberData.resident_number) {
+          const rrnParts = memberData.resident_number.split('-')
+          rrnFront = rrnParts[0] || ''
+          rrnBack = rrnParts[1] || ''
+        }
+        
+        setSelectedMemberTypeForDetail({
+          id: memberData.id,
+          memberType: memberType.type,
+          memberTypeLabel: memberType.type,
+          name: memberType.type === '비사업자' ? memberData.name : memberData.business_name,
+          businessName: memberData.business_name,
+          representativeName: memberData.representative_name,
+          businessNumber: memberData.business_number,
+          industry: memberData.industry,
+          businessType: memberData.business_type,
+          baseAddress: memberData.base_address || '',
+          detailAddress: memberData.detail_address || '',
+          address: memberData.base_address && memberData.detail_address
+            ? `${memberData.base_address} ${memberData.detail_address}`
+            : (memberData.base_address || memberData.detail_address || ''),
+          startDate: memberData.start_date ? (typeof memberData.start_date === 'string' ? memberData.start_date.split('T')[0] : memberData.start_date) : '',
+          gender: memberData.gender,
+          rrn: memberData.resident_number,
+          contact: memberData.phone_number,
+          phoneNumber: memberData.phone_number
+        })
+        setDetailModalOpen(true)
+      } else {
+        alert('회원 정보를 불러올 수 없습니다.')
+      }
+    } catch (error) {
+      console.error('회원 정보 조회 오류:', error)
+      alert('회원 정보를 불러올 수 없습니다.')
+    }
+  }
+
+  const handleCloseDetailModal = () => {
+    setDetailModalOpen(false)
+    setSelectedMemberTypeForDetail(null)
+  }
+
+  const handleUpdateMember = async (updatedData) => {
+    try {
+      // updatedData에 id가 포함되어 있음
+      const response = await memberAPI.updateMember(updatedData.id, updatedData)
+      if (response.success) {
+        alert('회원 정보가 수정되었습니다.')
+        await loadMemberTypes() // 목록 새로고침
+        handleCloseDetailModal()
+      } else {
+        alert('회원 정보 수정 중 오류가 발생했습니다.')
+      }
+    } catch (error) {
+      console.error('회원 정보 수정 오류:', error)
+      alert('회원 정보 수정 중 오류가 발생했습니다.')
+    }
   }
 
   const handleDelete = (memberTypeId) => {
@@ -112,19 +196,43 @@ const MemberTypeSelection = () => {
     })
   }
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     // 선택한 회원 유형으로 변경 처리
     const selectedMemberType = memberTypes.find(mt => mt.id === selectedMemberTypeId)
-    if (selectedMemberType) {
-      // 선택한 회원 유형 정보를 마이 페이지로 전달
-      navigate('/mypage', {
-        state: {
-          selectedMemberType: {
-            name: selectedMemberType.name,
-            type: selectedMemberType.type
-          }
-        }
+    if (!selectedMemberType || !user?.id) {
+      alert('회원 정보를 찾을 수 없습니다.')
+      return
+    }
+
+    try {
+      // API를 호출하여 회원 유형 업데이트
+      const response = await memberAPI.updateMember(user.id, {
+        memberType: selectedMemberType.type
       })
+
+      if (response.success) {
+        // AuthContext의 user 정보 업데이트
+        updateUser({
+          member_type: selectedMemberType.type,
+          memberType: selectedMemberType.type
+        })
+        
+        // 마이 페이지로 이동
+        navigate('/mypage', {
+          state: {
+            selectedMemberType: {
+              name: selectedMemberType.name,
+              type: selectedMemberType.type
+            }
+          }
+        })
+        alert('회원 유형이 변경되었습니다.')
+      } else {
+        alert('회원 유형 변경 중 오류가 발생했습니다.')
+      }
+    } catch (error) {
+      console.error('회원 유형 변경 오류:', error)
+      alert('회원 유형 변경 중 오류가 발생했습니다.')
     }
   }
 
@@ -147,63 +255,73 @@ const MemberTypeSelection = () => {
 
         {/* Content */}
         <div className="member-type-selection-content">
-          {/* 회원 유형 카드 목록 */}
-          <div className="member-type-selection-cards">
-            {memberTypes.map((memberType) => (
-              <div
-                key={memberType.id}
-                className={`member-type-selection-card ${selectedMemberTypeId === memberType.id ? 'selected' : ''}`}
-                onClick={() => handleRadioClick(memberType.id)}
-              >
-                {/* 회원 정보 */}
-                <div className="member-info">
-                  <div className="member-name">{memberType.name}</div>
-                  <button className="member-type-label">{memberType.type}</button>
-                </div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>로딩 중...</div>
+          ) : (
+            <>
+              {/* 회원 유형 카드 목록 */}
+              <div className="member-type-selection-cards">
+                {memberTypes.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem' }}>등록된 회원 유형이 없습니다.</div>
+                ) : (
+                  memberTypes.map((memberType) => (
+                    <div
+                      key={memberType.id}
+                      className={`member-type-selection-card ${selectedMemberTypeId === memberType.id ? 'selected' : ''}`}
+                      onClick={() => handleRadioClick(memberType.id)}
+                    >
+                      {/* 회원 정보 */}
+                      <div className="member-info">
+                        <div className="member-name">{memberType.name}</div>
+                        <button className="member-type-label">{memberType.type}</button>
+                      </div>
 
-                {/* 더보기 버튼 */}
-                <div className="more-button-wrapper">
-                  <button
-                    className="more-button"
-                    onClick={(e) => handleMoreClick(e, memberType.id)}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="5" r="1"></circle>
-                      <circle cx="12" cy="12" r="1"></circle>
-                      <circle cx="12" cy="19" r="1"></circle>
-                    </svg>
-                  </button>
+                      {/* 더보기 버튼 */}
+                      <div className="more-button-wrapper">
+                        <button
+                          className="more-button"
+                          onClick={(e) => handleMoreClick(e, memberType.id)}
+                        >
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="5" r="1"></circle>
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="12" cy="19" r="1"></circle>
+                          </svg>
+                        </button>
 
-                  {/* 더보기 모달 */}
-                  {openMoreMenuId === memberType.id && (
-                    <div className="more-menu-modal">
-                      <button
-                        className="more-menu-item"
-                        onClick={() => handleViewDetails(memberType.id)}
-                      >
-                        상세보기
-                      </button>
-                      <button
-                        className="more-menu-item delete"
-                        onClick={() => handleDelete(memberType.id)}
-                      >
-                        삭제
-                      </button>
+                        {/* 더보기 모달 */}
+                        {openMoreMenuId === memberType.id && (
+                          <div className="more-menu-modal">
+                            <button
+                              className="more-menu-item"
+                              onClick={() => handleViewDetails(memberType.id)}
+                            >
+                              상세보기
+                            </button>
+                            <button
+                              className="more-menu-item delete"
+                              onClick={() => handleDelete(memberType.id)}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
 
-          {/* 회원 유형 추가 버튼 */}
-          <button className="add-member-type-btn" onClick={handleAddMemberType}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            회원 유형
-          </button>
+              {/* 회원 유형 추가 버튼 */}
+              <button className="add-member-type-btn" onClick={handleAddMemberType}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                회원 유형
+              </button>
+            </>
+          )}
         </div>
 
         {/* Footer Navigation */}
@@ -216,6 +334,15 @@ const MemberTypeSelection = () => {
         {/* 백드롭 (더보기 메뉴가 열려있을 때) */}
         {openMoreMenuId && (
           <div className="backdrop" onClick={handleBackdropClick}></div>
+        )}
+
+        {/* 회원 상세 정보 모달 */}
+        {detailModalOpen && selectedMemberTypeForDetail && (
+          <MemberInfoModal
+            customer={selectedMemberTypeForDetail}
+            onClose={handleCloseDetailModal}
+            onUpdate={handleUpdateMember}
+          />
         )}
       </div>
     </div>

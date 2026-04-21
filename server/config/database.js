@@ -5,18 +5,40 @@ dotenv.config()
 
 const { Pool } = pg
 
-const pool = new Pool({
+const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
+  port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'taxchat',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
+}
+
+console.log('데이터베이스 연결 설정:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  database: dbConfig.database,
+  user: dbConfig.user,
+  password: dbConfig.password ? '***' : '없음'
+})
+
+const pool = new Pool(dbConfig)
+
+// 연결 에러 핸들링
+pool.on('error', (err) => {
+  console.error('예상치 못한 데이터베이스 클라이언트 오류:', err)
 })
 
 // 테스트 연결
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
-    console.error('데이터베이스 연결 실패:', err)
+    console.error('데이터베이스 연결 실패:', err.message)
+    console.error('연결 설정:', {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      database: dbConfig.database,
+      user: dbConfig.user
+    })
+    console.error('오류 상세:', err)
   } else {
     console.log('데이터베이스 연결 성공:', res.rows[0].now)
   }

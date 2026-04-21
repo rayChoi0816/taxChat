@@ -2,13 +2,21 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './Payment.css'
 import './MemberTypeForm.css'
+import { useAuth } from '../contexts/AuthContext'
+import { authAPI } from '../utils/api'
 
 const MemberTypeForm = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, userPhone, login } = useAuth()
   const selectedTypes = location.state?.selectedTypes || []
+  const signupPhone = location.state?.signupPhone || ''
+  const signupPassword = location.state?.signupPassword || ''
+  const isSignupMode = Boolean(signupPhone && signupPassword)
+  const effectivePhone = isSignupMode ? signupPhone : userPhone
   const [currentStep, setCurrentStep] = useState(0) // 현재 진행 중인 회원 유형 인덱스
   const [currentType, setCurrentType] = useState(selectedTypes[0] || '비사업자')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   // 비사업자 폼 데이터
   const [nonBusinessData, setNonBusinessData] = useState({
@@ -90,7 +98,13 @@ const MemberTypeForm = () => {
       setCurrentType(prevType)
       setCurrentStep(currentStep - 1)
     } else {
-      navigate('/add-member-type', { state: { existingTypes: [] } })
+      navigate('/add-member-type', {
+        state: {
+          existingTypes: [],
+          signupPhone,
+          signupPassword,
+        },
+      })
     }
   }
 
@@ -104,18 +118,90 @@ const MemberTypeForm = () => {
     }
   }
 
-  const handleComplete = () => {
-    // 모든 폼 데이터를 서버에 저장
-    const formData = {
-      nonBusiness: nonBusinessData,
-      individualBusiness: individualBusinessData,
-      corporateBusiness: corporateBusinessData
+  const handleComplete = async () => {
+    if (!effectivePhone) {
+      alert('로그인이 필요합니다.')
+      navigate('/login')
+      return
     }
+
+    setIsSubmitting(true)
     
-    alert('회원 유형이 추가되었습니다.')
-    navigate('/member-type-selection', {
-      state: { addedTypes: selectedTypes }
-    })
+    try {
+      // 선택한 모든 회원 유형에 대해 회원 정보 저장
+      const savedTypes = []
+      
+      for (const type of selectedTypes) {
+        let memberData = {}
+        
+        if (type === '비사업자') {
+          memberData = {
+            name: nonBusinessData.name,
+            gender: nonBusinessData.gender,
+            residentNumber: `${nonBusinessData.residentNumber1}-${nonBusinessData.residentNumber2}`,
+            baseAddress: nonBusinessData.address || '',
+            detailAddress: nonBusinessData.detailAddress || ''
+          }
+        } else if (type === '개인 사업자') {
+          memberData = {
+            businessName: individualBusinessData.businessName,
+            representativeName: individualBusinessData.representativeName,
+            businessNumber: individualBusinessData.businessNumber,
+            industry: individualBusinessData.industry,
+            businessType: individualBusinessData.businessType,
+            baseAddress: individualBusinessData.address || '',
+            detailAddress: individualBusinessData.detailAddress || '',
+            startDate: individualBusinessData.startDate
+          }
+        } else if (type === '법인 사업자') {
+          memberData = {
+            businessName: corporateBusinessData.corporateName,
+            representativeName: corporateBusinessData.representativeName,
+            businessNumber: corporateBusinessData.businessNumber,
+            industry: corporateBusinessData.industry,
+            businessType: corporateBusinessData.businessType,
+            baseAddress: corporateBusinessData.address || '',
+            detailAddress: corporateBusinessData.detailAddress || '',
+            startDate: corporateBusinessData.startDate
+          }
+        }
+
+        // 회원 가입 API 호출 (회원가입 모드일 때만 첫 요청에서 비밀번호 전달)
+        const passwordToSend = isSignupMode && savedTypes.length === 0 ? signupPassword : undefined
+        const response = await authAPI.signup(effectivePhone, type, memberData, passwordToSend)
+
+        if (response.success) {
+          savedTypes.push(type)
+        } else {
+          console.error(`회원 유형 ${type} 등록 실패:`, response)
+        }
+      }
+
+      if (savedTypes.length > 0) {
+        if (isSignupMode) {
+          // 회원가입 완료 → 자동 로그인 후 홈으로 이동
+          const loginResult = await login(effectivePhone, signupPassword)
+          alert('회원 가입이 완료되었습니다.')
+          if (loginResult?.success) {
+            navigate('/')
+          } else {
+            navigate('/login')
+          }
+        } else {
+          alert('회원 유형이 추가되었습니다.')
+          navigate('/member-type-selection', {
+            state: { addedTypes: savedTypes }
+          })
+        }
+      } else {
+        alert('회원 유형 추가 중 오류가 발생했습니다.')
+      }
+    } catch (error) {
+      console.error('회원 유형 추가 오류:', error)
+      alert('회원 유형 추가 중 오류가 발생했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleAddressSearch = () => {
@@ -469,7 +555,7 @@ const MemberTypeForm = () => {
       <div className="payment-container">
         {/* Header */}
         <header className="payment-header">
-          <button className="payment-back-btn" onClick={() => navigate('/add-member-type', { state: { existingTypes: [] } })}>
+          <button className="payment-back-btn" onClick={() => navigate('/add-member-type', { state: { existingTypes: [], signupPhone, signupPassword } })}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
@@ -507,9 +593,9 @@ const MemberTypeForm = () => {
           <button
             className={`next-btn ${isFormValid() ? 'active' : ''}`}
             onClick={handleNext}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || isSubmitting}
           >
-            {currentStep === totalSteps - 1 ? '완료' : '다음'}
+            {isSubmitting ? '저장 중...' : (currentStep === totalSteps - 1 ? '완료' : '다음')}
           </button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './SMSSendModal.css'
 
-const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) => {
+const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], members: externalMembers = [], products: externalProducts = [] }) => {
   // 수신인 선택 방식 (기본값: 'load')
   const [recipientType, setRecipientType] = useState('load')
   
@@ -9,7 +9,6 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
   const [recipientSearch, setRecipientSearch] = useState('')
   const [showRecipientList, setShowRecipientList] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState(null)
-  const [members, setMembers] = useState([])
   const [filteredMembers, setFilteredMembers] = useState([])
   const recipientInputRef = useRef(null)
   const recipientListRef = useRef(null)
@@ -24,7 +23,7 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
   const [selectedTemplate, setSelectedTemplate] = useState('')
   // 외부에서 전달받은 템플릿 사용 (사용 상태인 템플릿만)
   const templates = externalTemplates.length > 0 
-    ? externalTemplates.filter(t => t.usageStatus === '사용')
+    ? externalTemplates.filter(t => (t.usageStatus || t.usage_status) === '사용')
     : []
   
   // 결제링크 관련
@@ -33,11 +32,7 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
   
   // 상품 결제링크 관련
   const [selectedProduct, setSelectedProduct] = useState('')
-  const [products] = useState([
-    { id: 1, name: '프리랜서 (4대 보험 신고 불필요)', price: 50000 },
-    { id: 2, name: '아르바이트 (고용, 산재보험만 신고)', price: 40000 },
-    { id: 3, name: '상시근로자 (4대 보험 신고 필요)', price: 30000 }
-  ])
+  const products = externalProducts.length > 0 ? externalProducts : []
   
   // 내용 작성 관련
   const [customContent, setCustomContent] = useState('')
@@ -45,31 +40,20 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
   // SMS 미리보기 모달 상태
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   
-  // 예시 회원 데이터 (실제로는 API에서 가져와야 함)
-  useEffect(() => {
-    const exampleMembers = [
-      { id: 1, name: '홍길동', phoneNumber: '010-1234-5678' },
-      { id: 2, name: '임꺽정', phoneNumber: '010-2345-6789' },
-      { id: 3, name: '장길산', phoneNumber: '010-3456-7890' },
-      { id: 4, name: '김철수', phoneNumber: '010-4567-8901' },
-      { id: 5, name: '이영희', phoneNumber: '010-5678-9012' }
-    ]
-    setMembers(exampleMembers)
-    setFilteredMembers(exampleMembers)
-  }, [])
-  
   // 수신인 검색 필터링
   useEffect(() => {
     if (recipientSearch.trim() === '') {
-      setFilteredMembers(members)
+      setFilteredMembers(externalMembers)
     } else {
-      const filtered = members.filter(member => 
-        member.name.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-        member.phoneNumber.includes(recipientSearch)
-      )
+      const filtered = externalMembers.filter(member => {
+        const name = member.name || member.business_name || ''
+        const phoneNumber = member.phone_number || ''
+        return name.toLowerCase().includes(recipientSearch.toLowerCase()) ||
+               phoneNumber.includes(recipientSearch)
+      })
       setFilteredMembers(filtered)
     }
-  }, [recipientSearch, members])
+  }, [recipientSearch, externalMembers])
   
   // 외부 클릭 시 리스트 닫기
   useEffect(() => {
@@ -111,7 +95,9 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
   
   const handleRecipientSelect = (member) => {
     setSelectedRecipient(member)
-    setRecipientSearch(`${member.name} (${member.phoneNumber})`)
+    const name = member.name || member.business_name || ''
+    const phoneNumber = member.phone_number || ''
+    setRecipientSearch(`${name} (${phoneNumber})`)
     setShowRecipientList(false)
   }
   
@@ -178,22 +164,26 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
       return
     }
     
+    const phoneNumber = getRecipientPhoneNumber()
+    const recipientName = recipientType === 'load' && selectedRecipient
+      ? (selectedRecipient.name || selectedRecipient.business_name || '')
+      : null
+    
+    // API 형식에 맞게 데이터 구성
     const smsData = {
-      recipientType,
-      recipient: recipientType === 'load' 
-        ? { id: selectedRecipient.id, name: selectedRecipient.name, phoneNumber: selectedRecipient.phoneNumber }
-        : { phoneNumber: newPhoneNumber },
-      smsType,
+      recipientName,
+      recipientPhone: phoneNumber,
+      smsType: smsType === '내용 작성' ? '내용 작성' : smsType,
+      templateId: smsType === '템플릿' ? parseInt(selectedTemplate) : null,
       content: getSMSContent(),
-      templateId: smsType === '템플릿' ? selectedTemplate : null,
-      paymentAmount: smsType === '결제링크' ? paymentAmount : null,
-      productId: smsType === '상품 결제링크' ? selectedProduct : null
+      paymentAmount: smsType === '결제링크' ? parseInt(paymentAmount) : null,
+      productId: smsType === '상품 결제링크' ? parseInt(selectedProduct) : null,
+      productPaymentLink: smsType === '상품 결제링크' ? `[결제링크]` : null
     }
     
     if (onSend) {
       onSend(smsData)
     }
-    onClose()
   }
   
   const getSMSContent = () => {
@@ -215,7 +205,7 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
   
   const getRecipientPhoneNumber = () => {
     if (recipientType === 'load') {
-      return selectedRecipient ? selectedRecipient.phoneNumber : ''
+      return selectedRecipient ? (selectedRecipient.phone_number || '') : ''
     } else {
       return newPhoneNumber
     }
@@ -282,8 +272,8 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [] }) =>
                         className="sms-send-combobox-item"
                         onClick={() => handleRecipientSelect(member)}
                       >
-                        <div className="sms-send-member-name">{member.name}</div>
-                        <div className="sms-send-member-phone">{member.phoneNumber}</div>
+                        <div className="sms-send-member-name">{member.name || member.business_name || ''}</div>
+                        <div className="sms-send-member-phone">{member.phone_number || ''}</div>
                       </div>
                     ))}
                   </div>

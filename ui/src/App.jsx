@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Autoplay, Pagination } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/autoplay'
+import 'swiper/css/pagination'
 import './App.css'
 import kLogo from './assets/k_logo.png'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CustomerMemoProvider } from './contexts/CustomerMemoContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import { settingsAPI } from './utils/api'
 import AdminCustomer from './pages/AdminCustomer'
 import AdminProductCategory from './pages/AdminProductCategory'
 import AdminProduct from './pages/AdminProduct'
@@ -22,25 +28,136 @@ import MemberTypeSelection from './pages/MemberTypeSelection'
 import AddMemberType from './pages/AddMemberType'
 import MemberTypeForm from './pages/MemberTypeForm'
 import Login from './pages/Login'
+import AuthVerify from './pages/AuthVerify'
+import AdminSettings from './pages/AdminSettings'
+
+function BannerSlider({ banners }) {
+  const swiperRef = useRef(null)
+  const [isPlaying, setIsPlaying] = useState(true)
+  const multiple = banners.length > 1
+
+  const handlePlayToggle = () => {
+    const swiper = swiperRef.current
+    if (!swiper || !swiper.autoplay) return
+    if (isPlaying) {
+      swiper.autoplay.stop()
+    } else {
+      swiper.autoplay.start()
+    }
+  }
+
+  return (
+    <Swiper
+      modules={[Autoplay, Pagination]}
+      className="banner-swiper"
+      loop={multiple}
+      autoplay={
+        multiple
+          ? {
+              delay: (banners[0].displayTime || 3) * 1000,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true,
+            }
+          : false
+      }
+      pagination={
+        multiple
+          ? {
+              clickable: true,
+              bulletClass: 'banner-bullet',
+              bulletActiveClass: 'banner-bullet-active',
+            }
+          : false
+      }
+      allowTouchMove={multiple}
+      speed={500}
+      onSwiper={(swiper) => {
+        swiperRef.current = swiper
+        setIsPlaying(!!swiper.autoplay?.running)
+      }}
+      onAutoplayStart={() => setIsPlaying(true)}
+      onAutoplayStop={() => setIsPlaying(false)}
+      onAutoplayPause={() => setIsPlaying(false)}
+      onAutoplayResume={() => setIsPlaying(true)}
+    >
+      {banners.map((banner) => {
+        const delayMs = Math.max(1, Math.min(10, banner.displayTime || 3)) * 1000
+        const imageEl = (
+          <img
+            className="banner-slide-image"
+            src={banner.imageUrl}
+            alt=""
+            draggable={false}
+          />
+        )
+        return (
+          <SwiperSlide
+            key={banner.id}
+            data-swiper-autoplay={delayMs}
+            className="banner-slide"
+          >
+            {banner.linkUrl ? (
+              <a
+                href={banner.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="banner-slide-link"
+              >
+                {imageEl}
+              </a>
+            ) : (
+              imageEl
+            )}
+          </SwiperSlide>
+        )
+      })}
+
+      {multiple && (
+        <button
+          type="button"
+          className="banner-playpause-btn"
+          onClick={handlePlayToggle}
+          aria-label={isPlaying ? '슬라이드 정지' : '슬라이드 재생'}
+        >
+          {isPlaying ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="5" width="4" height="14" rx="1" />
+              <rect x="14" y="5" width="4" height="14" rx="1" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+      )}
+    </Swiper>
+  )
+}
 
 function Home() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const [currentBanner, setCurrentBanner] = useState(0)
+  const [mainBanners, setMainBanners] = useState([])
+  const [bannersLoading, setBannersLoading] = useState(true)
 
-  const banners = [
-    { id: 1, title: '세금 신고 서비스', description: '전문 세무사가 도와드립니다' },
-    { id: 2, title: '빠른 신고 처리', description: '24시간 내 신고 완료' },
-    { id: 3, title: '안전한 서류 관리', description: '보안이 강화된 서류 보관' }
-  ]
-
-  const nextBanner = () => {
-    setCurrentBanner((prev) => (prev + 1) % banners.length)
-  }
-
-  const prevBanner = () => {
-    setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length)
-  }
+  useEffect(() => {
+    let cancelled = false
+    settingsAPI
+      .getMainBanners()
+      .then((res) => {
+        if (!cancelled && res.success) setMainBanners(res.data || [])
+      })
+      .catch(() => {
+        if (!cancelled) setMainBanners([])
+      })
+      .finally(() => {
+        if (!cancelled) setBannersLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handlePaymentClick = () => {
     if (isAuthenticated) {
@@ -60,6 +177,10 @@ function Home() {
 
   const handleLoginClick = () => {
     navigate('/login')
+  }
+
+  const handleAdminClick = () => {
+    navigate('/admin/customer')
   }
 
   return (
@@ -117,32 +238,24 @@ function Home() {
           {/* Main Banner */}
           <section className="banner-section">
             <div className="banner-container">
-              <button className="banner-nav prev" onClick={prevBanner} aria-label="이전 배너">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
               <div className="banner-slider">
-                {banners.map((banner, index) => (
-                  <div
-                    key={banner.id}
-                    className={`banner-slide ${index === currentBanner ? 'active' : ''}`}
-                  >
-                    <div className="banner-content">
-                      <h2>{banner.title}</h2>
-                      <p>{banner.description}</p>
+                {bannersLoading ? (
+                  <div className="banner-slide active">
+                    <div className="banner-content banner-content-loading">
+                      <p>배너 불러오는 중…</p>
                     </div>
                   </div>
-                ))}
+                ) : mainBanners.length === 0 ? (
+                  <div className="banner-slide active">
+                    <div className="banner-content">
+                      <h2>세금 신고 서비스</h2>
+                      <p>관리자 환경 설정에서 메인 배너를 등록할 수 있습니다</p>
+                    </div>
+                  </div>
+                ) : (
+                  <BannerSlider banners={mainBanners} />
+                )}
               </div>
-              <button className="banner-nav next" onClick={nextBanner} aria-label="다음 배너">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
-            </div>
-            <div className="banner-indicator">
-              {currentBanner + 1} / {banners.length}
             </div>
           </section>
 
@@ -160,6 +273,12 @@ function Home() {
                 <div className="button-content">
                   <h3>내 서류 관리</h3>
                   <p>세금 신고에 필요한 서류를 첨부하세요.</p>
+                </div>
+              </button>
+              <button className="action-button admin" onClick={handleAdminClick}>
+                <div className="button-content">
+                  <h3>관리자 페이지</h3>
+                  <p>고객, 상품, 주문 등을 관리하세요.</p>
                 </div>
               </button>
             </section>
@@ -252,22 +371,9 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/add-member-type" 
-            element={
-              <ProtectedRoute>
-                <AddMemberType />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/member-type-form" 
-            element={
-              <ProtectedRoute>
-                <MemberTypeForm />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/auth-verify" element={<AuthVerify />} />
+          <Route path="/add-member-type" element={<AddMemberType />} />
+          <Route path="/member-type-form" element={<MemberTypeForm />} />
           <Route path="/admin/customer" element={<AdminCustomer />} />
         <Route path="/admin/product-category" element={<AdminProductCategory />} />
         <Route path="/admin/product" element={<AdminProduct />} />
@@ -275,6 +381,7 @@ function App() {
           <Route path="/admin/document-management" element={<DocumentManagement />} />
           <Route path="/admin/sms" element={<AdminSMS />} />
           <Route path="/admin/payment" element={<AdminOrderPayment />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
       </Routes>
     </BrowserRouter>
       </CustomerMemoProvider>

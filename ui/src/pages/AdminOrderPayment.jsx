@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import MemoModal from '../components/MemoModal'
 import { useCustomerMemo } from '../contexts/CustomerMemoContext'
+import { orderAPI } from '../utils/api'
 import '../components/AdminLayout.css'
 import './AdminOrderPayment.css'
 import './AdminCustomer.css'
@@ -13,9 +14,11 @@ const AdminOrderPayment = () => {
   const [itemsPerPage, setItemsPerPage] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
   const [sortOrder, setSortOrder] = useState('주문결제일시순')
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   
   // 검색 필터 상태
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [selectedPeriod, setSelectedPeriod] = useState('3개월') // 기본값 3개월
   const [searchType, setSearchType] = useState('주문인')
   const [searchKeyword, setSearchKeyword] = useState('')
   
@@ -70,50 +73,111 @@ const AdminOrderPayment = () => {
     return `${year}${month}${day}${hours}${minutes}${seconds}${randomChars}`
   }
 
-  const [orders, setOrders] = useState([
-    {
-      id: 1,
-      orderPaymentDate: getDateString(1),
-      orderId: getOrderId(getDateString(1)),
-      customerName: '홍길동',
-      customerId: 1,
-      categoryName: '인건비 신고',
-      productName: '프리랜서 (4대 보험 신고 불필요)',
-      productPrice: 50000,
-      status: '결제완료',
-      deleted: false
-    },
-    {
-      id: 2,
-      orderPaymentDate: getDateString(2),
-      orderId: getOrderId(getDateString(2)),
-      customerName: '장길산',
-      customerId: 3,
-      categoryName: '인건비 신고',
-      productName: '아르바이트 (고용, 산재보험만 신고)',
-      productPrice: 40000,
-      status: '신고진행중',
-      deleted: false
-    },
-    {
-      id: 3,
-      orderPaymentDate: getDateString(3),
-      orderId: getOrderId(getDateString(3)),
-      customerName: '임꺽정',
-      customerId: 2,
-      categoryName: '인건비 신고',
-      productName: '상시근로자 (4대 보험 신고 필요)',
-      productPrice: 30000,
-      status: '신고완료',
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  // 주문 목록 로드
+  const loadOrders = async () => {
+    try {
+      setLoading(true)
+      
+      // 서버 API의 검색 타입에 맞게 변환 (주문인 -> 회원명)
+      const apiSearchType = searchType === '주문인' ? '회원명' : searchType
+      
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        sortOrder: sortOrder === '주문결제일시순' ? '주문결제일시순' : 
+                   sortOrder === '주문결제일시 역순' ? '주문결제일시 역순' :
+                   '등록일시 역순'
+      }
+      
+      // 날짜 필터가 있으면 추가
+      if (dateRange.start) {
+        params.startDate = dateRange.start
+      }
+      if (dateRange.end) {
+        params.endDate = dateRange.end
+      }
+      
+      // 검색 필터가 있으면 추가
+      if (searchKeyword) {
+        params.searchType = apiSearchType
+        params.searchKeyword = searchKeyword
+      }
+
+      const response = await orderAPI.getOrders(params)
+      
+      console.log('주문 목록 API 응답:', response) // 디버깅용
+      
+      if (response && response.success && response.data) {
+        // response.data가 배열인지 확인
+        const dataArray = Array.isArray(response.data) ? response.data : []
+        
+        if (dataArray.length === 0) {
+          console.warn('주문 데이터가 비어있습니다. 응답:', response)
+        }
+        
+        // API 응답을 프론트엔드 형식으로 변환
+        const formattedOrders = dataArray.map(order => {
+          // 회원명 처리 (name 또는 business_name)
+          const customerName = order.member_name || order.business_name || ''
+          
+          // 날짜 포맷팅
+          const formatDate = (dateStr) => {
+            if (!dateStr) return ''
+            const date = new Date(dateStr)
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            const hours = String(date.getHours()).padStart(2, '0')
+            const minutes = String(date.getMinutes()).padStart(2, '0')
+            const seconds = String(date.getSeconds()).padStart(2, '0')
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+          }
+
+          return {
+            id: order.id,
+            orderId: order.order_id || '',
+            customerName: customerName,
+            customerId: order.member_id || null,
+            categoryName: order.category_name || '',
+            productName: order.product_name || '',
+            productPrice: order.product_price || order.payment_amount || 0,
+            status: order.status || '결제대기',
+            orderPaymentDate: formatDate(order.payment_date),
+            cancelAmount: order.cancel_amount || 0,
+            cancelDate: formatDate(order.cancel_date),
       deleted: false
     }
-  ])
+        })
+        
+        setOrders(formattedOrders)
+        setTotalCount(response.pagination?.total || formattedOrders.length)
+        initializeMemos(formattedOrders, 'customerId')
+      } else {
+        console.error('주문 목록 조회 실패:', response)
+        setOrders([])
+        setTotalCount(0)
+        if (response && response.error) {
+          console.error('API 오류:', response.error)
+        }
+      }
+    } catch (error) {
+      console.error('주문 목록 조회 오류:', error)
+      setOrders([])
+      setTotalCount(0)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  // 메모 초기화 및 날짜 범위 기본값 설정 (3개월)
+  // 날짜 범위 기본값 설정 제거 - 모든 데이터를 볼 수 있도록 함
+  // 사용자가 원할 때만 날짜 필터를 적용할 수 있음
+
+  // 주문 목록 로드 (필터 변경 시)
+  // 초기 3개월 기본값 설정
   useEffect(() => {
-    initializeMemos(orders, 'customerId')
-    
-    // 3개월 기본값 설정
     const today = new Date()
     const startDate = new Date()
     startDate.setMonth(today.getMonth() - 3)
@@ -125,20 +189,32 @@ const AdminOrderPayment = () => {
       return `${year}-${month}-${day}`
     }
     
-    setDateRange({
-      start: formatDate(startDate),
-      end: formatDate(today)
-    })
+    if (!dateRange.start && !dateRange.end) {
+      setDateRange({
+        start: formatDate(startDate),
+        end: formatDate(today)
+      })
+      setSelectedPeriod('3개월')
+    }
   }, [])
 
+  useEffect(() => {
+    loadOrders()
+  }, [currentPage, itemsPerPage, sortOrder, dateRange, searchKeyword, searchType])
+
   const handleDateQuickSelect = (period) => {
+    setSelectedPeriod(period) // 선택된 기간 업데이트
+    
     const today = new Date()
     let startDate = new Date()
     
     switch (period) {
       case '오늘':
-        startDate = new Date(today)
-        break
+        // 오늘 날짜로 설정 (시작일과 종료일 모두 오늘)
+        const todayStr = today.toISOString().split('T')[0]
+        setDateRange({ start: todayStr, end: todayStr })
+        // useEffect가 자동으로 loadOrders 호출
+        return
       case '1주일':
         startDate.setDate(today.getDate() - 7)
         break
@@ -156,6 +232,7 @@ const AdminOrderPayment = () => {
         break
       case '전체':
         setDateRange({ start: '', end: '' })
+        // useEffect가 자동으로 loadOrders 호출
         return
       default:
         return
@@ -172,14 +249,32 @@ const AdminOrderPayment = () => {
       start: formatDate(startDate),
       end: formatDate(today)
     })
+    // useEffect가 자동으로 loadOrders 호출
   }
 
   const handleSearch = () => {
     setCurrentPage(1)
+    loadOrders()
   }
 
   const handleReset = () => {
-    setDateRange({ start: '', end: '' })
+    // 3개월 기본값으로 초기화
+    const today = new Date()
+    const startDate = new Date()
+    startDate.setMonth(today.getMonth() - 3)
+    
+    const formatDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    
+    setDateRange({
+      start: formatDate(startDate),
+      end: formatDate(today)
+    })
+    setSelectedPeriod('3개월')
     setSearchType('주문인')
     setSearchKeyword('')
     setCurrentPage(1)
@@ -194,15 +289,11 @@ const AdminOrderPayment = () => {
   }
 
   const handleSelectAll = () => {
-    const visibleOrders = getFilteredOrders()
-    const currentPageOrders = getPaginatedOrders(visibleOrders)
-    
-    if (selectedItems.length === currentPageOrders.length && 
-        currentPageOrders.every(order => selectedItems.includes(order.id))) {
-      setSelectedItems(prev => prev.filter(id => !currentPageOrders.some(order => order.id === id)))
+    if (selectedItems.length === orders.length && orders.length > 0 && 
+        orders.every(order => selectedItems.includes(order.id))) {
+      setSelectedItems([])
     } else {
-      const newSelected = [...new Set([...selectedItems, ...currentPageOrders.map(order => order.id)])]
-      setSelectedItems(newSelected)
+      setSelectedItems(orders.map(order => order.id))
     }
   }
 
@@ -239,13 +330,20 @@ const AdminOrderPayment = () => {
     setStatusModalOpen(true)
   }
 
-  const handleStatusChange = (newStatus) => {
+  const handleStatusChange = async (newStatus) => {
     if (selectedOrderForStatus) {
-      setOrders(prev => prev.map(order => 
-        order.id === selectedOrderForStatus.id
-          ? { ...order, status: newStatus }
-          : order
-      ))
+      try {
+        const response = await orderAPI.updateOrderStatus(selectedOrderForStatus.id, newStatus)
+        if (response.success) {
+          // 주문 목록 다시 로드
+          await loadOrders()
+        } else {
+          alert('주문 상태 변경 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'))
+        }
+      } catch (error) {
+        console.error('주문 상태 변경 오류:', error)
+        alert('주문 상태 변경 중 오류가 발생했습니다.')
+      }
     }
     setStatusModalOpen(false)
     setSelectedOrderForStatus(null)
@@ -316,70 +414,10 @@ const AdminOrderPayment = () => {
     return new Intl.NumberFormat('ko-KR').format(price) + '원'
   }
 
-  const getFilteredOrders = () => {
-    return orders.filter(order => {
-      if (order.deleted) return false
-      
-      // 날짜 필터
-      if (dateRange.start && dateRange.end) {
-        const orderDateStr = order.orderPaymentDate.split(' ')[0] // YYYY-MM-DD 형식
-        const startDateStr = dateRange.start // YYYY-MM-DD 형식
-        const endDateStr = dateRange.end // YYYY-MM-DD 형식
-        
-        // 날짜 문자열 직접 비교 (YYYY-MM-DD 형식이므로 문자열 비교 가능)
-        if (orderDateStr < startDateStr || orderDateStr > endDateStr) return false
-      }
-      
-      // 검색어 필터
-      if (searchKeyword.trim()) {
-        const keyword = searchKeyword.trim().toLowerCase()
-        switch (searchType) {
-          case '주문인':
-            if (!order.customerName.toLowerCase().includes(keyword)) return false
-            break
-          case '주문 ID':
-            if (!order.orderId.toLowerCase().includes(keyword)) return false
-            break
-          case '상품카테고리명':
-            if (!order.categoryName.toLowerCase().includes(keyword)) return false
-            break
-          case '상품명':
-            if (!order.productName.toLowerCase().includes(keyword)) return false
-            break
-          default:
-            break
-        }
-      }
-      
-      return true
-    })
-  }
-
-  const getSortedOrders = (orderList) => {
-    const sorted = [...orderList]
-    sorted.sort((a, b) => {
-      const dateA = new Date(a.orderPaymentDate.replace(/-/g, '/'))
-      const dateB = new Date(b.orderPaymentDate.replace(/-/g, '/'))
-      
-      if (sortOrder === '주문결제일시순') {
-        return dateA - dateB
-      } else {
-        return dateB - dateA
-      }
-    })
-    return sorted
-  }
-
-  const getPaginatedOrders = (orderList) => {
-    const sorted = getSortedOrders(orderList)
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    return sorted.slice(startIndex, endIndex)
-  }
-
-  const filteredOrders = getFilteredOrders()
-  const visibleOrders = getPaginatedOrders(filteredOrders)
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+  // 서버에서 이미 필터링/정렬/페이지네이션된 데이터를 받으므로 orders를 직접 사용
+  const visibleOrders = orders
+  const [totalCount, setTotalCount] = useState(0)
+  const totalPages = Math.ceil(totalCount / itemsPerPage)
 
   const statusOptions = ['결제완료', '신고진행중', '신고완료']
 
@@ -396,7 +434,7 @@ const AdminOrderPayment = () => {
                 {['오늘', '1주일', '1개월', '3개월', '6개월', '1년', '전체'].map((period) => (
                   <button
                     key={period}
-                    className={`admin-date-quick-btn ${dateRange.start && period === '3개월' ? 'active' : ''}`}
+                    className={`admin-date-quick-btn ${period === selectedPeriod ? 'active' : ''}`}
                     onClick={() => handleDateQuickSelect(period)}
                   >
                     {period}
@@ -459,10 +497,26 @@ const AdminOrderPayment = () => {
         {/* Common Controls */}
         <div className="admin-controls">
           <div className="admin-controls-left">
-            <span className="admin-count-text">총 {filteredOrders.length}</span>
+            <span className="admin-count-text">총 {totalCount}</span>
             <span className="admin-count-text">선택 {selectedItems.length} 건</span>
             <button className="admin-select-all-btn" onClick={handleSelectAll}>
               전체 선택
+            </button>
+            <button 
+              className="admin-filter-btn"
+              onClick={() => setIsFilterModalOpen(true)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
             </button>
           </div>
           <div className="admin-controls-right">
@@ -538,13 +592,13 @@ const AdminOrderPayment = () => {
                           onChange={() => handleSelectItem(order.id)}
                         />
                       </td>
-                      <td>{order.orderPaymentDate}</td>
-                      <td>{order.orderId}</td>
-                      <td>{order.customerName}</td>
-                      <td>{order.categoryName}</td>
-                      <td>{order.productName}</td>
-                      <td>{formatPrice(order.productPrice)}</td>
-                      <td>
+                      <td data-label="주문결제일">{order.orderPaymentDate}</td>
+                      <td data-label="주문 ID">{order.orderId}</td>
+                      <td data-label="주문인">{order.customerName}</td>
+                      <td data-label="상품카테고리명">{order.categoryName}</td>
+                      <td data-label="상품명">{order.productName}</td>
+                      <td data-label="상품 가격">{formatPrice(order.productPrice)}</td>
+                      <td data-label="첨부 서류">
                         <button 
                           className="admin-table-btn"
                           onClick={() => handleDocumentClick(order)}
@@ -552,7 +606,7 @@ const AdminOrderPayment = () => {
                           첨부 서류
                         </button>
                       </td>
-                      <td>
+                      <td data-label="메모">
                         {latestMemo ? (
                           <span 
                             className="admin-memo-text admin-memo-clickable"
@@ -570,7 +624,7 @@ const AdminOrderPayment = () => {
                           </button>
                         )}
                       </td>
-                      <td>
+                      <td data-label="상태">
                         <button 
                           className="admin-status-btn"
                           onClick={() => handleStatusClick(order)}
@@ -578,7 +632,7 @@ const AdminOrderPayment = () => {
                           {order.status}
                         </button>
                       </td>
-                      <td>
+                      <td data-label="결제 취소">
                         {order.status === '결제취소' ? (
                           <button 
                             className="admin-table-btn"
@@ -758,10 +812,97 @@ const AdminOrderPayment = () => {
             onDelete={handleMemoDelete}
           />
         )}
+
+        {/* Filter Modal (Mobile) */}
+        {isFilterModalOpen && (
+          <div className="admin-filter-overlay" onClick={() => setIsFilterModalOpen(false)}>
+            <div className="admin-filter-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-filter-header">
+                <span className="admin-filter-title">필터</span>
+                <button className="admin-filter-close" onClick={() => setIsFilterModalOpen(false)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div className="admin-filter-content">
+                <div className="admin-search-area">
+                  {/* 주문결제일 검색과 검색어 입력을 한 줄에 배치 */}
+                  <div className="admin-search-row">
+                    {/* 주문결제일 검색 */}
+                    <div className="admin-search-section admin-search-section-left">
+                      <label className="admin-search-label">주문결제일</label>
+                      <div className="admin-date-quick-buttons">
+                        {['오늘', '1주일', '1개월', '3개월', '6개월', '1년', '전체'].map((period) => (
+                          <button
+                            key={period}
+                            className={`admin-date-quick-btn ${period === selectedPeriod ? 'active' : ''}`}
+                            onClick={() => handleDateQuickSelect(period)}
+                          >
+                            {period}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="admin-date-inputs">
+                        <input
+                          type="date"
+                          className="admin-date-input"
+                          value={dateRange.start}
+                          onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                        />
+                        <span className="admin-date-separator">~</span>
+                        <input
+                          type="date"
+                          className="admin-date-input"
+                          value={dateRange.end}
+                          onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 검색어 입력 */}
+                    <div className="admin-search-section admin-search-section-right">
+                      <label className="admin-search-label">검색</label>
+                      <div className="admin-search-input-group">
+                        <select
+                          className="admin-search-select"
+                          value={searchType}
+                          onChange={(e) => setSearchType(e.target.value)}
+                        >
+                          <option value="주문인">주문인</option>
+                          <option value="주문 ID">주문 ID</option>
+                          <option value="상품카테고리명">상품카테고리명</option>
+                          <option value="상품명">상품명</option>
+                        </select>
+                        <input
+                          type="text"
+                          className="admin-search-input"
+                          placeholder="검색어 입력"
+                          value={searchKeyword}
+                          onChange={(e) => setSearchKeyword(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 검색/초기화 버튼 */}
+                  <div className="admin-search-actions">
+                    <button className="admin-search-btn" onClick={() => { handleSearch(); setIsFilterModalOpen(false); }}>
+                      검색
+                    </button>
+                    <button className="admin-reset-btn" onClick={() => { handleReset(); setIsFilterModalOpen(false); }}>
+                      초기화
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   )
 }
 
 export default AdminOrderPayment
-

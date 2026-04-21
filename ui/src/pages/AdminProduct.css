@@ -188,8 +188,93 @@
   font-size: 0.875rem;
 }
 
-/* 반응형 디자인 */
+/* AdminProduct 페이지 전용: AdminCustomer.css의 전역 스타일 영향 방지 */
+/* AdminProduct 페이지의 모든 주요 영역이 항상 보이도록 보장 */
+.admin-page .admin-search-area,
+.admin-page .admin-controls,
+.admin-page .admin-table-container {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* AdminProduct 페이지에서 admin-no-results-mobile-overlay가 있을 경우 완전히 숨김 */
+.admin-page .admin-no-results-mobile-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* 모바일 환경에서 "검색 결과가 없습니다" 메시지 중앙 정렬 */
 @media (max-width: 768px) {
+  /* 모바일에서 기본 검색 영역 숨김 */
+  .admin-page > .admin-search-area {
+    display: none !important;
+  }
+  
+  /* 필터 버튼 모바일에서 표시 */
+  .admin-filter-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* 모바일에서 colspan="9"인 td를 화면 정중앙에 배치 */
+  /* AdminLayout.css의 td 스타일을 오버라이드하기 위해 더 구체적인 선택자 사용 */
+  .admin-table-container .admin-table tbody tr td[colspan="9"],
+  .admin-table tbody tr td[colspan="9"],
+  .admin-page .admin-table tbody tr td[colspan="9"] {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 2rem !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    gap: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* td::before 제거 (모바일에서 라벨 숨김) */
+  .admin-table-container .admin-table tbody tr td[colspan="9"]:before,
+  .admin-table tbody tr td[colspan="9"]:before,
+  .admin-page .admin-table tbody tr td[colspan="9"]:before {
+    display: none !important;
+    content: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+  }
+  
+  /* td 내부 텍스트 중앙 정렬 */
+  .admin-table-container .admin-table tbody tr td[colspan="9"] > *,
+  .admin-table tbody tr td[colspan="9"] > *,
+  .admin-page .admin-table tbody tr td[colspan="9"] > * {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    flex: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
   .admin-search-area {
     padding: 1rem;
   }
@@ -247,6 +332,17 @@
   .admin-search-btn,
   .admin-reset-btn {
     width: 100%;
+  }
+  
+  /* 모바일에서 nth-child(5) 왼쪽 정렬 */
+  .admin-table tbody td:nth-child(5) {
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+  
+  .admin-table tbody td:nth-child(5) > * {
+    text-align: left !important;
+    justify-content: flex-start !important;
   }
 }
 

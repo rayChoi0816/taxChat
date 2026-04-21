@@ -1,17 +1,14 @@
 /* Login 페이지는 App.css의 스타일을 상속받음 */
-/* 로그인 컨텐츠는 app 내부에 위치 */
 .login-content {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3rem;
-  padding: 2rem 1rem;
+  padding: 3rem 1.75rem 2rem;
   box-sizing: border-box;
+  background-color: #ffffff;
   overflow-y: auto;
-  min-height: 100%;
 }
 
 /* Logo Section */
@@ -19,7 +16,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+  margin-top: 2rem;
 }
 
 .login-logo {
@@ -45,9 +43,10 @@
 }
 
 .login-service-name {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: 600;
-  color: #2563eb;
+  color: #9ca3af;
+  letter-spacing: 0.15em;
   margin: 0;
   text-align: center;
 }
@@ -57,95 +56,139 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
+  margin-top: 3rem;
 }
 
-.login-phone-input {
+.login-input {
   width: 100%;
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 0.875rem 1.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  font-size: 0.9375rem;
   background-color: #ffffff;
   box-sizing: border-box;
   text-align: center;
+  color: #1f2937;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.login-phone-input:focus {
+.login-input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.12);
 }
 
-.login-phone-input::placeholder {
-  color: #9ca3af;
+.login-input::placeholder {
+  color: #b0b5bd;
   text-align: center;
+  font-size: 0.9375rem;
 }
 
 .login-button {
   width: 100%;
-  padding: 1rem;
+  margin-top: 0.5rem;
+  padding: 0.9375rem 1rem;
   border: none;
-  border-radius: 12px;
+  border-radius: 999px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background-color 0.2s, transform 0.1s;
 }
 
 .login-button.enabled {
-  background-color: #6b46c1;
+  background-color: #8a6cd1;
   color: #ffffff;
+  box-shadow: 0 2px 6px rgba(138, 108, 209, 0.28);
 }
 
 .login-button.enabled:hover {
-  background-color: #5b21b6;
+  background-color: #7455c1;
+}
+
+.login-button.enabled:active {
+  transform: scale(0.99);
 }
 
 .login-button.disabled {
-  background-color: #e5e7eb;
-  color: #9ca3af;
+  background-color: #c9cdd2;
+  color: #ffffff;
   cursor: not-allowed;
 }
 
-.login-signup-link {
-  background: none;
-  border: none;
-  color: #4f46e5;
-  text-decoration: underline;
-  font-size: 0.875rem;
-  cursor: pointer;
-  padding: 0.5rem 0;
+.login-error {
+  margin: 0;
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+  color: #dc2626;
   text-align: center;
 }
 
-.login-signup-link:hover {
-  color: #4338ca;
+.login-links {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.login-link-btn {
+  background: none;
+  border: none;
+  color: #6d5bc4;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.login-link-btn:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+.login-link-sep {
+  color: #c9cdd2;
 }
 
 /* Footer */
 .login-footer {
+  margin-top: auto;
+  padding-top: 2.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: 0.8125rem;
+  color: #374151;
 }
 
-.login-footer-item {
-  color: #6b7280;
+.login-footer-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .login-footer-link {
   background: none;
   border: none;
-  color: #4f46e5;
+  color: #1f2937;
   text-decoration: underline;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
   padding: 0;
 }
 
 .login-footer-link:hover {
-  color: #4338ca;
+  color: #4f46e5;
+}
+
+.login-footer-brand {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
 }

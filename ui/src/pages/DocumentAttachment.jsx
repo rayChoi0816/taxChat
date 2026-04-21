@@ -1,25 +1,165 @@
-import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import './Payment.css'
 import './DocumentAttachment.css'
+import { documentAPI } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
+import { orderAPI } from '../utils/api'
 
 const DocumentAttachment = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const fileInputRef = useRef(null)
+  const { user } = useAuth()
+  
+  // URL 파라미터에서 orderId, documentId, memberDocumentId, view 가져오기
+  const searchParams = new URLSearchParams(location.search)
+  const urlOrderId = searchParams.get('orderId')
+  const urlDocumentId = searchParams.get('documentId')
+  const memberDocumentId = searchParams.get('memberDocumentId')
+  const isViewMode = searchParams.get('view') === 'true'
+  const isEditMode = searchParams.get('edit') === 'true'
+  
+  const [isEditing, setIsEditing] = useState(false)
+  const [memberDocument, setMemberDocument] = useState(null)
   
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showDocumentList, setShowDocumentList] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [fileDescription, setFileDescription] = useState('')
+  const [documentTypes, setDocumentTypes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [uploadedDocuments, setUploadedDocuments] = useState([])
+  const [loadingDocuments, setLoadingDocuments] = useState(true)
 
-  // 관리자 페이지에서 등록한 첨부 서류 목록 (실제로는 API에서 가져올 데이터)
-  const documentTypes = [
-    { id: 1, name: '가족관계증명서' },
-    { id: 2, name: '사업자등록증' },
-    { id: 3, name: '주민등록등본' },
-    { id: 4, name: '기타' }
-  ]
+  // 서류 관리 페이지에 등록된 서류 목록 조회
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        setLoading(true)
+        const response = await documentAPI.getDocuments()
+        if (response.success) {
+          // 서류 관리 페이지에 등록된 모든 서류를 표시 (삭제되지 않은 서류만)
+          setDocumentTypes(response.data || [])
+          
+          // URL에서 documentId가 있으면 해당 서류 선택
+          if (urlDocumentId) {
+            const doc = response.data.find(d => d.id === parseInt(urlDocumentId))
+            if (doc) {
+              setSelectedDocument(doc)
+              setSearchQuery(doc.name)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('서류 목록 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadDocuments()
+  }, [urlDocumentId])
+
+  // URL에서 orderId를 가져와서 주문 정보로 변환 (order_id를 order.id로)
+  const [orderIdForUpload, setOrderIdForUpload] = useState(null)
+  useEffect(() => {
+    const getOrderId = async () => {
+      if (urlOrderId && user?.id) {
+        try {
+          // order_id로 주문 조회
+          const ordersResponse = await orderAPI.getOrders({
+            memberId: user.id,
+            searchType: '주문 ID',
+            searchKeyword: urlOrderId,
+            limit: 100
+          })
+          if (ordersResponse.success && ordersResponse.data.length > 0) {
+            // order_id로 필터링 (API가 정확히 매칭하지 않을 수 있으므로)
+            const order = ordersResponse.data.find(o => o.order_id === urlOrderId)
+            if (order) {
+              setOrderIdForUpload(order.id) // order.id 사용
+            }
+          }
+        } catch (error) {
+          console.error('주문 조회 오류:', error)
+        }
+      }
+    }
+    getOrderId()
+  }, [urlOrderId, user])
+
+  // memberDocumentId가 있을 때 기존 서류 정보 로드
+  useEffect(() => {
+    const loadMemberDocument = async () => {
+      if (!memberDocumentId || !user?.id) {
+        return
+      }
+
+      try {
+        const response = await documentAPI.getMemberDocuments(user.id)
+        if (response.success) {
+          const doc = response.data.find(d => d.id === parseInt(memberDocumentId))
+          if (doc) {
+            setMemberDocument(doc)
+            // 서류 정보 설정
+            const docType = documentTypes.find(dt => dt.id === doc.document_id)
+            if (docType) {
+              setSelectedDocument(docType)
+              setSearchQuery(docType.name)
+            }
+            // 파일 설명 설정
+            if (doc.description) {
+              setFileDescription(doc.description)
+            }
+            // 파일명 표시를 위한 상태 (실제 파일은 없지만 파일명만 표시)
+            if (doc.file_name) {
+              setSelectedFile({ name: doc.file_name })
+            }
+          }
+        }
+      } catch (error) {
+        console.error('서류 정보 조회 오류:', error)
+      }
+    }
+
+    if (memberDocumentId && documentTypes.length > 0) {
+      loadMemberDocument()
+    }
+  }, [memberDocumentId, user, documentTypes])
+
+  // 첨부한 서류 목록 조회 (view 모드가 아닐 때만)
+  useEffect(() => {
+    const loadUploadedDocuments = async () => {
+      if (!user?.id || isViewMode) {
+        setLoadingDocuments(false)
+        return
+      }
+      
+      try {
+        setLoadingDocuments(true)
+        const response = await documentAPI.getMemberDocuments(user.id)
+        if (response.success) {
+          // order_id로 필터링 (URL에서 orderId가 있으면)
+          let filtered = response.data || []
+          if (urlOrderId && orderIdForUpload) {
+            // order.id로 필터링
+            filtered = filtered.filter(doc => doc.order_id === orderIdForUpload)
+          }
+          setUploadedDocuments(filtered)
+        }
+      } catch (error) {
+        console.error('첨부한 서류 조회 오류:', error)
+      } finally {
+        setLoadingDocuments(false)
+      }
+    }
+    
+    if (user?.id && (!urlOrderId || orderIdForUpload) && !isViewMode) {
+      loadUploadedDocuments()
+    }
+  }, [user, urlOrderId, orderIdForUpload, isViewMode])
 
   // 검색 필터링
   const filteredDocuments = documentTypes.filter(doc =>
@@ -59,17 +199,106 @@ const DocumentAttachment = () => {
     }
   }
 
-  const handleComplete = () => {
-    if (!selectedDocument || !selectedFile) {
+  const handleEditClick = () => {
+    setIsEditing(true)
+  }
+
+  const handleComplete = async () => {
+    if (!selectedDocument || !user?.id) {
+      return
+    }
+
+    // 수정 모드일 때는 파일이 선택되지 않아도 됨 (기존 파일 유지)
+    if (!isEditing && !selectedFile) {
       return
     }
     
-    // 서류 첨부 완료 처리
-    alert('서류 첨부가 완료되었습니다.')
-    navigate('/document-storage')
+    try {
+      setUploading(true)
+      
+      // FormData 생성
+      const formData = new FormData()
+      
+      // 수정 모드인 경우
+      if (isEditing && memberDocumentId) {
+        formData.append('documentId', selectedDocument.id.toString())
+        if (fileDescription !== undefined) {
+          formData.append('description', fileDescription)
+        }
+        if (orderIdForUpload) {
+          formData.append('orderId', orderIdForUpload.toString())
+        }
+        // 새 파일이 선택된 경우에만 추가
+        if (selectedFile && selectedFile instanceof File) {
+          formData.append('file', selectedFile)
+        }
+        
+        // 서류 수정
+        const response = await documentAPI.updateMemberDocument(user.id, memberDocumentId, formData)
+        
+        if (response.success) {
+          alert('서류 수정이 완료되었습니다.')
+          navigate('/document-storage')
+        } else {
+          alert('서류 수정 중 오류가 발생했습니다.')
+        }
+      } else {
+        // 새로 업로드하는 경우
+        if (!selectedFile) {
+          return
+        }
+        
+        formData.append('file', selectedFile)
+        formData.append('documentId', selectedDocument.id.toString())
+        if (fileDescription) {
+          formData.append('description', fileDescription)
+        }
+        if (orderIdForUpload) {
+          formData.append('orderId', orderIdForUpload.toString())
+        }
+        
+        // 서류 업로드
+        const response = await documentAPI.uploadDocument(user.id, formData)
+        
+        if (response.success) {
+          alert('서류 첨부가 완료되었습니다.')
+          
+          // 첨부한 서류 목록 새로고침
+          const documentsResponse = await documentAPI.getMemberDocuments(user.id)
+          if (documentsResponse.success) {
+            let filtered = documentsResponse.data || []
+            if (urlOrderId && orderIdForUpload) {
+              filtered = filtered.filter(doc => doc.order_id === orderIdForUpload)
+            }
+            setUploadedDocuments(filtered)
+          }
+          
+          // 입력 필드 초기화
+          setSelectedFile(null)
+          setFileDescription('')
+          setSearchQuery('')
+          setSelectedDocument(null)
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+          }
+          
+          // edit 모드가 아니면 document-storage로 이동
+          if (!isEditMode) {
+            navigate('/document-storage')
+          }
+        } else {
+          alert('서류 첨부 중 오류가 발생했습니다.')
+        }
+      }
+    } catch (error) {
+      console.error('서류 처리 오류:', error)
+      alert('서류 처리 중 오류가 발생했습니다.')
+    } finally {
+      setUploading(false)
+    }
   }
 
-  const isCompleteButtonEnabled = selectedDocument && selectedFile
+  const isCompleteButtonEnabled = selectedDocument && (isEditing ? true : selectedFile)
 
   return (
     <div className="payment-wrapper">
@@ -92,15 +321,16 @@ const DocumentAttachment = () => {
             <input
               type="text"
               className="document-select-input"
-              placeholder="첨부할 서류를 선택해주세요"
+              placeholder={loading ? "서류 목록을 불러오는 중..." : "첨부할 서류를 선택해주세요"}
               value={searchQuery}
               onChange={handleSearchChange}
               onFocus={() => setShowDocumentList(true)}
+              disabled={loading || (isViewMode && !isEditing)}
             />
             <div className="document-select-arrow">▼</div>
             
             {/* 서류 목록 드롭다운 */}
-            {showDocumentList && filteredDocuments.length > 0 && (
+            {showDocumentList && !loading && filteredDocuments.length > 0 && (
               <div className="document-list-dropdown">
                 {filteredDocuments.map((doc) => (
                   <div
@@ -113,13 +343,20 @@ const DocumentAttachment = () => {
                 ))}
               </div>
             )}
+            {showDocumentList && !loading && filteredDocuments.length === 0 && searchQuery && (
+              <div className="document-list-dropdown">
+                <div className="document-list-item" style={{ color: '#999', cursor: 'default' }}>
+                  검색 결과가 없습니다
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 서류 찾기 버튼 */}
           <button
-            className={`document-find-btn ${selectedDocument ? 'active' : 'disabled'}`}
+            className={`document-find-btn ${selectedDocument && (isViewMode ? isEditing : true) ? 'active' : 'disabled'}`}
             onClick={handleFileSelect}
-            disabled={!selectedDocument}
+            disabled={!selectedDocument || (isViewMode && !isEditing)}
           >
             서류 찾기
           </button>
@@ -153,21 +390,32 @@ const DocumentAttachment = () => {
                 value={fileDescription}
                 onChange={(e) => setFileDescription(e.target.value)}
                 rows={4}
+                disabled={isViewMode && !isEditing}
               />
             </div>
           )}
+
 
         </div>
 
         {/* Footer Navigation */}
         <div className="form-footer">
-          <button
-            className={`document-complete-btn ${isCompleteButtonEnabled ? 'active' : 'disabled'}`}
-            onClick={handleComplete}
-            disabled={!isCompleteButtonEnabled}
-          >
-            서류 첨부 완료
-          </button>
+          {isViewMode && !isEditing ? (
+            <button
+              className="document-complete-btn active"
+              onClick={handleEditClick}
+            >
+              수정하기
+            </button>
+          ) : (
+            <button
+              className={`document-complete-btn ${isCompleteButtonEnabled && !uploading ? 'active' : 'disabled'}`}
+              onClick={handleComplete}
+              disabled={!isCompleteButtonEnabled || uploading}
+            >
+              {uploading ? (isEditing ? '수정 중...' : '업로드 중...') : (isEditing ? '수정완료' : '서류 첨부 완료')}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -175,4 +423,3 @@ const DocumentAttachment = () => {
 }
 
 export default DocumentAttachment
-

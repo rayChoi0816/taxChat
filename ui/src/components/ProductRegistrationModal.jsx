@@ -68,6 +68,11 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
 
   // 상품 추가
   const handleAddProduct = () => {
+    // 수정 모드이고 수정 중일 때만 추가 가능
+    if (isEditMode && !isEditing) {
+      return
+    }
+    
     const nextId = Math.max(...products.map(p => p.id), 0) + 1
     setProducts(prev => [...prev, {
       id: nextId,
@@ -85,6 +90,11 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
 
   // 상품 삭제
   const handleDeleteProduct = (productId) => {
+    // 수정 모드이고 수정 중일 때만 삭제 가능
+    if (isEditMode && !isEditing) {
+      return
+    }
+    
     if (products.length > 1) {
       setProducts(prev => prev.filter(p => p.id !== productId))
     } else {
@@ -290,7 +300,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         name: prod.name.trim(),
         code: generateProductCode(index + 1, existingCodes),
         price: parseInt(prod.price),
-        display: '비진열',
+        display: '진열',
         registrationDate: new Date().toLocaleString('ko-KR', {
           year: 'numeric',
           month: '2-digit',
@@ -410,11 +420,13 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
                 <option value="">선택</option>
-                {categories.filter(cat => !cat.deleted).map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {categories
+                  .filter(cat => !cat.deleted && (cat.display_status === '진열' || cat.display === '진열'))
+                  .map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
               </select>
             )}
           </div>
@@ -426,23 +438,25 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
                 <h3 className="product-registration-product-title">상품 {String(index + 1).padStart(2, '0')}</h3>
                 <div className="product-registration-product-actions">
                   <button
-                    className="product-registration-add-btn"
+                    className={`product-registration-add-btn ${(isEditMode && !isEditing) ? 'disabled' : ''}`}
                     onClick={handleAddProduct}
+                    disabled={isEditMode && !isEditing}
                   >
                     상품 +
                   </button>
                   <button
-                    className="product-registration-delete-btn"
+                    className={`product-registration-delete-btn ${(isEditMode && !isEditing) ? 'disabled' : ''}`}
                     onClick={() => handleDeleteProduct(product.id)}
+                    disabled={isEditMode && !isEditing}
                   >
                     상품 삭제
                   </button>
                 </div>
               </div>
 
-              {/* 상품 이용 가능자 */}
+              {/* 상품 이용 회원 유형 */}
               <div className="product-registration-form-group">
-                <label className="product-registration-label">상품 이용 가능자</label>
+                <label className="product-registration-label">상품 이용 회원 유형</label>
                 {isEditMode && !isEditing ? (
                   <div className="product-registration-display">
                     {Object.entries(product.availableUsers)

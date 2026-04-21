@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './Payment.css'
-import { productAPI } from '../utils/api'
+import { productAPI, documentAPI, orderAPI } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const ProductSelection = () => {
@@ -13,6 +13,22 @@ const ProductSelection = () => {
   const [products, setProducts] = useState([])
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [allDocuments, setAllDocuments] = useState([]) // 모든 진열 상태 서류 정보
+
+  // 진열 상태인 모든 서류 정보 조회
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const documentsResponse = await documentAPI.getDocuments({ usageStatus: '진열' })
+        if (documentsResponse.success) {
+          setAllDocuments(documentsResponse.data)
+        }
+      } catch (error) {
+        console.error('서류 정보 조회 오류:', error)
+      }
+    }
+    loadDocuments()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -31,25 +47,75 @@ const ProductSelection = () => {
         }
 
         // 상품 목록 조회
-        const memberType = user?.memberType || '비사업자'
-        const productsResponse = await productAPI.getProducts({
-          categoryId,
-          displayStatus: '진열',
-          memberType
-        })
+        // memberType 필터링은 선택적으로 적용 (사용자가 로그인한 경우에만)
+        const memberType = user?.member_type || user?.memberType
+        console.log('상품 조회 파라미터:', { categoryId, memberType, user })
+        
+        const queryParams = {
+          categoryId: categoryId ? parseInt(categoryId) : undefined,
+          displayStatus: '진열'
+        }
+        
+        // memberType이 있는 경우에만 필터링 적용
+        if (memberType) {
+          queryParams.memberType = memberType
+        }
+        
+        const productsResponse = await productAPI.getProducts(queryParams)
+        
+        console.log('상품 조회 응답:', productsResponse)
+        console.log('서류 정보:', allDocuments)
         
         if (productsResponse.success) {
-          // 서류 정보는 추후 API에서 가져올 수 있도록 구조화
-          const formattedProducts = productsResponse.data.map(product => ({
-            id: product.id,
-            categoryName: product.category_name || '',
-            name: product.name,
-            code: product.code,
-            price: product.price,
-            description: product.description,
-            documents: [] // 추후 서류 API 연동 시 추가
-          }))
+          // 서류 정보 파싱 및 구조화
+          const formattedProducts = productsResponse.data.map(product => {
+            // required_documents를 파싱 (JSON 문자열 또는 배열)
+            let documentIds = []
+            if (product.required_documents) {
+              try {
+                const parsed = typeof product.required_documents === 'string'
+                  ? JSON.parse(product.required_documents)
+                  : product.required_documents
+                
+                // 배열이면 그대로 사용, 아니면 배열로 변환
+                documentIds = Array.isArray(parsed) ? parsed : [parsed]
+              } catch (e) {
+                console.error('서류 ID 파싱 오류:', e, product.required_documents)
+                documentIds = []
+              }
+            }
+            
+            console.log(`상품 ${product.name}의 서류 ID 배열:`, documentIds)
+            
+            // 서류 ID 배열을 서류 정보 객체 배열로 변환
+            const documents = documentIds
+              .map(docId => {
+                // docId가 숫자인 경우와 문자열인 경우 모두 처리
+                const id = typeof docId === 'string' ? parseInt(docId) : docId
+                if (isNaN(id)) {
+                  // 숫자가 아닌 경우 서류명으로 찾기 시도
+                  return allDocuments.find(doc => doc.name === docId)
+                }
+                return allDocuments.find(doc => doc.id === id)
+              })
+              .filter(doc => doc !== undefined) // 존재하지 않는 서류 제거
+            
+            console.log(`상품 ${product.name}의 서류 정보:`, documents)
+            
+            return {
+              id: product.id,
+              categoryName: product.category_name || '',
+              name: product.name,
+              code: product.code,
+              price: product.price,
+              description: product.description || '',
+              documents: documents // 서류 정보 객체 배열
+            }
+          })
+          console.log('포맷된 상품 목록:', formattedProducts)
           setProducts(formattedProducts)
+        } else {
+          console.error('상품 조회 실패:', productsResponse)
         }
       } catch (error) {
         console.error('상품 조회 오류:', error)
@@ -58,8 +124,11 @@ const ProductSelection = () => {
       }
     }
     
-    fetchData()
-  }, [categoryId, user])
+    // allDocuments가 로드된 후에만 실행
+    if (allDocuments.length > 0 || categoryId) {
+      fetchData()
+    }
+  }, [categoryId, user, allDocuments])
 
   const handleProductClick = (productId) => {
     if (selectedProduct === productId) {
@@ -73,11 +142,58 @@ const ProductSelection = () => {
     if (!selectedProduct) {
       return
     }
-    // 실제 결제 처리 로직 (추후 구현)
+    
+    if (!user || !user.id) {
+      alert('로그인이 필요합니다.')
+      navigate('/login')
+      return
+    }
+    
     const product = products.find(p => p.id === selectedProduct)
-    if (product) {
-      alert(`${product.name} (${product.price.toLocaleString()}원) 결제를 진행합니다.`)
-      // TODO: 결제 API 연동
+    if (!product) {
+      alert('상품 정보를 찾을 수 없습니다.')
+      return
+    }
+    
+    // 토스페이먼츠 PG API 연결 전: alert 출력 및 주문 생성
+    alert('결제를 진행합니다.')
+    
+    try {
+      // 주문 생성 (결제 완료 상태로 저장)
+      const orderResponse = await orderAPI.createOrder({
+        memberId: user.id,
+        productId: selectedProduct
+      })
+      
+      if (!orderResponse) {
+        alert('서버 응답이 없습니다. 다시 시도해주세요.')
+        return
+      }
+      
+      if (orderResponse.success) {
+        // 주문이 이미 '결제완료' 상태로 생성됨
+        alert('결제가 완료되었습니다.')
+        // 사용자 페이지로 이동
+        navigate('/payment')
+      } else {
+        alert('주문 생성 중 오류가 발생했습니다: ' + (orderResponse.error || '알 수 없는 오류'))
+      }
+    } catch (error) {
+      console.error('결제 처리 오류:', error)
+      // 에러 메시지 추출
+      let errorMessage = '알 수 없는 오류'
+      if (error.message) {
+        // "주문 생성 중 오류가 발생했습니다" 같은 메시지는 그대로 사용
+        errorMessage = error.message
+      } else if (error.error) {
+        errorMessage = error.error
+      }
+      // 중복된 "오류가 발생했습니다" 메시지 제거
+      if (errorMessage.includes('주문 생성 중 오류가 발생했습니다')) {
+        alert(errorMessage)
+      } else {
+        alert('결제 처리 중 오류가 발생했습니다: ' + errorMessage)
+      }
     }
   }
 
@@ -95,7 +211,7 @@ const ProductSelection = () => {
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
-          <h1 className="payment-title">{currentCategory.name}</h1>
+          <h1 className="payment-title">{category?.name || '상품 선택'}</h1>
         </header>
 
         {/* Description */}
@@ -119,14 +235,24 @@ const ProductSelection = () => {
               onClick={() => handleProductClick(product.id)}
             >
               <h3 className="payment-item-title">{product.name}</h3>
-              <div className="product-documents">
-                <p className="documents-label">&lt;첨부 서류&gt;</p>
-                <ul className="documents-list">
-                  {product.documents.map((doc, index) => (
-                    <li key={index}>{doc}</li>
-                  ))}
-                </ul>
-              </div>
+              {product.description && (
+                <div className="product-description-text" style={{ marginBottom: '1rem', fontSize: '0.9rem', color: '#666' }}>
+                  <p>{product.description}</p>
+                </div>
+              )}
+              {product.documents && product.documents.length > 0 && (
+                <div className="product-documents">
+                  <p className="documents-label">&lt;첨부 서류&gt;</p>
+                  <ul className="documents-list">
+                    {product.documents.map((doc, index) => (
+                      <li key={doc.id || index}>
+                        <strong>{doc.name}</strong>
+                        {doc.description && ` - ${doc.description}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="payment-item-price">
                 가격 {formatPrice(product.price)}원
               </p>
@@ -142,7 +268,7 @@ const ProductSelection = () => {
             onClick={handlePayment}
             disabled={!selectedProduct}
           >
-            선택 완료
+            결제하기
           </button>
         </div>
       </div>

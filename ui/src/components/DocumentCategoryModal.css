@@ -130,6 +130,15 @@
   gap: 0.75rem;
 }
 
+.document-category-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
 .document-category-item {
   display: flex;
   align-items: center;
@@ -164,8 +173,13 @@
   flex-shrink: 0;
 }
 
-.document-category-remove-btn:hover {
+.document-category-remove-btn:hover:not(:disabled) {
   background-color: #b91c1c;
+}
+
+.document-category-remove-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .document-category-modal-actions {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './DocumentRegistrationModal.css'
+import { documentAPI } from '../utils/api'
 
 const DocumentRegistrationModal = ({ onClose, onSave, categories = [], document = null, onUpdate = null }) => {
   const isEditMode = document !== null
@@ -8,6 +9,34 @@ const DocumentRegistrationModal = ({ onClose, onSave, categories = [], document 
   const [selectedCategory, setSelectedCategory] = useState('')
   const [documentName, setDocumentName] = useState('')
   const [documentDescription, setDocumentDescription] = useState('')
+  const [categoryList, setCategoryList] = useState([])
+  const [loading, setLoading] = useState(false)
+  
+  // 서류 카테고리 목록 로드
+  useEffect(() => {
+    loadCategories()
+  }, [])
+  
+  const loadCategories = async () => {
+    try {
+      setLoading(true)
+      const response = await documentAPI.getCategories()
+      if (response.success) {
+        // API 응답을 카테고리 이름 배열로 변환
+        const categoryNames = response.data.map(cat => cat.name)
+        setCategoryList(categoryNames)
+      } else {
+        // API 실패 시 prop으로 전달된 categories 사용
+        setCategoryList(categories)
+      }
+    } catch (error) {
+      console.error('서류 카테고리 조회 오류:', error)
+      // 오류 발생 시 prop으로 전달된 categories 사용
+      setCategoryList(categories)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // 수정 모드일 때 초기 데이터 로드
   useEffect(() => {
@@ -104,7 +133,7 @@ const DocumentRegistrationModal = ({ onClose, onSave, categories = [], document 
 
   // 등록 버튼 활성화 여부 확인
   const isSaveEnabled = () => {
-    return selectedCategory.trim() && documentName.trim() && documentDescription.trim()
+    return documentName.trim() && documentDescription.trim()
   }
 
   return (
@@ -137,9 +166,10 @@ const DocumentRegistrationModal = ({ onClose, onSave, categories = [], document 
                 className="document-registration-select"
                 value={selectedCategory}
                 onChange={handleCategoryChange}
+                disabled={loading}
               >
                 <option value="">선택</option>
-                {categories.map((category, index) => (
+                {categoryList.map((category, index) => (
                   <option key={index} value={category}>
                     {category}
                   </option>

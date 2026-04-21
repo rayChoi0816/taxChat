@@ -1,26 +1,74 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Payment.css'
 import './DocumentStorage.css'
+import { documentAPI } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
 
 const DocumentStorage = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [sortOption, setSortOption] = useState('최신순')
   const [showSortMenu, setShowSortMenu] = useState(false)
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // 서류 데이터 (실제로는 API에서 가져올 데이터)
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      name: '사업자등록증',
-      uploadDate: '25.11.28 13:30:45'
-    },
-    {
-      id: 2,
-      name: '주민등록등본',
-      uploadDate: '25.11.28 13:30:45'
+  // DB에서 첨부된 서류 목록 조회
+  useEffect(() => {
+    const loadDocuments = async () => {
+      if (!user?.id) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const response = await documentAPI.getMemberDocuments(user.id)
+        if (response.success) {
+          // API 응답을 프론트엔드 형식으로 변환
+          const formattedDocuments = response.data.map((doc) => {
+            // 날짜 포맷팅 (YY.MM.DD. HH:MM:SS)
+            const formatDate = (dateStr) => {
+              if (!dateStr) return ''
+              const date = new Date(dateStr)
+              const year = String(date.getFullYear()).slice(-2)
+              const month = String(date.getMonth() + 1).padStart(2, '0')
+              const day = String(date.getDate()).padStart(2, '0')
+              const hours = String(date.getHours()).padStart(2, '0')
+              const minutes = String(date.getMinutes()).padStart(2, '0')
+              const seconds = String(date.getSeconds()).padStart(2, '0')
+              return `${year}.${month}.${day}. ${hours}:${minutes}:${seconds}`
+            }
+
+            return {
+              id: doc.id,
+              name: doc.document_name || '서류',
+              uploadDate: formatDate(doc.created_at),
+              createdAt: doc.created_at // 정렬을 위해 원본 날짜 저장
+            }
+          })
+          
+          // 기본 정렬 (최신순)
+          formattedDocuments.sort((a, b) => {
+            const dateA = new Date(a.createdAt)
+            const dateB = new Date(b.createdAt)
+            return dateB - dateA
+          })
+          
+          setDocuments(formattedDocuments)
+        } else {
+          setDocuments([])
+        }
+      } catch (error) {
+        console.error('서류 목록 조회 오류:', error)
+        setDocuments([])
+      } finally {
+        setLoading(false)
+      }
     }
-  ])
+
+    loadDocuments()
+  }, [user])
 
   const sortOptions = [
     { value: '최신순', label: '첨부일시 최신순' },
@@ -37,10 +85,18 @@ const DocumentStorage = () => {
     let sortedDocs = [...documents]
     switch (option.value) {
       case '최신순':
-        sortedDocs.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate))
+        sortedDocs.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0)
+          const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0)
+          return dateB - dateA
+        })
         break
       case '오래된순':
-        sortedDocs.sort((a, b) => new Date(a.uploadDate) - new Date(b.uploadDate))
+        sortedDocs.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0)
+          const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0)
+          return dateA - dateB
+        })
         break
       case '가나다순':
         sortedDocs.sort((a, b) => a.name.localeCompare(b.name))
@@ -55,12 +111,23 @@ const DocumentStorage = () => {
   }
 
   const handleViewDetails = (documentId) => {
-    navigate(`/document-detail/${documentId}`)
+    navigate(`/document-attachment?memberDocumentId=${documentId}&view=true`)
   }
 
-  const handleDelete = (documentId) => {
+  const handleDelete = async (documentId) => {
     if (window.confirm('해당 서류를 삭제하시겠습니까?')) {
-      setDocuments(documents.filter(doc => doc.id !== documentId))
+      try {
+        const response = await documentAPI.deleteDocument(user.id, documentId)
+        if (response.success) {
+          // 삭제 성공 시 목록에서 제거
+          setDocuments(documents.filter(doc => doc.id !== documentId))
+        } else {
+          alert('서류 삭제 중 오류가 발생했습니다.')
+        }
+      } catch (error) {
+        console.error('서류 삭제 오류:', error)
+        alert('서류 삭제 중 오류가 발생했습니다.')
+      }
     }
   }
 
@@ -117,7 +184,11 @@ const DocumentStorage = () => {
             </div>
 
             {/* 서류 카드 목록 */}
-            {documents.length === 0 ? (
+            {loading ? (
+              <div className="empty-documents">
+                <p>서류 목록을 불러오는 중...</p>
+              </div>
+            ) : documents.length === 0 ? (
               <div className="empty-documents">
                 <p>첨부된 서류가 없습니다.</p>
               </div>
@@ -153,4 +224,3 @@ const DocumentStorage = () => {
 }
 
 export default DocumentStorage
-

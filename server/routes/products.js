@@ -110,7 +110,7 @@ router.patch('/categories/:id/display', authenticateToken, async (req, res) => {
 // 상품 조회
 router.get('/', async (req, res) => {
   try {
-    const { categoryId, displayStatus, memberType } = req.query
+    const { categoryId, displayStatus, memberType, startDate, endDate, searchType, searchKeyword, sortOrder = '등록일시순' } = req.query
 
     let query = `
       SELECT p.*, pc.name as category_name
@@ -120,6 +120,42 @@ router.get('/', async (req, res) => {
     `
     const params = []
     let paramIndex = 1
+
+    // 날짜 필터 (등록일시 기준)
+    if (startDate && endDate && startDate === endDate) {
+      // 오늘처럼 시작일과 종료일이 같으면 해당 날짜만 검색
+      query += ` AND p.created_at::date = $${paramIndex}::date`
+      params.push(startDate)
+      paramIndex++
+    } else {
+      if (startDate) {
+        query += ` AND p.created_at >= $${paramIndex}`
+        params.push(startDate)
+        paramIndex++
+      }
+      if (endDate) {
+        query += ` AND p.created_at <= $${paramIndex}::date + INTERVAL '1 day'`
+        params.push(endDate)
+        paramIndex++
+      }
+    }
+
+    // 검색 필터
+    if (searchKeyword && searchType) {
+      if (searchType === '상품 카테고리명') {
+        query += ` AND pc.name ILIKE $${paramIndex}`
+        params.push(`%${searchKeyword}%`)
+        paramIndex++
+      } else if (searchType === '상품명') {
+        query += ` AND p.name ILIKE $${paramIndex}`
+        params.push(`%${searchKeyword}%`)
+        paramIndex++
+      } else if (searchType === '상품코드') {
+        query += ` AND p.code ILIKE $${paramIndex}`
+        params.push(`%${searchKeyword}%`)
+        paramIndex++
+      }
+    }
 
     if (categoryId) {
       query += ` AND p.category_id = $${paramIndex}`
@@ -143,7 +179,14 @@ router.get('/', async (req, res) => {
       }
     }
 
-    query += ' ORDER BY p.created_at DESC'
+    // 정렬
+    if (sortOrder === '등록일시순') {
+      query += ' ORDER BY p.created_at ASC'
+    } else if (sortOrder === '등록일시 역순') {
+      query += ' ORDER BY p.created_at DESC'
+    } else {
+      query += ' ORDER BY p.created_at DESC'
+    }
 
     const result = await pool.query(query, params)
 
@@ -176,12 +219,17 @@ router.post('/', authenticateToken, async (req, res) => {
       const categoryCode = categoryResult.rows[0]?.code || 'cate01'
       const code = `${categoryCode}_${String(count).padStart(2, '0')}`
 
+      // 첨부 서류를 JSON 배열로 저장
+      const requiredDocuments = product.requiredDocuments && Array.isArray(product.requiredDocuments)
+        ? JSON.stringify(product.requiredDocuments)
+        : (product.requiredDocuments || null)
+
       const result = await pool.query(
         `INSERT INTO products (
-          category_id, code, name, price, description,
+          category_id, code, name, price, description, required_documents,
           available_for_non_business, available_for_individual_business,
-          available_for_corporate_business
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          available_for_corporate_business, display_status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *`,
         [
           categoryId,
@@ -189,9 +237,11 @@ router.post('/', authenticateToken, async (req, res) => {
           product.name,
           product.price,
           product.description,
+          requiredDocuments,
           product.availableForNonBusiness || false,
           product.availableForIndividualBusiness || false,
-          product.availableForCorporateBusiness || false
+          product.availableForCorporateBusiness || false,
+          '진열' // 기본값을 '진열'로 설정
         ]
       )
 
@@ -205,6 +255,60 @@ router.post('/', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('상품 등록 오류:', error)
     res.status(500).json({ error: '상품 등록 중 오류가 발생했습니다' })
+  }
+})
+
+// 상품 수정
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { categoryId, name, price, description, requiredDocuments, availableForNonBusiness, availableForIndividualBusiness, availableForCorporateBusiness } = req.body
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: '상품명이 필요합니다' })
+    }
+
+    const requiredDocumentsJson = requiredDocuments && Array.isArray(requiredDocuments)
+      ? JSON.stringify(requiredDocuments)
+      : (requiredDocuments || null)
+
+    const result = await pool.query(
+      `UPDATE products SET
+        category_id = $1,
+        name = $2,
+        price = $3,
+        description = $4,
+        required_documents = $5,
+        available_for_non_business = $6,
+        available_for_individual_business = $7,
+        available_for_corporate_business = $8,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $9
+      RETURNING *`,
+      [
+        categoryId,
+        name.trim(),
+        price || 0,
+        description || null,
+        requiredDocumentsJson,
+        availableForNonBusiness || false,
+        availableForIndividualBusiness || false,
+        availableForCorporateBusiness || false,
+        id
+      ]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '상품을 찾을 수 없습니다' })
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    })
+  } catch (error) {
+    console.error('상품 수정 오류:', error)
+    res.status(500).json({ error: '상품 수정 중 오류가 발생했습니다' })
   }
 })
 

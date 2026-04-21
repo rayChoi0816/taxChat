@@ -19,19 +19,20 @@ export const AuthProvider = ({ children }) => {
     return userStr ? JSON.parse(userStr) : null
   })
 
-  const login = async (phoneNumber) => {
+  const login = async (phoneNumber, password) => {
     try {
-      const response = await authAPI.login(phoneNumber)
-      
+      const response = await authAPI.login(phoneNumber, password)
+
       if (response.success) {
         localStorage.setItem('token', response.token)
         localStorage.setItem('userPhone', phoneNumber)
         localStorage.setItem('user', JSON.stringify(response.member))
-    setIsAuthenticated(true)
-    setUserPhone(phoneNumber)
+        setIsAuthenticated(true)
+        setUserPhone(phoneNumber)
         setUser(response.member)
         return { success: true }
       }
+      return { success: false, error: response.error || '로그인에 실패했습니다' }
     } catch (error) {
       console.error('로그인 오류:', error)
       return { success: false, error: error.message }
@@ -47,8 +48,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user')
   }
 
+  const updateUser = (updatedUserData) => {
+    const updatedUser = { ...user, ...updatedUserData }
+    localStorage.setItem('user', JSON.stringify(updatedUser))
+    setUser(updatedUser)
+  }
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userPhone, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, userPhone, user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

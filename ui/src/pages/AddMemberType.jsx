@@ -49,7 +49,11 @@ const AddMemberType = () => {
     if (selectedTypes.length > 0) {
       // 선택한 회원 유형에 대한 폼 페이지로 이동
       navigate('/member-type-form', {
-        state: { selectedTypes }
+        state: {
+          selectedTypes,
+          signupPhone: location.state?.signupPhone,
+          signupPassword: location.state?.signupPassword,
+        }
       })
     }
   }

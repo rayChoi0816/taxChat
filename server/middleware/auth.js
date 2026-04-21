@@ -1,6 +1,15 @@
 import jwt from 'jsonwebtoken'
 
 export const authenticateToken = (req, res, next) => {
+  // 개발 모드에서 인증 우회 (환경 변수로 제어, 기본값은 true)
+  const nodeEnv = process.env.NODE_ENV || 'development'
+  const skipAuth = process.env.SKIP_AUTH !== 'false' // 기본값은 true (skip auth)
+  
+  if (nodeEnv === 'development' && skipAuth) {
+    req.user = { id: 1, phoneNumber: 'admin' }
+    return next()
+  }
+
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
 

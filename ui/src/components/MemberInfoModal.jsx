@@ -32,35 +32,46 @@ const MemberInfoModal = ({ customer, onClose, onUpdate }) => {
 
   // 초기 데이터 로드
   useEffect(() => {
-    if (customer.memberType === '비사업자') {
-      const rrn = customer.rrn ? customer.rrn.split('-') : ['', '']
-      const addressParts = customer.address ? customer.address.split(' ') : ['', '']
-      const mainAddress = addressParts[0] || ''
-      const detailAddress = addressParts.slice(1).join(' ') || ''
-      setNonBusinessFields({
-        name: customer.name || '',
-        gender: customer.gender || '',
-        rrnFront: rrn[0] || '',
-        rrnBack: rrn[1] || '',
-        address: mainAddress,
-        detailAddress: detailAddress,
-        phoneNumber: customer.contact || customer.phoneNumber || ''
-      })
-    } else {
-      const addressParts = customer.address ? customer.address.split(' ') : ['', '']
-      const mainAddress = addressParts[0] || ''
-      const detailAddress = addressParts.slice(1).join(' ') || ''
-      setBusinessFields({
-        businessName: customer.businessName || customer.name || '',
-        representativeName: customer.representativeName || '',
-        businessNumber: customer.businessNumber || '',
-        industry: customer.industry || '',
-        businessType: customer.businessType || '',
-        address: mainAddress,
-        detailAddress: detailAddress,
-        startDate: customer.startDate || '',
-        phoneNumber: customer.contact || customer.phoneNumber || ''
-      })
+    if (customer) {
+      setMemberType(customer.memberType || '비사업자')
+      setIsEditMode(false) // 모달이 열릴 때마다 읽기 모드로 시작
+      
+      if (customer.memberType === '비사업자') {
+        // 주민등록번호 파싱
+        let rrnFront = ''
+        let rrnBack = ''
+        if (customer.residentNumber) {
+          const rrnParts = customer.residentNumber.split('-')
+          rrnFront = rrnParts[0] || ''
+          rrnBack = rrnParts[1] || ''
+        } else if (customer.rrn) {
+          const rrnParts = customer.rrn.split('-')
+          rrnFront = rrnParts[0] || ''
+          rrnBack = rrnParts[1] || ''
+        }
+        
+        setNonBusinessFields({
+          name: customer.name || '',
+          gender: customer.gender || '',
+          rrnFront: rrnFront,
+          rrnBack: rrnBack,
+          address: customer.baseAddress || customer.address || '',
+          detailAddress: customer.detailAddress || '',
+          phoneNumber: customer.phoneNumber || customer.contact || ''
+        })
+      } else {
+        setBusinessFields({
+          businessName: customer.businessName || customer.name || '',
+          representativeName: customer.representativeName || '',
+          businessNumber: customer.businessNumber || '',
+          industry: customer.industry || '',
+          businessType: customer.businessType || '',
+          address: customer.baseAddress || customer.address || '',
+          detailAddress: customer.detailAddress || '',
+          startDate: customer.startDate || '',
+          phoneNumber: customer.phoneNumber || customer.contact || ''
+        })
+      }
     }
   }, [customer])
 
@@ -152,7 +163,8 @@ const MemberInfoModal = ({ customer, onClose, onUpdate }) => {
             name: nonBusinessFields.name,
             gender: nonBusinessFields.gender,
             rrn: `${nonBusinessFields.rrnFront}-${nonBusinessFields.rrnBack}`,
-            address: `${nonBusinessFields.address} ${nonBusinessFields.detailAddress}`.trim()
+            baseAddress: nonBusinessFields.address || '',
+            detailAddress: nonBusinessFields.detailAddress || ''
           }
         : {
             businessName: businessFields.businessName,
@@ -160,7 +172,8 @@ const MemberInfoModal = ({ customer, onClose, onUpdate }) => {
             businessNumber: businessFields.businessNumber,
             industry: businessFields.industry,
             businessType: businessFields.businessType,
-            address: `${businessFields.address} ${businessFields.detailAddress}`.trim(),
+            baseAddress: businessFields.address || '',
+            detailAddress: businessFields.detailAddress || '',
             startDate: businessFields.startDate
           }
       )
@@ -326,9 +339,18 @@ const MemberInfoModal = ({ customer, onClose, onUpdate }) => {
                     </>
                   ) : (
                     <div className="info-value">
-                      {nonBusinessFields.address && nonBusinessFields.detailAddress
-                        ? `${nonBusinessFields.address} ${nonBusinessFields.detailAddress}`
-                        : nonBusinessFields.address || '-'}
+                      {nonBusinessFields.address || nonBusinessFields.detailAddress ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {nonBusinessFields.address && (
+                            <div>{nonBusinessFields.address}</div>
+                          )}
+                          {nonBusinessFields.detailAddress && (
+                            <div style={{ color: '#666' }}>{nonBusinessFields.detailAddress}</div>
+                          )}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
                     </div>
                   )}
                 </div>
@@ -460,9 +482,18 @@ const MemberInfoModal = ({ customer, onClose, onUpdate }) => {
                     </>
                   ) : (
                     <div className="info-value">
-                      {businessFields.address && businessFields.detailAddress
-                        ? `${businessFields.address} ${businessFields.detailAddress}`
-                        : businessFields.address || '-'}
+                      {businessFields.address || businessFields.detailAddress ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {businessFields.address && (
+                            <div>{businessFields.address}</div>
+                          )}
+                          {businessFields.detailAddress && (
+                            <div style={{ color: '#666' }}>{businessFields.detailAddress}</div>
+                          )}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
                     </div>
                   )}
                 </div>

@@ -4,6 +4,7 @@ import MemoModal from '../components/MemoModal'
 import SMSSendModal from '../components/SMSSendModal'
 import SMSTemplateManagementModal from '../components/SMSTemplateManagementModal'
 import { useCustomerMemo } from '../contexts/CustomerMemoContext'
+import { smsAPI, memberAPI, productAPI } from '../utils/api'
 import '../components/AdminLayout.css'
 import './AdminSMS.css'
 import './AdminCustomer.css'
@@ -13,9 +14,11 @@ const AdminSMS = () => {
   const [itemsPerPage, setItemsPerPage] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
   const [sortOrder, setSortOrder] = useState('발송일시순')
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   
   // 검색 필터 상태
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [selectedPeriod, setSelectedPeriod] = useState('3개월') // 기본값 3개월
   const [recipient, setRecipient] = useState('')
   const [smsTypes, setSmsTypes] = useState({
     '결제 링크': true,
@@ -37,71 +40,23 @@ const AdminSMS = () => {
   
   // SMS 템플릿 관리 모달 상태
   const [isTemplateManagementModalOpen, setIsTemplateManagementModalOpen] = useState(false)
-  const [smsTemplates, setSmsTemplates] = useState([
-    { id: 1, name: '템플릿 1', content: '안녕하세요. 세무회계 오월입니다.', usageStatus: '미사용' },
-    { id: 2, name: '템플릿 2', content: '결제가 완료되었습니다.', usageStatus: '미사용' },
-    { id: 3, name: '템플릿 3', content: '신고가 완료되었습니다.', usageStatus: '미사용' }
-  ])
+  const [smsTemplates, setSmsTemplates] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [members, setMembers] = useState([])
+  const [products, setProducts] = useState([])
+  const [smsList, setSmsList] = useState([])
 
-  // 예시 데이터 날짜를 현재 날짜 기준으로 설정
-  const getDateString = (daysAgo) => {
-    const date = new Date()
-    date.setDate(date.getDate() - daysAgo)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-  }
-
-  const [smsList, setSmsList] = useState([
-    {
-      id: 1,
-      sendDate: getDateString(1),
-      recipient: '홍길동',
-      smsType: '결제 링크',
-      content: '결제 링크가 발송되었습니다.',
-      success: true,
-      memo: [
-        { id: 1, content: '첫 번째 메모입니다.', createdAt: getDateString(1) },
-        { id: 2, content: '두 번째 메모입니다.', createdAt: getDateString(1) }
-      ],
-      deleted: false,
-      customerId: 1
-    },
-    {
-      id: 2,
-      sendDate: getDateString(4),
-      recipient: '암꺽정',
-      smsType: '템플릿',
-      content: '템플릿 메시지입니다.',
-      success: false,
-      memo: [],
-      deleted: false,
-      customerId: 2
-    },
-    {
-      id: 3,
-      sendDate: getDateString(5),
-      recipient: '장길산',
-      smsType: '내용 작성',
-      content: '직접 작성한 메시지입니다.',
-      success: true,
-      memo: [
-        { id: 3, content: '세 번째 메모입니다.', createdAt: getDateString(5) }
-      ],
-      deleted: false,
-      customerId: 3
-    }
-  ])
-
-  // 메모 초기화 및 날짜 범위 기본값 설정 (3개월)
+  // 데이터 로드
   useEffect(() => {
-    initializeMemos(smsList, 'customerId')
-    
-    // 3개월 기본값 설정
+    loadSMSList()
+    loadTemplates()
+    loadMembers()
+    loadProducts()
+  }, [])
+
+  // 3개월 기본값 설정
+  useEffect(() => {
     const today = new Date()
     const startDate = new Date()
     startDate.setMonth(today.getMonth() - 3)
@@ -113,20 +68,146 @@ const AdminSMS = () => {
       return `${year}-${month}-${day}`
     }
     
-    setDateRange({
-      start: formatDate(startDate),
-      end: formatDate(today)
-    })
+    if (!dateRange.start && !dateRange.end) {
+      setDateRange({
+        start: formatDate(startDate),
+        end: formatDate(today)
+      })
+      setSelectedPeriod('3개월') // 기본값 설정
+    }
   }, [])
 
+  // 날짜 범위, 검색 필터, 정렬 변경 시 SMS 목록 다시 로드
+  useEffect(() => {
+    loadSMSList()
+  }, [dateRange.start, dateRange.end, recipient, smsTypes, successStatus, sortOrder, currentPage, itemsPerPage])
+
+  // SMS 목록 로드
+  const loadSMSList = async () => {
+    try {
+      setLoading(true)
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+        sortOrder: sortOrder
+      }
+      
+      // SMS 유형 필터
+      const activeSmsTypes = Object.keys(smsTypes).filter(key => smsTypes[key])
+      if (activeSmsTypes.length > 0) {
+        params.smsType = activeSmsTypes
+      }
+      
+      // 수신인 필터
+      if (recipient) {
+        params.recipient = recipient
+      }
+      
+      // 성공 여부 필터
+      const activeSuccessStatus = Object.keys(successStatus).filter(key => successStatus[key])
+      if (activeSuccessStatus.length > 0) {
+        params.successStatus = activeSuccessStatus
+      }
+      
+      const response = await smsAPI.getMessages(params)
+      
+      console.log('SMS 목록 API 응답:', response) // 디버깅용
+      
+      if (response && response.success && response.data) {
+        // API 응답을 프론트엔드 형식으로 변환
+        const formattedSMS = (response.data || []).map(sms => ({
+          id: sms.id,
+          sendDate: sms.sent_at,
+          recipient: sms.recipient_name || sms.recipient_phone,
+          smsType: sms.sms_type,
+          content: sms.content,
+          success: sms.success_status === '성공',
+          customerId: sms.member_id || null,
+          deleted: false
+        }))
+        setSmsList(formattedSMS)
+        setTotalCount(response.pagination?.total || formattedSMS.length)
+        initializeMemos(formattedSMS, 'customerId')
+      } else {
+        console.error('SMS 목록 조회 실패:', response)
+        setSmsList([])
+        setTotalCount(0)
+        if (response && response.error) {
+          console.error('API 오류:', response.error, response.details)
+          const errorMessage = `SMS 목록을 불러오는 중 오류가 발생했습니다.\n\n${response.error}${response.details ? '\n\n상세: ' + response.details : ''}\n\n서버가 실행 중인지 확인해 주세요.`
+          alert(errorMessage)
+        }
+      }
+    } catch (error) {
+      console.error('SMS 목록 로드 오류:', error)
+      setSmsList([])
+      setTotalCount(0)
+      if (error.message && error.message.includes('서버에 연결할 수 없습니다')) {
+        alert('백엔드 서버가 실행 중인지 확인해주세요. (http://localhost:3001)')
+      } else {
+        alert('SMS 목록 로드 중 알 수 없는 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 템플릿 로드
+  const loadTemplates = async () => {
+    try {
+      const response = await smsAPI.getTemplates()
+      if (response.success) {
+        // API 응답의 usage_status를 usageStatus로 정규화
+        const normalizedTemplates = response.data.map(template => ({
+          ...template,
+          usageStatus: template.usageStatus || template.usage_status || '미사용'
+        }))
+        setSmsTemplates(normalizedTemplates)
+      }
+    } catch (error) {
+      console.error('템플릿 로드 오류:', error)
+    }
+  }
+
+  // 회원 목록 로드
+  const loadMembers = async () => {
+    try {
+      const response = await memberAPI.getMembers({ limit: 1000 })
+      if (response.success) {
+        setMembers(response.data)
+      }
+    } catch (error) {
+      console.error('회원 목록 로드 오류:', error)
+    }
+  }
+
+  // 상품 목록 로드
+  const loadProducts = async () => {
+    try {
+      const response = await productAPI.getProducts({ limit: 1000 })
+      if (response.success) {
+        setProducts(response.data)
+      }
+    } catch (error) {
+      console.error('상품 목록 로드 오류:', error)
+    }
+  }
+
   const handleDateQuickSelect = (period) => {
+    setSelectedPeriod(period) // 선택된 기간 업데이트
+    
     const today = new Date()
     let startDate = new Date()
     
     switch (period) {
       case '오늘':
-        startDate = new Date(today)
-        break
+        // 오늘 날짜로 설정 (시작일과 종료일 모두 오늘)
+        const todayStr = today.toISOString().split('T')[0]
+        setDateRange({ start: todayStr, end: todayStr })
+        // useEffect에서 자동으로 loadSMSList 호출하도록 해야 함
+        return
       case '1주일':
         startDate.setDate(today.getDate() - 7)
         break
@@ -143,29 +224,107 @@ const AdminSMS = () => {
         startDate.setFullYear(today.getFullYear() - 1)
         break
       case '전체':
-        startDate = null
-        break
+        setDateRange({ start: '', end: '' })
+        // useEffect가 자동으로 loadSMSList 호출
+        return
+      default:
+        return
     }
+    
+    const formatDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    
+    setDateRange({
+      start: formatDate(startDate),
+      end: formatDate(today)
+    })
+    // useEffect가 자동으로 loadSMSList 호출
+  }
 
-    if (period === '전체') {
-      setDateRange({ start: '', end: '' })
-    } else if (period === '오늘') {
-      const todayStr = today.toISOString().split('T')[0]
-      setDateRange({ start: todayStr, end: todayStr })
-    } else {
-      const startStr = startDate.toISOString().split('T')[0]
-      const endStr = today.toISOString().split('T')[0]
-      setDateRange({ start: startStr, end: endStr })
+  const handleSearch = async () => {
+    setCurrentPage(1)
+    await loadSMSList()
+  }
+
+  // SMS 전송 핸들러
+  const handleSMSSend = async (smsData) => {
+    try {
+      const response = await smsAPI.sendSMS(smsData)
+      if (response.success) {
+        // 전송된 SMS를 목록에 추가
+        const newSMS = {
+          id: response.data.id,
+          sendDate: response.data.sent_at,
+          recipient: response.data.recipient_name || response.data.recipient_phone,
+          smsType: response.data.sms_type,
+          content: response.data.content,
+          success: response.data.success_status === '성공',
+          customerId: response.data.member_id || null,
+          deleted: false
+        }
+        setSmsList(prev => [newSMS, ...prev])
+        alert('SMS가 발송되었습니다.')
+        setIsSMSSendModalOpen(false)
+      }
+    } catch (error) {
+      console.error('SMS 전송 오류:', error)
+      alert('SMS 전송 중 오류가 발생했습니다.')
     }
   }
 
-  const handleSearch = () => {
-    // 검색 로직 (필터링은 filteredSMSList에서 처리)
-    setCurrentPage(1)
+  // 템플릿 변경 핸들러
+  const handleTemplatesChange = async (updatedTemplates) => {
+    setSmsTemplates(updatedTemplates)
+    // 템플릿 변경사항을 서버에 저장 (필요시)
+    // 각 템플릿의 변경사항을 API로 전송
+    for (const template of updatedTemplates) {
+      try {
+        if (template.id && template.id > 1000) {
+          // 새로 생성된 템플릿 (로컬 ID)
+          await smsAPI.createTemplate({
+            name: template.name,
+            content: template.content
+          })
+        } else {
+          // 기존 템플릿 업데이트
+          await smsAPI.updateTemplate(template.id, {
+            name: template.name,
+            content: template.content
+          })
+          if (template.usageStatus) {
+            await smsAPI.updateTemplateUsage(template.id, template.usageStatus)
+          }
+        }
+      } catch (error) {
+        console.error('템플릿 저장 오류:', error)
+      }
+    }
+    // 템플릿 목록 다시 로드
+    await loadTemplates()
   }
 
   const handleReset = () => {
-    setDateRange({ start: '', end: '' })
+    // 3개월 기본값으로 초기화
+    const today = new Date()
+    const startDate = new Date()
+    startDate.setMonth(today.getMonth() - 3)
+    
+    const formatDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    
+    setDateRange({
+      start: formatDate(startDate),
+      end: formatDate(today)
+    })
+    setSelectedPeriod('3개월')
     setRecipient('')
     setSmsTypes({
       '결제 링크': true,
@@ -178,6 +337,7 @@ const AdminSMS = () => {
       '실패': true
     })
     setCurrentPage(1)
+    loadSMSList()
   }
 
   const handleSelectItem = (id) => {
@@ -188,11 +348,16 @@ const AdminSMS = () => {
     )
   }
 
+  // 백엔드에서 필터링, 정렬, 페이지네이션을 모두 처리하므로 클라이언트에서는 받은 데이터를 그대로 사용
+  const visibleSMS = smsList.filter(sms => !sms.deleted)
+  const totalPages = Math.ceil((totalCount || smsList.length) / itemsPerPage)
+
   const handleSelectAll = () => {
-    const visibleSMS = getFilteredSMS()
-    const currentPageSMS = getPaginatedSMS(visibleSMS)
+    // 백엔드에서 페이지네이션을 처리하므로 현재 페이지의 SMS만 처리
+    const currentPageSMS = visibleSMS
     
     if (selectedItems.length === currentPageSMS.length && 
+        currentPageSMS.length > 0 &&
         currentPageSMS.every(sms => selectedItems.includes(sms.id))) {
       // 모두 선택되어 있으면 모두 해제
       setSelectedItems(prev => prev.filter(id => !currentPageSMS.some(sms => sms.id === id)))
@@ -212,25 +377,29 @@ const AdminSMS = () => {
     }
   }
 
-  const handleResend = (sms) => {
+  const handleResend = async (sms) => {
     if (window.confirm('해당 SMS를 재발송하겠습니까?')) {
-      // 재발송 로직 (실제로는 API 호출)
-      // 성공 여부를 다시 확인하여 업데이트
-      const success = Math.random() > 0.3 // 70% 성공률로 시뮬레이션
-      
-      setSmsList(prev => prev.map(item => 
-        item.id === sms.id 
-          ? { ...item, success, sendDate: new Date().toLocaleString('ko-KR', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false
-            }).replace(/\. /g, '-').replace(/\./g, '').replace(/,/g, '') }
-          : item
-      ))
+      try {
+        const response = await smsAPI.resendSMS(sms.id)
+        if (response.success) {
+          // 재발송된 SMS를 목록에 추가
+          const newSMS = {
+            id: response.data.id,
+            sendDate: response.data.sent_at,
+            recipient: response.data.recipient_name || response.data.recipient_phone,
+            smsType: response.data.sms_type,
+            content: response.data.content,
+            success: response.data.success_status === '성공',
+            customerId: response.data.member_id || null,
+            deleted: false
+          }
+          setSmsList(prev => [newSMS, ...prev])
+          alert('SMS가 재발송되었습니다.')
+        }
+      } catch (error) {
+        console.error('SMS 재발송 오류:', error)
+        alert('SMS 재발송 중 오류가 발생했습니다.')
+      }
     }
   }
 
@@ -295,32 +464,6 @@ const AdminSMS = () => {
     })
   }
 
-  const getSortedSMS = (smsList) => {
-    const sorted = [...smsList]
-    sorted.sort((a, b) => {
-      const dateA = new Date(a.sendDate.replace(/-/g, '/'))
-      const dateB = new Date(b.sendDate.replace(/-/g, '/'))
-      
-      if (sortOrder === '발송일시순') {
-        return dateA - dateB
-      } else {
-        return dateB - dateA
-      }
-    })
-    return sorted
-  }
-
-  const getPaginatedSMS = (smsList) => {
-    const sorted = getSortedSMS(smsList)
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    return sorted.slice(startIndex, endIndex)
-  }
-
-  const filteredSMS = getFilteredSMS()
-  const visibleSMS = getPaginatedSMS(filteredSMS)
-  const totalPages = Math.ceil(filteredSMS.length / itemsPerPage)
-
   return (
     <AdminLayout>
       <div className="admin-page">
@@ -334,7 +477,7 @@ const AdminSMS = () => {
                 {['오늘', '1주일', '1개월', '3개월', '6개월', '1년', '전체'].map((period) => (
                   <button
                     key={period}
-                    className={`admin-date-quick-btn ${dateRange.start && period === '3개월' ? 'active' : ''}`}
+                    className={`admin-date-quick-btn ${period === selectedPeriod ? 'active' : ''}`}
                     onClick={() => handleDateQuickSelect(period)}
                   >
                     {period}
@@ -420,10 +563,26 @@ const AdminSMS = () => {
         {/* Common Controls */}
         <div className="admin-controls">
           <div className="admin-controls-left">
-            <span className="admin-count-text">총 {filteredSMS.length}</span>
+            <span className="admin-count-text">총 {totalCount || visibleSMS.length}</span>
             <span className="admin-count-text">선택 {selectedItems.length} 건</span>
             <button className="admin-select-all-btn" onClick={handleSelectAll}>
               전체 선택
+            </button>
+            <button 
+              className="admin-filter-btn"
+              onClick={() => setIsFilterModalOpen(true)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
             </button>
           </div>
           <div className="admin-controls-right">
@@ -510,11 +669,11 @@ const AdminSMS = () => {
                           onChange={() => handleSelectItem(sms.id)}
                         />
                       </td>
-                      <td>{sms.sendDate}</td>
-                      <td>{sms.recipient}</td>
-                      <td>{sms.smsType}</td>
-                      <td>{sms.content}</td>
-                      <td>
+                      <td data-label="발송일시">{sms.sendDate}</td>
+                      <td data-label="수신인">{sms.recipient}</td>
+                      <td data-label="SMS 유형">{sms.smsType}</td>
+                      <td data-label="SMS 내용">{sms.content}</td>
+                      <td data-label="성공 여부">
                         {sms.success ? (
                           <span className="admin-success-label">성공</span>
                         ) : (
@@ -526,7 +685,7 @@ const AdminSMS = () => {
                           </button>
                         )}
                       </td>
-                      <td>
+                      <td data-label="메모">
                         {latestMemo ? (
                           <span 
                             className="admin-memo-text admin-memo-clickable"
@@ -544,7 +703,7 @@ const AdminSMS = () => {
                           </button>
                         )}
                       </td>
-                      <td>
+                      <td data-label="재발송">
                         <button 
                           className="admin-table-btn"
                           onClick={() => handleResend(sms)}
@@ -604,39 +763,10 @@ const AdminSMS = () => {
         {isSMSSendModalOpen && (
           <SMSSendModal
             onClose={() => setIsSMSSendModalOpen(false)}
-            onSend={(smsData) => {
-              // SMS 발송 처리 로직
-              const recipientName = smsData.recipientType === 'load' 
-                ? smsData.recipient.name 
-                : smsData.recipient.phoneNumber
-              
-              const newSMS = {
-                id: Date.now(),
-                sendDate: new Date().toLocaleString('ko-KR', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: false
-                }).replace(/\. /g, '-').replace(/\./g, '').replace(/,/g, ''),
-                recipient: recipientName,
-                smsType: smsData.smsType,
-                content: smsData.content,
-                success: Math.random() > 0.3, // 70% 성공률로 시뮬레이션
-                memo: [],
-                deleted: false,
-                customerId: smsData.recipientType === 'load' && smsData.recipient.id ? smsData.recipient.id : null
-              }
-              
-              // SMS 목록에 추가
-              setSmsList(prev => [newSMS, ...prev])
-              
-              alert('SMS가 발송되었습니다.')
-              setIsSMSSendModalOpen(false)
-            }}
-            templates={smsTemplates.filter(t => t.usageStatus === '사용')}
+            onSend={handleSMSSend}
+            templates={smsTemplates.filter(t => (t.usageStatus || t.usage_status) === '사용')}
+            members={members}
+            products={products}
           />
         )}
         
@@ -645,10 +775,118 @@ const AdminSMS = () => {
           <SMSTemplateManagementModal
             onClose={() => setIsTemplateManagementModalOpen(false)}
             templates={smsTemplates}
-            onTemplatesChange={(updatedTemplates) => {
-              setSmsTemplates(updatedTemplates)
-            }}
+            onTemplatesChange={handleTemplatesChange}
           />
+        )}
+
+        {/* Filter Modal (Mobile) */}
+        {isFilterModalOpen && (
+          <div className="admin-filter-overlay" onClick={() => setIsFilterModalOpen(false)}>
+            <div className="admin-filter-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-filter-header">
+                <span className="admin-filter-title">필터</span>
+                <button className="admin-filter-close" onClick={() => setIsFilterModalOpen(false)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div className="admin-filter-content">
+                <div className="admin-search-area">
+                  <div className="admin-search-row">
+                    {/* 발송일시 검색 */}
+                    <div className="admin-search-section admin-search-section-left">
+                      <label className="admin-search-label">발송 일시</label>
+                      <div className="admin-date-quick-buttons">
+                        {['오늘', '1주일', '1개월', '3개월', '6개월', '1년', '전체'].map((period) => (
+                          <button
+                            key={period}
+                            className={`admin-date-quick-btn ${period === selectedPeriod ? 'active' : ''}`}
+                            onClick={() => handleDateQuickSelect(period)}
+                          >
+                            {period}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="admin-date-inputs">
+                        <input
+                          type="date"
+                          className="admin-date-input"
+                          value={dateRange.start}
+                          onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                        />
+                        <span className="admin-date-separator">~</span>
+                        <input
+                          type="date"
+                          className="admin-date-input"
+                          value={dateRange.end}
+                          onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 수신인 입력 */}
+                    <div className="admin-search-section admin-search-section-right">
+                      <label className="admin-search-label">수신인</label>
+                      <input
+                        type="text"
+                        className="admin-search-input admin-sms-recipient-input"
+                        placeholder="수신인 입력"
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* SMS 유형 및 성공 여부 체크박스 */}
+                  <div className="admin-search-row">
+                    <div className="admin-search-section admin-search-section-left">
+                      <label className="admin-search-label">SMS 유형</label>
+                      <div className="admin-checkbox-group">
+                        {Object.keys(smsTypes).map((type) => (
+                          <label key={type} className="admin-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={smsTypes[type]}
+                              onChange={(e) => setSmsTypes(prev => ({ ...prev, [type]: e.target.checked }))}
+                            />
+                            <span>{type}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="admin-search-section admin-search-section-right">
+                      <label className="admin-search-label">성공 여부</label>
+                      <div className="admin-checkbox-group">
+                        {Object.keys(successStatus).map((status) => (
+                          <label key={status} className="admin-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={successStatus[status]}
+                              onChange={(e) => setSuccessStatus(prev => ({ ...prev, [status]: e.target.checked }))}
+                            />
+                            <span>{status}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 검색/초기화 버튼 */}
+                  <div className="admin-search-actions">
+                    <button className="admin-search-btn" onClick={() => { handleSearch(); setIsFilterModalOpen(false); }}>
+                      검색
+                    </button>
+                    <button className="admin-reset-btn" onClick={() => { handleReset(); setIsFilterModalOpen(false); }}>
+                      초기화
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AdminLayout>
@@ -656,4 +894,3 @@ const AdminSMS = () => {
 }
 
 export default AdminSMS
-

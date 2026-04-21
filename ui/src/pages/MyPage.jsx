@@ -14,37 +14,60 @@ const MyPage = () => {
   const [businessName, setBusinessName] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // 회원 정보 조회
-  useEffect(() => {
-    const fetchMemberInfo = async () => {
-      if (!user?.id) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const response = await memberAPI.getMembers({ 
-          page: 1, 
-          limit: 1,
-          // 특정 회원 조회를 위한 필터 추가 필요 시
-        })
-        
-        if (response.success && response.data.length > 0) {
-          const member = response.data.find(m => m.id === user.id) || response.data[0]
-          setMemberType(member.member_type || '비사업자')
-          if (member.member_type === '비사업자') {
-            setMemberName(member.name || '')
-          } else {
-            setBusinessName(member.business_name || '')
-          }
-        }
-      } catch (error) {
-        console.error('회원 정보 조회 오류:', error)
-      } finally {
-        setLoading(false)
-      }
+  // 회원 정보 조회 함수
+  const fetchMemberInfo = async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
     }
 
+    try {
+      setLoading(true)
+      
+      // 특정 회원 조회 API 사용
+      const response = await memberAPI.getMember(user.id)
+      
+      if (response.success && response.data) {
+        const member = response.data
+        const memberType = member.member_type || '비사업자'
+        setMemberType(memberType)
+        
+        if (memberType === '비사업자') {
+          setMemberName(member.name || '')
+        } else {
+          setBusinessName(member.business_name || '')
+        }
+      } else {
+        // API 실패 시 user 객체에서 정보 가져오기
+        if (user.member_type || user.memberType) {
+          const type = user.member_type || user.memberType
+          setMemberType(type)
+          if (type === '비사업자') {
+            setMemberName(user.name || '')
+          } else {
+            setBusinessName(user.business_name || '')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('회원 정보 조회 오류:', error)
+      // 에러 발생 시 user 객체에서 정보 가져오기
+      if (user.member_type || user.memberType) {
+        const type = user.member_type || user.memberType
+        setMemberType(type)
+        if (type === '비사업자') {
+          setMemberName(user.name || '')
+        } else {
+          setBusinessName(user.business_name || '')
+        }
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 회원 정보 조회
+  useEffect(() => {
     fetchMemberInfo()
   }, [user])
 
@@ -60,8 +83,12 @@ const MyPage = () => {
       }
       // location.state 초기화
       window.history.replaceState({}, document.title)
+      // 회원 정보 다시 로드
+      if (user?.id) {
+        fetchMemberInfo()
+      }
     }
-  }, [location.state])
+  }, [location.state, user])
 
   const handleMenuClick = (menu) => {
     switch (menu) {

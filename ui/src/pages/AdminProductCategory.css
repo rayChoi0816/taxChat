@@ -1,109 +1,51 @@
-/* Admin Product Category Page */
-.admin-product-category-page {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
+/* Admin Product Category Page - AdminLayout 사용으로 인해 기존 스타일 제거 */
+/* AdminProduct 페이지와 동일한 레이아웃을 사용하므로 별도 스타일 불필요 */
 
-.admin-product-category-page > * {
-  max-width: 1400px;
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 2rem;
-  padding-right: 2rem;
-}
-
-/* Header */
-.admin-product-category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  background-color: #ffffff;
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-top: 2rem;
-}
-
-.admin-product-category-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-.admin-product-category-close-btn {
-  width: 40px;
-  height: 40px;
-  background-color: transparent;
-  border: none;
-  font-size: 2rem;
-  color: #666;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.admin-product-category-close-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
-}
-
-.admin-product-category-close-btn:active {
-  background-color: #e0e0e0;
-}
-
-/* 반응형 디자인 */
+/* 모바일 환경에서 admin-table의 thead 숨김 */
 @media (max-width: 768px) {
-  .admin-product-category-page > * {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  /* 더 구체적인 선택자 사용하여 확실히 숨김 처리 */
+  .admin-page .admin-table thead,
+  .admin-table-container .admin-table thead,
+  table.admin-table thead {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
-
-  .admin-product-category-header {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-    margin-top: 1rem;
-  }
-
-  .admin-product-category-title {
-    font-size: 1.25rem;
-  }
-
-  .admin-product-category-close-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1.5rem;
+  
+  .admin-page .admin-table thead th,
+  .admin-table-container .admin-table thead th,
+  table.admin-table thead th,
+  .admin-page .admin-table thead tr,
+  .admin-table-container .admin-table thead tr,
+  table.admin-table thead tr {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
   }
 }
 
 @media (max-width: 480px) {
-  .admin-product-category-page > * {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+  /* 작은 모바일 화면에서도 확실히 숨김 */
+  .admin-page .admin-table thead,
+  .admin-table-container .admin-table thead,
+  table.admin-table thead {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
-
-  .admin-product-category-header {
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
-    margin-top: 0.75rem;
-  }
-
-  .admin-product-category-title {
-    font-size: 1.1rem;
-  }
-
-  .admin-product-category-close-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 1.25rem;
+  
+  .admin-page .admin-table thead th,
+  .admin-table-container .admin-table thead th,
+  table.admin-table thead th {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 }
