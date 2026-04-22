@@ -18,12 +18,9 @@ const MemberTypeSelection = () => {
   // 가입한 회원 유형 목록
   const [memberTypes, setMemberTypes] = useState([])
 
-  // 초기 선택값: 첫 번째 회원 유형 또는 활성화된 회원 유형
-  const getInitialSelectedId = () => {
-    const activeMemberType = memberTypes.find(mt => mt.isActive)
-    return activeMemberType ? activeMemberType.id : (memberTypes.length > 0 ? memberTypes[0].id : null)
-  }
-
+  // 선택한 회원 유형 ID (null 이면 아무것도 선택되지 않은 "모두 비활성화" 상태)
+  //  - 회원가입 직후 이 페이지에 처음 진입하면 기본값은 null 입니다.
+  //  - 사용자가 카드를 눌러야만 해당 카드가 활성화(selected)됩니다.
   const [selectedMemberTypeId, setSelectedMemberTypeId] = useState(null)
 
   // 회원 유형 목록 로드
@@ -46,14 +43,10 @@ const MemberTypeSelection = () => {
           customerId: mt.customerId
         }))
         setMemberTypes(formattedTypes)
-        
-        // 초기 선택값 설정
-        const activeMemberType = formattedTypes.find(mt => mt.isActive)
-        if (activeMemberType) {
-          setSelectedMemberTypeId(activeMemberType.id)
-        } else if (formattedTypes.length > 0) {
-          setSelectedMemberTypeId(formattedTypes[0].id)
-        }
+
+        // 기본값: 아무것도 선택하지 않음 (모든 카드 비활성화 상태)
+        // - 마이 페이지에서 "현재 회원 유형"을 들고 돌아온 경우에는 아래 별도 useEffect 에서
+        //   해당 카드만 활성화해 줍니다.
       }
     } catch (error) {
       console.error('회원 유형 목록 조회 오류:', error)
@@ -181,9 +174,9 @@ const MemberTypeSelection = () => {
     setOpenMoreMenuId(null)
     if (window.confirm('해당 회원 유형을 삭제하시겠습니까?')) {
       setMemberTypes(memberTypes.filter(mt => mt.id !== memberTypeId))
-      if (selectedMemberTypeId === memberTypeId && memberTypes.length > 1) {
-        // 삭제된 회원 유형이 선택되어 있었다면 첫 번째로 변경
-        setSelectedMemberTypeId(memberTypes[0].id === memberTypeId ? memberTypes[1].id : memberTypes[0].id)
+      // 삭제된 카드가 선택되어 있었다면 선택 상태를 해제 (다시 "모두 비활성화")
+      if (selectedMemberTypeId === memberTypeId) {
+        setSelectedMemberTypeId(null)
       }
     }
   }
@@ -197,6 +190,12 @@ const MemberTypeSelection = () => {
   }
 
   const handleComplete = async () => {
+    // 아무 회원 유형도 선택하지 않은 경우 (기본값: 모두 비활성화)
+    if (selectedMemberTypeId == null) {
+      alert('회원 유형을 선택해 주세요.')
+      return
+    }
+
     // 선택한 회원 유형으로 변경 처리
     const selectedMemberType = memberTypes.find(mt => mt.id === selectedMemberTypeId)
     if (!selectedMemberType || !user?.id) {
