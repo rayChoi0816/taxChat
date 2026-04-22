@@ -103,8 +103,13 @@ export const sendSms = async ({ to, text }) => {
   try {
     token = await getPpurioToken()
   } catch (err) {
-    console.error('뿌리오 토큰 발급 오류:', err.response?.data || err.message)
-    throw new Error('SMS 발송 준비 중 오류가 발생했습니다')
+    const detail = err.response?.data
+      ? JSON.stringify(err.response.data)
+      : err.message
+    console.error('뿌리오 토큰 발급 오류:', detail)
+    const e = new Error('SMS 발송 준비 중 오류가 발생했습니다')
+    e.detail = detail
+    throw e
   }
 
   // 3) 문자 전송 요청
@@ -143,13 +148,23 @@ export const sendSms = async ({ to, text }) => {
         })
         return { ok: true, data: res.data }
       } catch (retryErr) {
-        console.error('뿌리오 재시도 실패:', retryErr.response?.data || retryErr.message)
-        throw new Error('SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요')
+        const detail = retryErr.response?.data
+          ? JSON.stringify(retryErr.response.data)
+          : retryErr.message
+        console.error('뿌리오 재시도 실패:', detail)
+        const e = new Error('SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요')
+        e.detail = detail
+        throw e
       }
     }
 
-    console.error('뿌리오 문자 발송 오류:', err.response?.data || err.message)
-    throw new Error('SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요')
+    const detail = err.response?.data
+      ? JSON.stringify(err.response.data)
+      : err.message
+    console.error('뿌리오 문자 발송 오류:', detail)
+    const e = new Error('SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요')
+    e.detail = detail
+    throw e
   }
 }
 

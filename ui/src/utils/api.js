@@ -54,17 +54,24 @@ export const authAPI = {
     body: JSON.stringify({ phoneNumber, memberType, memberData, password }),
   }),
 
-  // SMS 인증번호 발송 (POST /api/auth/send)
-  requestSmsCode: (phoneNumber) => fetchAPI('/auth/send', {
-    method: 'POST',
-    body: JSON.stringify({ phoneNumber, phone: phoneNumber }),
-  }),
+  // SMS 인증번호 발송: 브라우저 → 우리 서버(POST /api/auth/send) → (서버에서) 뿌리오 호출
+  // 프론트는 절대 뿌리오를 직접 호출하지 않습니다. (API 키 노출 방지)
+  requestSmsCode: (phoneNumber) => {
+    const phone = String(phoneNumber || '').replace(/[^\d]/g, '')
+    return fetchAPI('/auth/send', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    })
+  },
 
-  // SMS 인증번호 검증 (POST /api/auth/verify)
-  verifySmsCode: (phoneNumber, code) => fetchAPI('/auth/verify', {
-    method: 'POST',
-    body: JSON.stringify({ phoneNumber, phone: phoneNumber, code }),
-  }),
+  // SMS 인증번호 검증: 브라우저 → 우리 서버(POST /api/auth/verify) → DB 검증
+  verifySmsCode: (phoneNumber, code) => {
+    const phone = String(phoneNumber || '').replace(/[^\d]/g, '')
+    return fetchAPI('/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ phone, code: String(code || '').trim() }),
+    })
+  },
 
   adminLogin: (password) => fetchAPI('/auth/admin-login', {
     method: 'POST',

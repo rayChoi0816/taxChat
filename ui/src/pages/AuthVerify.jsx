@@ -373,7 +373,13 @@ const AuthVerify = () => {
 
                   <div className="auth-verify-modal-foot">
                     <span className="auth-verify-timer">
-                      {remainSec > 0 ? `남은 시간 ${formatRemain(remainSec)}` : '시간이 만료되었습니다'}
+                      {remainSec > 0
+                        ? `남은 시간 ${formatRemain(remainSec)}`
+                        : codeSent
+                          ? '시간이 만료되었습니다'
+                          : requesting
+                            ? '인증번호 전송 중...'
+                            : ''}
                     </span>
                     <button
                       type="button"

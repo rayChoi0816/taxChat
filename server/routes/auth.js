@@ -114,11 +114,17 @@ router.post('/admin-login', (req, res) => {
 // ============================================================================
 // 휴대폰 SMS 인증 (회원가입용)
 // ----------------------------------------------------------------------------
-// 목표: "회원가입 전에 휴대폰이 진짜 본인 것이 맞는지" 확인하기
-// 흐름:
-//   1) 사용자가 휴대폰 번호를 입력 → POST /api/auth/send 호출
+// ★ 보안 원칙
+//   - 뿌리오 API 키(PPURIO_*)는 절대 브라우저로 내려가지 않습니다.
+//   - 브라우저 → (이 Express 서버) → 뿌리오 순서로만 호출이 흐릅니다.
+//   - 따라서 SMS 발송에 관련된 모든 외부 호출(axios)은 services/sms.js
+//     안에서만 일어나고, 프론트 코드는 우리 서버 API(/api/auth/send,
+//     /api/auth/verify) 두 개만 호출하도록 약속합니다.
+//
+// ★ 흐름
+//   1) 사용자가 휴대폰 번호를 입력 → POST /api/auth/send  { phone }
 //      → 서버가 6자리 인증번호 만들고 DB에 저장 + 뿌리오로 문자 발송
-//   2) 사용자가 받은 6자리 숫자를 입력 → POST /api/auth/verify 호출
+//   2) 사용자가 받은 6자리 숫자를 입력 → POST /api/auth/verify  { phone, code }
 //      → 서버가 DB의 코드/만료시간과 비교해서 맞으면 verified=true 로 업데이트
 //   3) 위에서 verified 로 저장된 전화번호만 회원가입(/signup) 성공
 // ============================================================================
@@ -138,15 +144,20 @@ const SMS_VERIFY_WINDOW_MINUTES = 30
 const SMS_MAX_ATTEMPTS = 5
 
 /**
- * 인증번호 발송 처리 공통 로직.
- * 요청 파라미터에서 받은 휴대폰 번호로 6자리 코드를 만들고
- *   1) DB(sms_verifications) 에 저장
- *   2) 뿌리오 API 로 실제 문자 발송 (서비스 모듈이 담당)
+ * [POST /api/auth/send] 인증번호 발송
+ *   - body: { phone }
+ *   - 동작:
+ *     1) phone 유효성 검사
+ *     2) 6자리 코드 생성
+ *     3) sms_verifications 테이블에 (phone, code, expires_at, verified=false) 저장
+ *     4) services/sms.js 의 sendSms() 가 axios 로 뿌리오 호출 → 실제 문자 발송
+ *     5) 발송 실패 시 방금 저장한 레코드는 DELETE 해서 더미 데이터를 남기지 않음
+ *
+ * 구버전 호환을 위해 phoneNumber 키도 받지만, 신규 클라이언트는 phone 만 사용.
  */
 const handleSendSmsCode = async (req, res) => {
   try {
-    // 프론트에서 보내는 키 이름이 phoneNumber / phone 두 가지 모두 올 수 있도록 함
-    const phone = normalizePhone(req.body?.phoneNumber ?? req.body?.phone)
+    const phone = normalizePhone(req.body?.phone ?? req.body?.phoneNumber)
     if (!phone || !isValidKoreanPhone(phone)) {
       return res.status(400).json({ error: '유효한 휴대폰 번호를 입력해 주세요' })
     }
@@ -155,21 +166,29 @@ const handleSendSmsCode = async (req, res) => {
     const code = String(Math.floor(100000 + Math.random() * 900000))
     const expiresAt = new Date(Date.now() + SMS_CODE_TTL_MS)
 
-    // DB 에 저장 — 한 번호로 여러 번 요청해도 모두 기록이 남고,
-    // 검증은 "가장 최근" 기록만 사용합니다.
-    await pool.query(
+    // DB 에 먼저 저장 — 발송이 실패하면 바로 삭제해서 불필요한 레코드를 남기지 않습니다.
+    const inserted = await pool.query(
       `INSERT INTO sms_verifications (phone_number, code, expires_at)
-       VALUES ($1, $2, $3)`,
+       VALUES ($1, $2, $3)
+       RETURNING id`,
       [phone, code, expiresAt]
     )
+    const insertedId = inserted.rows[0]?.id
 
-    // 실제 SMS 발송 (뿌리오). 실패하면 DB 에 저장된 코드도 의미가 없어지지만
-    // 사용자는 다시 발송 요청을 할 수 있으므로 에러만 올려주면 됩니다.
+    // 실제 SMS 발송 (뿌리오). 실패 시 방금 저장한 레코드를 되돌립니다.
     try {
       await sendSms({ to: phone, text: buildVerificationMessage(code) })
     } catch (smsErr) {
-      console.error('SMS 발송 실패:', smsErr.message)
-      return res.status(502).json({ error: 'SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요' })
+      if (insertedId) {
+        await pool.query('DELETE FROM sms_verifications WHERE id = $1', [insertedId]).catch(() => {})
+      }
+      console.error('SMS 발송 실패:', smsErr.message, smsErr.detail || '')
+      const payload = { error: smsErr.message || 'SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요' }
+      // 개발 환경에서는 뿌리오가 돌려준 실제 오류 본문까지 함께 보내 줍니다.
+      if (process.env.NODE_ENV !== 'production' && smsErr.detail) {
+        payload.detail = smsErr.detail
+      }
+      return res.status(502).json(payload)
     }
 
     const payload = {
@@ -189,12 +208,14 @@ const handleSendSmsCode = async (req, res) => {
 }
 
 /**
- * 인증번호 확인 처리 공통 로직.
- * - 가장 최근 발급 내역을 DB 에서 가져와 코드/만료/시도횟수를 검증합니다.
+ * [POST /api/auth/verify] 인증번호 검증
+ *   - body: { phone, code }
+ *   - 동작: 가장 최근 발급 내역을 DB 에서 가져와 코드/만료/시도횟수를 검증
+ *           성공 시 verified=true, verified_at=NOW() 로 업데이트
  */
 const handleVerifySmsCode = async (req, res) => {
   try {
-    const phone = normalizePhone(req.body?.phoneNumber ?? req.body?.phone)
+    const phone = normalizePhone(req.body?.phone ?? req.body?.phoneNumber)
     const code = String(req.body?.code || '').trim()
 
     if (!phone || !isValidKoreanPhone(phone)) {
