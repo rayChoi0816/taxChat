@@ -152,8 +152,13 @@ const AdminCustomer = () => {
             ? (member.detail_address ? `${member.base_address} ${member.detail_address}` : member.base_address)
             : ''
 
+          // 서버가 "한 행 = (회원 × 한 회원 유형)" 단위로 펼쳐서 보내옵니다.
+          //  - id        : "mt-12" / "m-7" 같은 행 고유 키 (selectedItems 등에 사용)
+          //  - memberId  : members 테이블의 진짜 회원 id (수정/삭제/메모 시 사용)
+          //  - memberType: 이 행이 보여주는 회원 유형 (비사업자/개인 사업자/법인 사업자)
           return {
             id: member.id,
+            memberId: member.member_id ?? member.id,
             customerId: member.customer_id || '',
             memberType: member.member_type || '비사업자',
             signupMethod: member.signup_method || '회원 직접 가입',
@@ -251,10 +256,10 @@ const AdminCustomer = () => {
     return customerList
   }
 
-  // 초기 메모 초기화
+  // 초기 메모 초기화 (회원 단위로 묶이도록 memberId 키 사용)
   useEffect(() => {
     if (customers && customers.length > 0 && initializeMemos) {
-      initializeMemos(customers, 'id')
+      initializeMemos(customers, 'memberId')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customers])
@@ -382,24 +387,30 @@ const AdminCustomer = () => {
     setCurrentPage(1)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = (customer) => {
     if (window.confirm('해당 회원을 삭제하시겠습니까? (DB는 유지되며 출력만 제외됩니다)')) {
-      setCustomers(prev => prev.map(customer => 
-        customer.id === id ? { ...customer, deleted: true } : customer
+      // 한 회원이 여러 유형으로 펼쳐져 있더라도 회원 자체를 숨김 처리합니다.
+      const targetMemberId = customer.memberId
+      setCustomers(prev => prev.map(c =>
+        c.memberId === targetMemberId ? { ...c, deleted: true } : c
       ))
+      // 서버에 회원 삭제 요청 (출력만 제외)
+      memberAPI.deleteMember(targetMemberId).catch(err => {
+        console.error('회원 삭제 오류:', err)
+      })
     }
   }
 
-  // 초기 메모 데이터 로드
+  // 초기 메모 데이터 로드 (회원 단위)
   useEffect(() => {
     if (customers && customers.length > 0 && initializeMemos) {
-      initializeMemos(customers, 'id')
+      initializeMemos(customers, 'memberId')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const getLatestMemo = (customer) => {
-    return getLatestMemoFromContext(customer.id)
+    return getLatestMemoFromContext(customer.memberId)
   }
 
   const truncateMemo = (memo) => {
@@ -416,13 +427,18 @@ const AdminCustomer = () => {
     setSelectedCustomer(null)
   }
 
-  const handleSaveMemo = (customerId, memoContent) => {
-    addMemo(customerId, memoContent)
+  const handleSaveMemo = (_customerId, memoContent) => {
+    // 메모는 회원 단위로 저장하므로 항상 memberId 를 키로 사용합니다.
+    const memberId = selectedCustomer?.memberId
+    if (memberId == null) return
+    addMemo(memberId, memoContent)
     // 모달 닫지 않고 유지 (사용자가 계속 메모를 추가할 수 있도록)
   }
 
-  const handleDeleteMemo = (customerId, memoId) => {
-    deleteMemo(customerId, memoId)
+  const handleDeleteMemo = (_customerId, memoId) => {
+    const memberId = selectedCustomer?.memberId
+    if (memberId == null) return
+    deleteMemo(memberId, memoId)
   }
 
   const handleOpenRegistrationModal = () => {
@@ -813,10 +829,9 @@ const AdminCustomer = () => {
                     </td>
                     <td data-label="회원명">
                       <span>
-                        {customer.memberType === '비사업자' 
+                        {customer.memberType === '비사업자'
                           ? customer.name
-                          : `${customer.businessName || ''} / ${customer.representativeName || ''}`
-                        }
+                          : `${customer.businessName || ''} / ${customer.representativeName || ''}`}
                       </span>
                     </td>
                     <td data-label="연락처">
@@ -852,7 +867,7 @@ const AdminCustomer = () => {
                     <td data-label="기능">
                       <button 
                         className="admin-table-btn danger"
-                        onClick={() => handleDelete(customer.id)}
+                        onClick={() => handleDelete(customer)}
                       >
                         삭제
                       </button>
@@ -950,7 +965,7 @@ const AdminCustomer = () => {
       {selectedCustomer && (
         <MemoModal
           customer={selectedCustomer}
-          memos={customerMemos[selectedCustomer.id] || []}
+          memos={customerMemos[selectedCustomer.memberId] || []}
           onClose={handleCloseMemoModal}
           onSave={handleSaveMemo}
           onDelete={handleDeleteMemo}

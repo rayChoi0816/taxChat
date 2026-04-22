@@ -428,9 +428,11 @@ router.post('/signup', async (req, res) => {
     if (existingMember.rows.length > 0) {
       // 기존 회원이 있는 경우, 새로운 회원 유형으로 추가
       const existingMemberRow = existingMember.rows[0]
-      
-      // 고객 ID 생성 (회원 유형과 현재 날짜 사용)
-      const customerId = await generateCustomerId(memberType)
+
+      // 새로 추가하는 회원 유형 전용 customer_id (예: 02260422003c)
+      // - members.customer_id 는 "첫 가입 유형" 의 ID 라서 그대로 두고,
+      //   이번에 새로 추가되는 유형의 ID 는 member_types 행에 저장합니다.
+      const newTypeCustomerId = await generateCustomerId(memberType)
 
       // 기존 회원 정보 업데이트 (회원 유형별 정보 추가)
       const updateFields = []
@@ -508,16 +510,72 @@ router.post('/signup', async (req, res) => {
         )
       }
 
-      // member_types 테이블에 회원 유형 추가 (중복 체크)
+      // member_types 테이블에 회원 유형 추가 (중복 체크 + customer_id 부여)
+      // ★ type 별 회원 정보(이름/사업자명 등)를 member_types 행에도 함께 저장해서
+      //    같은 회원이 여러 유형을 가입해도 각 행이 자기 정보를 그대로 보존하도록 합니다.
       const existingMemberType = await pool.query(
-        'SELECT * FROM member_types WHERE member_id = $1 AND member_type = $2',
+        'SELECT id, customer_id FROM member_types WHERE member_id = $1 AND member_type = $2',
         [existingMemberRow.id, memberType]
       )
 
       if (existingMemberType.rows.length === 0) {
         await pool.query(
-          'INSERT INTO member_types (member_id, member_type, is_active) VALUES ($1, $2, $3)',
-          [existingMemberRow.id, memberType, true]
+          `INSERT INTO member_types (
+             member_id, member_type, customer_id, is_active,
+             name, gender, resident_number,
+             business_name, representative_name, business_number,
+             industry, business_type, base_address, detail_address, start_date
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [
+            existingMemberRow.id,
+            memberType,
+            newTypeCustomerId,
+            true,
+            memberData?.name || null,
+            memberData?.gender || null,
+            memberData?.residentNumber || null,
+            memberData?.businessName || null,
+            memberData?.representativeName || null,
+            memberData?.businessNumber || null,
+            memberData?.industry || null,
+            memberData?.businessType || null,
+            memberData?.baseAddress || null,
+            memberData?.detailAddress || null,
+            memberData?.startDate || null,
+          ]
+        )
+      } else {
+        // 같은 type 이 이미 있으면 정보만 갱신
+        await pool.query(
+          `UPDATE member_types SET
+             customer_id = COALESCE(customer_id, $2),
+             name = COALESCE($3, name),
+             gender = COALESCE($4, gender),
+             resident_number = COALESCE($5, resident_number),
+             business_name = COALESCE($6, business_name),
+             representative_name = COALESCE($7, representative_name),
+             business_number = COALESCE($8, business_number),
+             industry = COALESCE($9, industry),
+             business_type = COALESCE($10, business_type),
+             base_address = COALESCE($11, base_address),
+             detail_address = COALESCE($12, detail_address),
+             start_date = COALESCE($13, start_date)
+           WHERE id = $1`,
+          [
+            existingMemberType.rows[0].id,
+            newTypeCustomerId,
+            memberData?.name || null,
+            memberData?.gender || null,
+            memberData?.residentNumber || null,
+            memberData?.businessName || null,
+            memberData?.representativeName || null,
+            memberData?.businessNumber || null,
+            memberData?.industry || null,
+            memberData?.businessType || null,
+            memberData?.baseAddress || null,
+            memberData?.detailAddress || null,
+            memberData?.startDate || null,
+          ]
         )
       }
 
@@ -571,10 +629,33 @@ router.post('/signup', async (req, res) => {
       // 날짜 필드는 이미 문자열로 변환됨
       const member = result.rows[0]
 
-      // 회원 유형 추가
+      // 회원 유형 추가 (첫 가입이므로 members.customer_id 와 동일하게 저장)
+      // type 별 정보도 함께 저장해 두면 향후 같은 회원이 다른 유형을 추가해도
+      // 이 행의 정보는 그대로 보존됩니다.
       await pool.query(
-        'INSERT INTO member_types (member_id, member_type, is_active) VALUES ($1, $2, $3)',
-        [member.id, memberType, true]
+        `INSERT INTO member_types (
+           member_id, member_type, customer_id, is_active,
+           name, gender, resident_number,
+           business_name, representative_name, business_number,
+           industry, business_type, base_address, detail_address, start_date
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+        [
+          member.id,
+          memberType,
+          customerId,
+          true,
+          memberData?.name || null,
+          memberData?.gender || null,
+          memberData?.residentNumber || null,
+          memberData?.businessName || null,
+          memberData?.representativeName || null,
+          memberData?.businessNumber || null,
+          memberData?.industry || null,
+          memberData?.businessType || null,
+          memberData?.baseAddress || null,
+          memberData?.detailAddress || null,
+          memberData?.startDate || null,
+        ]
       )
 
       const token = jwt.sign(

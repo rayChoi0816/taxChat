@@ -4,6 +4,30 @@ import { authenticateToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
+// ────────────────────────────────────────────────────────────────────────
+// 행 ID 해석 헬퍼
+// 관리자 화면이 보내는 ID 는 두 가지 형식이 있어요.
+//   1) "mt-12"  : member_types 테이블의 행 id (= 표의 한 행)
+//   2) "m-7"    : members 테이블의 행 id
+//   3) "7"      : 숫자만 있을 때는 members.id 로 간주 (구버전 호환)
+// 어떤 경우든 결국 members.id 가 필요하므로 변환해 줍니다.
+// ────────────────────────────────────────────────────────────────────────
+const resolveMemberId = async (rawId) => {
+  const text = String(rawId || '')
+  if (text.startsWith('mt-')) {
+    const mtId = parseInt(text.slice(3), 10)
+    if (Number.isNaN(mtId)) return null
+    const r = await pool.query('SELECT member_id FROM member_types WHERE id = $1', [mtId])
+    return r.rows[0]?.member_id ?? null
+  }
+  if (text.startsWith('m-')) {
+    const mId = parseInt(text.slice(2), 10)
+    return Number.isNaN(mId) ? null : mId
+  }
+  const n = parseInt(text, 10)
+  return Number.isNaN(n) ? null : n
+}
+
 // 모든 회원 조회 (관리자)
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -19,18 +43,32 @@ router.get('/', authenticateToken, async (req, res) => {
       signupMethods
     } = req.query
 
-    let query = `SELECT id, customer_id, phone_number, member_type, name, business_name,
-        representative_name, business_number, industry, business_type, 
-        base_address, detail_address, 
-        TO_CHAR(start_date, 'YYYY-MM-DD') as start_date,
-        signup_method, has_info_input, created_at, updated_at, gender, resident_number, deleted
-      FROM members WHERE deleted = false`
+    // ────────────────────────────────────────────────────────────────────────
+    // 회원 목록 조회 (관리자 "고객관리" 표용)
+    //
+    // ★ 핵심 정책
+    //   한 회원이 비사업자 / 개인 사업자 / 법인 사업자 중 여러 개를 가입한 경우
+    //   "유형마다 한 행"으로 펼쳐서 보여줍니다.
+    //   예) 홍길동(휴대폰 1개) 이 비사업자 + 개인 사업자에 가입 → 표에 2행으로 출력
+    //
+    // ★ 구현
+    //   members(m)  ⨝  member_types(mt) 를 LEFT JOIN 합니다.
+    //   - mt.id 가 NULL 이면 (member_types 에 한 건도 없는 과거 데이터) m.member_type 으로 fallback
+    //   - row_member_type / row_customer_id 두 개의 가상 컬럼을 만들어
+    //     UI 가 그대로 사용할 수 있도록 정리합니다.
+    //   - 페이지네이션/정렬/카운트는 모두 "펼친 행" 기준으로 계산합니다.
+    // ────────────────────────────────────────────────────────────────────────
+
+    // 공통 FROM/WHERE 블록을 한 번 만들어서 SELECT 와 COUNT 모두에서 재사용합니다.
     const params = []
     let paramIndex = 1
+    let whereSql = ` FROM members m
+                     LEFT JOIN member_types mt ON mt.member_id = m.id
+                     WHERE m.deleted = false`
 
     // 날짜 필터
     if (startDate && endDate) {
-      query += ` AND created_at >= $${paramIndex} AND created_at <= $${paramIndex + 1}`
+      whereSql += ` AND m.created_at >= $${paramIndex} AND m.created_at <= $${paramIndex + 1}`
       params.push(startDate, endDate)
       paramIndex += 2
     }
@@ -38,29 +76,27 @@ router.get('/', authenticateToken, async (req, res) => {
     // 검색 필터
     if (searchKeyword) {
       if (searchType === '회원명') {
-        query += ` AND (name ILIKE $${paramIndex} OR business_name ILIKE $${paramIndex})`
+        whereSql += ` AND (m.name ILIKE $${paramIndex} OR m.business_name ILIKE $${paramIndex} OR m.representative_name ILIKE $${paramIndex})`
       } else if (searchType === '연락처') {
-        query += ` AND phone_number ILIKE $${paramIndex}`
+        whereSql += ` AND m.phone_number ILIKE $${paramIndex}`
       }
       params.push(`%${searchKeyword}%`)
       paramIndex++
     }
 
-    // 회원 유형 필터
+    // 회원 유형 필터 (펼친 행 기준 — 그 행의 유형만 일치하면 통과)
     if (memberTypes) {
-      // 쿼리 파라미터가 배열로 전달되거나 문자열로 전달될 수 있음
       let types = []
       if (Array.isArray(memberTypes)) {
         types = memberTypes
       } else if (typeof memberTypes === 'string') {
-        // 쉼표로 구분된 문자열인 경우
         types = memberTypes.split(',').map(t => t.trim()).filter(t => t)
       } else {
         types = [memberTypes]
       }
-      
+
       if (types.length > 0) {
-        query += ` AND member_type = ANY($${paramIndex})`
+        whereSql += ` AND COALESCE(mt.member_type, m.member_type) = ANY($${paramIndex})`
         params.push(types)
         paramIndex++
       }
@@ -68,103 +104,110 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // 가입 방식 필터
     if (signupMethods) {
-      // 쿼리 파라미터가 배열로 전달되거나 문자열로 전달될 수 있음
       let methods = []
       if (Array.isArray(signupMethods)) {
         methods = signupMethods
       } else if (typeof signupMethods === 'string') {
-        // 쉼표로 구분된 문자열인 경우
         methods = signupMethods.split(',').map(m => m.trim()).filter(m => m)
       } else {
         methods = [signupMethods]
       }
-      
+
       if (methods.length > 0) {
-        query += ` AND signup_method = ANY($${paramIndex})`
+        whereSql += ` AND m.signup_method = ANY($${paramIndex})`
         params.push(methods)
         paramIndex++
       }
     }
 
-    // 정렬
-    if (sortOrder === '등록일시 역순') {
-      query += ' ORDER BY created_at DESC'
-    } else {
-      query += ' ORDER BY created_at ASC'
-    }
+    // 정렬: 같은 회원이 여러 유형이면 가입 순서대로
+    const orderSql = sortOrder === '등록일시 역순'
+      ? ' ORDER BY m.created_at DESC, mt.created_at ASC NULLS FIRST, mt.id ASC NULLS FIRST'
+      : ' ORDER BY m.created_at ASC, mt.created_at ASC NULLS FIRST, mt.id ASC NULLS FIRST'
 
-    // 페이지네이션
+    // SELECT — 한 행이 "회원×유형" 한 쌍을 나타냅니다.
+    // 사업자/비사업자 정보는 member_types 행 값 → members 값 순으로 fallback 합니다.
+    // 단, 유형에 맞지 않는 정보는 비워서 보여줍니다.
+    //   - 비사업자 행 → 사업자 정보(business_*, industry, ... start_date) 는 NULL
+    //   - 사업자 행  → 비사업자 정보(name, gender, resident_number) 는 NULL
+    let query = `SELECT
+        m.id AS member_id,
+        m.phone_number,
+        m.signup_method, m.has_info_input,
+        m.created_at, m.updated_at, m.deleted,
+        mt.id AS member_type_row_id,
+        COALESCE(mt.member_type, m.member_type) AS row_member_type,
+        COALESCE(mt.customer_id, m.customer_id) AS row_customer_id,
+        COALESCE(mt.created_at, m.created_at) AS row_created_at,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) = '비사업자'
+             THEN COALESCE(mt.name, m.name) ELSE NULL END AS row_name,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) = '비사업자'
+             THEN COALESCE(mt.gender, m.gender) ELSE NULL END AS row_gender,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) = '비사업자'
+             THEN COALESCE(mt.resident_number, m.resident_number) ELSE NULL END AS row_resident_number,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+             THEN COALESCE(mt.business_name, m.business_name) ELSE NULL END AS row_business_name,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+             THEN COALESCE(mt.representative_name, m.representative_name) ELSE NULL END AS row_representative_name,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+             THEN COALESCE(mt.business_number, m.business_number) ELSE NULL END AS row_business_number,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+             THEN COALESCE(mt.industry, m.industry) ELSE NULL END AS row_industry,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+             THEN COALESCE(mt.business_type, m.business_type) ELSE NULL END AS row_business_type,
+        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+             THEN TO_CHAR(COALESCE(mt.start_date, m.start_date), 'YYYY-MM-DD') ELSE NULL END AS row_start_date,
+        COALESCE(mt.base_address, m.base_address) AS row_base_address,
+        COALESCE(mt.detail_address, m.detail_address) AS row_detail_address
+      ${whereSql}${orderSql}`
+
+    // 페이지네이션 (펼친 행 기준)
     const offset = (page - 1) * limit
     query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
     params.push(limit, offset)
 
     const result = await pool.query(query, params)
 
-    // 총 개수 조회 - WHERE 절과 파라미터만 사용하여 카운트
-    let countQuery = `SELECT COUNT(*) as count FROM members WHERE deleted = false`
-    const countParams = []
-    let countParamIndex = 1
-
-    // 날짜 필터
-    if (startDate && endDate) {
-      countQuery += ` AND created_at >= $${countParamIndex} AND created_at <= $${countParamIndex + 1}`
-      countParams.push(startDate, endDate)
-      countParamIndex += 2
-    }
-
-    // 검색 필터
-    if (searchKeyword) {
-      if (searchType === '회원명') {
-        countQuery += ` AND (name ILIKE $${countParamIndex} OR business_name ILIKE $${countParamIndex})`
-      } else if (searchType === '연락처') {
-        countQuery += ` AND phone_number ILIKE $${countParamIndex}`
-      }
-      countParams.push(`%${searchKeyword}%`)
-      countParamIndex++
-    }
-
-    // 회원 유형 필터
-    if (memberTypes) {
-      let types = []
-      if (Array.isArray(memberTypes)) {
-        types = memberTypes
-      } else if (typeof memberTypes === 'string') {
-        types = memberTypes.split(',').map(t => t.trim()).filter(t => t)
-      } else {
-        types = [memberTypes]
-      }
-      
-      if (types.length > 0) {
-        countQuery += ` AND member_type = ANY($${countParamIndex})`
-        countParams.push(types)
-        countParamIndex++
-      }
-    }
-
-    // 가입 방식 필터
-    if (signupMethods) {
-      let methods = []
-      if (Array.isArray(signupMethods)) {
-        methods = signupMethods
-      } else if (typeof signupMethods === 'string') {
-        methods = signupMethods.split(',').map(m => m.trim()).filter(m => m)
-      } else {
-        methods = [signupMethods]
-      }
-      
-      if (methods.length > 0) {
-        countQuery += ` AND signup_method = ANY($${countParamIndex})`
-        countParams.push(methods)
-        countParamIndex++
-      }
-    }
-
+    // 총 개수도 펼친 행 기준
+    const countQuery = `SELECT COUNT(*) as count ${whereSql}`
+    // params 중 LIMIT/OFFSET 두 개는 빼고 사용
+    const countParams = params.slice(0, params.length - 2)
     const countResult = await pool.query(countQuery, countParams)
     const total = parseInt(countResult.rows[0].count)
 
+    // UI 가 그대로 쓸 수 있도록 "한 행 = 한 카드" 형태로 정리해서 내려보냅니다.
+    const data = result.rows.map((r) => ({
+      // 행 고유 ID: member_types 행 ID 가 있으면 "mt-XX", 없으면 "m-YY"
+      id: r.member_type_row_id ? `mt-${r.member_type_row_id}` : `m-${r.member_id}`,
+      member_id: r.member_id,
+      member_type_row_id: r.member_type_row_id,
+      // ↓ 이 행이 보여줄 회원 유형 / 고객 ID
+      member_type: r.row_member_type,
+      customer_id: r.row_customer_id,
+      // 공통 회원 정보 (회원 단위로 같은 값)
+      phone_number: r.phone_number,
+      signup_method: r.signup_method,
+      has_info_input: r.has_info_input,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      deleted: r.deleted,
+      // ↓ 이 행이 보여줄 type 별 정보 (member_types → members 순으로 fallback)
+      name: r.row_name,
+      gender: r.row_gender,
+      resident_number: r.row_resident_number,
+      business_name: r.row_business_name,
+      representative_name: r.row_representative_name,
+      business_number: r.row_business_number,
+      industry: r.row_industry,
+      business_type: r.row_business_type,
+      base_address: r.row_base_address,
+      detail_address: r.row_detail_address,
+      start_date: r.row_start_date,
+    }))
+
     res.json({
       success: true,
-      data: result.rows,
+      data,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -344,7 +387,8 @@ router.post('/', authenticateToken, async (req, res) => {
 // 회원 정보 수정
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
+    const id = await resolveMemberId(req.params.id)
+    if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
     const memberData = req.body
 
     // 업데이트할 필드와 값 동적 생성
@@ -471,7 +515,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // 회원 삭제 (출력만 제외)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
+    const id = await resolveMemberId(req.params.id)
+    if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
 
     await pool.query(
       'UPDATE members SET deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
@@ -488,7 +533,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // 메모 조회
 router.get('/:id/memos', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
+    const id = await resolveMemberId(req.params.id)
+    if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
 
     const result = await pool.query(
       'SELECT * FROM memos WHERE member_id = $1 ORDER BY created_at DESC',
@@ -508,7 +554,8 @@ router.get('/:id/memos', authenticateToken, async (req, res) => {
 // 메모 추가
 router.post('/:id/memos', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
+    const id = await resolveMemberId(req.params.id)
+    if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
     const { content } = req.body
 
     const result = await pool.query(
@@ -543,7 +590,8 @@ router.delete('/:id/memos/:memoId', authenticateToken, async (req, res) => {
 // 특정 회원의 회원 유형 목록 조회
 router.get('/:id/member-types', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
+    const id = await resolveMemberId(req.params.id)
+    if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
 
     // 먼저 회원 정보 조회
     const memberResult = await pool.query(
@@ -637,7 +685,8 @@ router.get('/:id/member-types', authenticateToken, async (req, res) => {
 // 특정 회원 조회 (memos 라우트보다 뒤에 정의해야 함)
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
+    const id = await resolveMemberId(req.params.id)
+    if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
 
     const result = await pool.query(
       `SELECT id, customer_id, phone_number, member_type, name, business_name,

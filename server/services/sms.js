@@ -185,12 +185,19 @@ export const sendSms = async ({ to, text }) => {
   }
 
   // 3) 문자 전송 요청
+  // refKey: 뿌리오가 요청을 식별하는 데 쓰는 "우리쪽 고유 ID"입니다.
+  //          최대 30자 영문/숫자만 허용되어, 짧은 timestamp + 랜덤 6자로 만듭니다.
+  const refKey = `tc${Date.now().toString(36)}${Math.random()
+    .toString(36)
+    .slice(2, 8)}`.slice(0, 30)
+
   const body = {
     account: process.env.PPURIO_ACCOUNT,
     messageType: 'SMS', // 단문(90byte 이내)
     from: process.env.PPURIO_FROM, // 사전에 뿌리오에 등록한 발신번호
     content: text,
     duplicateFlag: 'N', // 같은 번호로 중복 발송 허용
+    refKey, // 뿌리오 v1 필수 필드
     targetCount: 1,
     targets: [{ to }],
   }

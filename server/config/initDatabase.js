@@ -57,14 +57,69 @@ const initDatabase = async () => {
     // initDatabase에서는 테이블 생성만 수행
 
     // 회원 유형 테이블 (한 회원이 여러 유형을 가질 수 있음)
+    // - 한 휴대폰 번호(=members 한 행)가 비사업자 / 개인 사업자 / 법인 사업자 중
+    //   여러 유형을 동시에 가질 수 있어요.
+    // - 관리자 페이지 "고객관리" 표는 유형별로 행을 분리해서 보여주므로,
+    //   유형마다 별도의 customer_id 가 필요합니다. (예: 01yyMMdd001a, 02yyMMdd003c)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS member_types (
         id SERIAL PRIMARY KEY,
         member_id INTEGER REFERENCES members(id) ON DELETE CASCADE,
         member_type VARCHAR(50) NOT NULL,
+        customer_id VARCHAR(50),
         is_active BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `)
+    // 이미 운영 중인 DB에는 customer_id 컬럼이 없을 수 있으므로 안전하게 추가
+    // 한 회원이 여러 유형을 가입한 경우, "유형별로 다른 정보" 가 그대로 보존되도록
+    // 사업자/비사업자 정보를 member_types 행에 함께 저장합니다.
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS customer_id VARCHAR(50)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS name VARCHAR(100)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS resident_number VARCHAR(20)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS business_name VARCHAR(200)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS representative_name VARCHAR(100)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS business_number VARCHAR(50)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS industry VARCHAR(100)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS business_type VARCHAR(100)`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS base_address TEXT`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS detail_address TEXT`)
+    await pool.query(`ALTER TABLE member_types ADD COLUMN IF NOT EXISTS start_date DATE`)
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_types_member_id ON member_types(member_id)`)
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_member_types_member_type
+                       ON member_types(member_id, member_type)`)
+
+    // 기존 데이터 보정 — member_types 행에 customer_id 가 비어 있다면
+    // 해당 회원의 members.customer_id 와 동일한 값을 채워서 표가 비어 보이지 않도록 합니다.
+    await pool.query(`
+      UPDATE member_types mt
+         SET customer_id = m.customer_id
+        FROM members m
+       WHERE mt.member_id = m.id
+         AND mt.customer_id IS NULL
+         AND m.customer_id IS NOT NULL
+    `)
+
+    // 기존 데이터: 비사업자 행에는 members.name/gender/resident_number, 그 외 유형
+    // 행에는 사업자 정보(business_name 등)을 채워 둡니다.
+    // 같은 회원이 여러 type 인 경우, 비사업자가 아닌 행 사이에는 정보가 똑같이
+    // 채워질 수 있어요. 신규 가입부터는 type 별로 정확하게 분리되어 저장됩니다.
+    await pool.query(`
+      UPDATE member_types mt
+         SET name = COALESCE(mt.name, m.name),
+             gender = COALESCE(mt.gender, m.gender),
+             resident_number = COALESCE(mt.resident_number, m.resident_number),
+             business_name = COALESCE(mt.business_name, m.business_name),
+             representative_name = COALESCE(mt.representative_name, m.representative_name),
+             business_number = COALESCE(mt.business_number, m.business_number),
+             industry = COALESCE(mt.industry, m.industry),
+             business_type = COALESCE(mt.business_type, m.business_type),
+             base_address = COALESCE(mt.base_address, m.base_address),
+             detail_address = COALESCE(mt.detail_address, m.detail_address),
+             start_date = COALESCE(mt.start_date, m.start_date)
+        FROM members m
+       WHERE mt.member_id = m.id
     `)
 
     // 상품 카테고리 테이블
