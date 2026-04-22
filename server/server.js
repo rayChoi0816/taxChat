@@ -16,6 +16,7 @@ import documentRoutes from './routes/documents.js'
 import smsRoutes from './routes/sms.js'
 import paymentRoutes from './routes/payments.js'
 import settingsRoutes from './routes/settings.js'
+import debugRoutes from './routes/debug.js'
 
 dotenv.config()
 
@@ -104,6 +105,7 @@ app.use('/api/documents', documentRoutes)
 app.use('/api/sms', smsRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/settings', settingsRoutes)
+app.use('/api/debug', debugRoutes)
 
 // 404 핸들러
 app.use((req, res) => {

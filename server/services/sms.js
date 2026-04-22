@@ -21,7 +21,7 @@ let tokenExpiresAt = 0 // 토큰이 무효해지는 시각(ms)
 
 /**
  * 로컬/개발 환경인지 판별합니다.
- * PPURIO_API_KEY 또는 PPURIO_ACCOUNT 환경변수가 비어 있으면
+ * PPURIO_API_KEY, PPURIO_ACCOUNT, PPURIO_FROM 중 하나라도 비어 있으면
  * "진짜로 문자를 보내지 않고 콘솔에만 출력"하도록 합니다.
  */
 const isPpurioConfigured = () => {
@@ -30,6 +30,75 @@ const isPpurioConfigured = () => {
     process.env.PPURIO_ACCOUNT &&
     process.env.PPURIO_FROM
   )
+}
+
+/**
+ * 지금 이 서버가 바깥으로 나갈 때 쓰는 공인 IP 를 돌려줍니다.
+ * (뿌리오가 "invalid ip" 를 돌려줄 때, 어떤 IP 를 등록해야 하는지 알려주려고 사용합니다)
+ *
+ * 실패해도 예외를 던지지 않고 "unknown" 을 돌려주어, 에러 처리 흐름이 끊기지 않게 합니다.
+ */
+export const getServerPublicIp = async () => {
+  try {
+    const { data } = await axios.get('https://api.ipify.org?format=json', {
+      timeout: 5000,
+    })
+    if (data?.ip) return String(data.ip).trim()
+  } catch (_) {
+    // 1차 실패 → 2차 시도
+    try {
+      const { data } = await axios.get('https://ipv4.icanhazip.com', {
+        timeout: 5000,
+      })
+      if (data) return String(data).trim()
+    } catch (__) {
+      // 모두 실패
+    }
+  }
+  return 'unknown'
+}
+
+/**
+ * 뿌리오 에러 응답이 "IP 미허용(코드 3003 / invalid ip)" 인지 판별합니다.
+ */
+const isInvalidIpError = (data) => {
+  if (!data) return false
+  const code = String(data.code || '').trim()
+  const desc = String(data.description || data.message || '').toLowerCase()
+  return code === '3003' || desc.includes('invalid ip')
+}
+
+/**
+ * 뿌리오 에러를 콘솔에 "보기 쉽게" 출력하고,
+ * 상위 호출자가 사용자에게 돌려줄 수 있도록 상세 정보를 묶어서 반환합니다.
+ *
+ * @param {string} stage  - 어느 단계에서 실패했는지 ("token" / "send" / "retry")
+ * @param {any} err       - axios 에서 던진 에러 객체
+ * @returns {Promise<{message: string, detail: any, serverIp: string|null}>}
+ */
+const summarizePpurioError = async (stage, err) => {
+  const data = err.response?.data
+  const status = err.response?.status
+  const messageFromPpurio =
+    data?.description || data?.message || err.message || '알 수 없는 오류'
+
+  // 서버 전체 응답 본문을 "있는 그대로" 한 번 출력해서 디버깅을 쉽게 합니다.
+  console.error(`[PPURIO ${stage.toUpperCase()} ERROR] status=${status || 'n/a'}`)
+  console.error('[PPURIO ERROR BODY]:', data ?? err.message)
+
+  // "IP 허용 목록에 없음" 오류라면, 이 서버의 공인 IP 를 조회해서 친절히 알려줍니다.
+  let serverIp = null
+  if (isInvalidIpError(data)) {
+    serverIp = await getServerPublicIp()
+    console.error(`PPURIO ERROR: invalid ip`)
+    console.error(`REGISTER THIS IP: ${serverIp}`)
+  }
+
+  return {
+    message: messageFromPpurio,
+    detail: data ?? err.message,
+    serverIp,
+  }
 }
 
 /**
@@ -90,6 +159,10 @@ const getPpurioToken = async () => {
  *
  * - 운영(뿌리오 설정 O): 실제 문자 발송
  * - 개발(뿌리오 설정 X): 콘솔에 "[개발 SMS] ..." 로만 출력
+ *
+ * 실패 시 던지는 Error 객체에는 아래 필드가 함께 붙습니다.
+ *   - err.detail   : 뿌리오가 돌려준 원본 응답 (디버깅용)
+ *   - err.serverIp : IP 미허용 오류일 때, 이 서버의 공인 IP
  */
 export const sendSms = async ({ to, text }) => {
   // 1) 개발 환경 대응 — 환경변수가 없으면 실제 발송을 시도하지 않습니다.
@@ -103,12 +176,11 @@ export const sendSms = async ({ to, text }) => {
   try {
     token = await getPpurioToken()
   } catch (err) {
-    const detail = err.response?.data
-      ? JSON.stringify(err.response.data)
-      : err.message
-    console.error('뿌리오 토큰 발급 오류:', detail)
+    const info = await summarizePpurioError('token', err)
     const e = new Error('SMS 발송 준비 중 오류가 발생했습니다')
-    e.detail = detail
+    e.detail = info.detail
+    e.serverIp = info.serverIp
+    e.ppurioMessage = info.message
     throw e
   }
 
@@ -148,22 +220,20 @@ export const sendSms = async ({ to, text }) => {
         })
         return { ok: true, data: res.data }
       } catch (retryErr) {
-        const detail = retryErr.response?.data
-          ? JSON.stringify(retryErr.response.data)
-          : retryErr.message
-        console.error('뿌리오 재시도 실패:', detail)
+        const info = await summarizePpurioError('retry', retryErr)
         const e = new Error('SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요')
-        e.detail = detail
+        e.detail = info.detail
+        e.serverIp = info.serverIp
+        e.ppurioMessage = info.message
         throw e
       }
     }
 
-    const detail = err.response?.data
-      ? JSON.stringify(err.response.data)
-      : err.message
-    console.error('뿌리오 문자 발송 오류:', detail)
+    const info = await summarizePpurioError('send', err)
     const e = new Error('SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요')
-    e.detail = detail
+    e.detail = info.detail
+    e.serverIp = info.serverIp
+    e.ppurioMessage = info.message
     throw e
   }
 }
@@ -175,4 +245,4 @@ export const buildVerificationMessage = (code) => {
   return `[taxChat] 인증번호 ${code} 를 입력해 주세요. (유효시간 3분)`
 }
 
-export default { sendSms, buildVerificationMessage }
+export default { sendSms, buildVerificationMessage, getServerPublicIp }

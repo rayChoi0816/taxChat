@@ -183,10 +183,27 @@ const handleSendSmsCode = async (req, res) => {
         await pool.query('DELETE FROM sms_verifications WHERE id = $1', [insertedId]).catch(() => {})
       }
       console.error('SMS 발송 실패:', smsErr.message, smsErr.detail || '')
-      const payload = { error: smsErr.message || 'SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요' }
-      // 개발 환경에서는 뿌리오가 돌려준 실제 오류 본문까지 함께 보내 줍니다.
-      if (process.env.NODE_ENV !== 'production' && smsErr.detail) {
-        payload.detail = smsErr.detail
+
+      // 프론트(브라우저) 에서 바로 원인을 파악할 수 있도록 구조화해서 돌려줍니다.
+      //   success : 언제나 false
+      //   error   : 표준 에러 코드 (예: "SMS_SEND_FAILED")
+      //   detail  : 뿌리오가 돌려준 본문 또는 간략 메시지
+      //   serverIp: "invalid ip" 오류일 때 등록해야 할 서버 IP
+      const detailText =
+        smsErr.ppurioMessage ||
+        (typeof smsErr.detail === 'string'
+          ? smsErr.detail
+          : smsErr.detail
+            ? JSON.stringify(smsErr.detail)
+            : smsErr.message)
+
+      const payload = {
+        success: false,
+        error: 'SMS_SEND_FAILED',
+        detail: detailText,
+      }
+      if (smsErr.serverIp) {
+        payload.serverIp = smsErr.serverIp
       }
       return res.status(502).json(payload)
     }
