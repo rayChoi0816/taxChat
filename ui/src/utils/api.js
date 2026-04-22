@@ -54,14 +54,16 @@ export const authAPI = {
     body: JSON.stringify({ phoneNumber, memberType, memberData, password }),
   }),
 
-  requestSmsCode: (phoneNumber) => fetchAPI('/auth/sms/request', {
+  // SMS 인증번호 발송 (POST /api/auth/send)
+  requestSmsCode: (phoneNumber) => fetchAPI('/auth/send', {
     method: 'POST',
-    body: JSON.stringify({ phoneNumber }),
+    body: JSON.stringify({ phoneNumber, phone: phoneNumber }),
   }),
 
-  verifySmsCode: (phoneNumber, code) => fetchAPI('/auth/sms/verify', {
+  // SMS 인증번호 검증 (POST /api/auth/verify)
+  verifySmsCode: (phoneNumber, code) => fetchAPI('/auth/verify', {
     method: 'POST',
-    body: JSON.stringify({ phoneNumber, code }),
+    body: JSON.stringify({ phoneNumber, phone: phoneNumber, code }),
   }),
 
   adminLogin: (password) => fetchAPI('/auth/admin-login', {

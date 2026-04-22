@@ -2,6 +2,7 @@ import express from 'express'
 import pool from '../config/database.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import { sendSms, buildVerificationMessage } from '../services/sms.js'
 
 const router = express.Router()
 
@@ -110,38 +111,73 @@ router.post('/admin-login', (req, res) => {
   }
 })
 
-// 휴대폰 번호 정규화
-const normalizePhone = (value) => String(value || '').replace(/[^\d]/g, '')
-const isValidKoreanPhone = (phone) => /^01\d{8,9}$/.test(phone)
-const isValidPassword = (password) => /^[A-Za-z0-9]{6,20}$/.test(String(password || ''))
-const SMS_CODE_TTL_MS = 5 * 60 * 1000 // 5분
-const SMS_VERIFY_WINDOW_MS = 30 * 60 * 1000 // 인증 완료 후 30분 내 signup 유효
+// ============================================================================
+// 휴대폰 SMS 인증 (회원가입용)
+// ----------------------------------------------------------------------------
+// 목표: "회원가입 전에 휴대폰이 진짜 본인 것이 맞는지" 확인하기
+// 흐름:
+//   1) 사용자가 휴대폰 번호를 입력 → POST /api/auth/send 호출
+//      → 서버가 6자리 인증번호 만들고 DB에 저장 + 뿌리오로 문자 발송
+//   2) 사용자가 받은 6자리 숫자를 입력 → POST /api/auth/verify 호출
+//      → 서버가 DB의 코드/만료시간과 비교해서 맞으면 verified=true 로 업데이트
+//   3) 위에서 verified 로 저장된 전화번호만 회원가입(/signup) 성공
+// ============================================================================
 
-// SMS 인증 코드 발급
-router.post('/sms/request', async (req, res) => {
+// 휴대폰 번호에서 숫자만 뽑아내기 (010-1234-5678 → 01012345678)
+const normalizePhone = (value) => String(value || '').replace(/[^\d]/g, '')
+// 010 / 011 ... 같은 한국 휴대폰 형식 체크
+const isValidKoreanPhone = (phone) => /^01\d{8,9}$/.test(phone)
+// 비밀번호 규칙: 영문/숫자 6~20자
+const isValidPassword = (password) => /^[A-Za-z0-9]{6,20}$/.test(String(password || ''))
+
+// 인증번호는 "발송 후 3분" 까지만 유효합니다. (요구사항)
+const SMS_CODE_TTL_MS = 3 * 60 * 1000
+// 인증 성공 후에는 "30분 안에" 회원가입까지 끝내야 해요.
+const SMS_VERIFY_WINDOW_MINUTES = 30
+// 인증번호 입력 시도 최대 횟수 (무차별 대입 방지)
+const SMS_MAX_ATTEMPTS = 5
+
+/**
+ * 인증번호 발송 처리 공통 로직.
+ * 요청 파라미터에서 받은 휴대폰 번호로 6자리 코드를 만들고
+ *   1) DB(sms_verifications) 에 저장
+ *   2) 뿌리오 API 로 실제 문자 발송 (서비스 모듈이 담당)
+ */
+const handleSendSmsCode = async (req, res) => {
   try {
-    const phone = normalizePhone(req.body?.phoneNumber)
+    // 프론트에서 보내는 키 이름이 phoneNumber / phone 두 가지 모두 올 수 있도록 함
+    const phone = normalizePhone(req.body?.phoneNumber ?? req.body?.phone)
     if (!phone || !isValidKoreanPhone(phone)) {
       return res.status(400).json({ error: '유효한 휴대폰 번호를 입력해 주세요' })
     }
 
+    // 100000 ~ 999999 사이의 6자리 랜덤 숫자
     const code = String(Math.floor(100000 + Math.random() * 900000))
     const expiresAt = new Date(Date.now() + SMS_CODE_TTL_MS)
 
+    // DB 에 저장 — 한 번호로 여러 번 요청해도 모두 기록이 남고,
+    // 검증은 "가장 최근" 기록만 사용합니다.
     await pool.query(
       `INSERT INTO sms_verifications (phone_number, code, expires_at)
        VALUES ($1, $2, $3)`,
       [phone, code, expiresAt]
     )
 
-    // TODO: 실제 SMS 발송 연동 (현재는 개발 환경에서 콘솔 출력 및 응답에 code 포함)
-    console.log(`[SMS 인증] ${phone} → ${code} (만료 ${expiresAt.toISOString()})`)
+    // 실제 SMS 발송 (뿌리오). 실패하면 DB 에 저장된 코드도 의미가 없어지지만
+    // 사용자는 다시 발송 요청을 할 수 있으므로 에러만 올려주면 됩니다.
+    try {
+      await sendSms({ to: phone, text: buildVerificationMessage(code) })
+    } catch (smsErr) {
+      console.error('SMS 발송 실패:', smsErr.message)
+      return res.status(502).json({ error: 'SMS 발송에 실패했습니다. 잠시 후 다시 시도해 주세요' })
+    }
 
     const payload = {
       success: true,
       expiresAt: expiresAt.toISOString(),
       ttlSeconds: Math.floor(SMS_CODE_TTL_MS / 1000),
     }
+    // 개발 환경에서는 테스트 편의를 위해 코드 값을 응답에도 담아줍니다.
     if (process.env.NODE_ENV !== 'production') {
       payload.devCode = code
     }
@@ -150,12 +186,15 @@ router.post('/sms/request', async (req, res) => {
     console.error('SMS 발송 오류:', error)
     res.status(500).json({ error: 'SMS 인증 요청 처리 중 오류가 발생했습니다' })
   }
-})
+}
 
-// SMS 인증 코드 확인
-router.post('/sms/verify', async (req, res) => {
+/**
+ * 인증번호 확인 처리 공통 로직.
+ * - 가장 최근 발급 내역을 DB 에서 가져와 코드/만료/시도횟수를 검증합니다.
+ */
+const handleVerifySmsCode = async (req, res) => {
   try {
-    const phone = normalizePhone(req.body?.phoneNumber)
+    const phone = normalizePhone(req.body?.phoneNumber ?? req.body?.phone)
     const code = String(req.body?.code || '').trim()
 
     if (!phone || !isValidKoreanPhone(phone)) {
@@ -180,16 +219,20 @@ router.post('/sms/verify', async (req, res) => {
 
     const record = latest.rows[0]
 
+    // 이미 인증 완료된 건이면 그대로 성공 응답
     if (record.verified) {
       return res.json({ success: true, verified: true })
     }
+    // 3분 만료 체크
     if (new Date(record.expires_at).getTime() < Date.now()) {
       return res.status(400).json({ error: '인증시간이 만료되었습니다. 다시 요청해 주세요' })
     }
-    if ((record.attempts || 0) >= 5) {
+    // 시도 횟수 제한
+    if ((record.attempts || 0) >= SMS_MAX_ATTEMPTS) {
       return res.status(429).json({ error: '인증 시도 횟수를 초과했습니다. 다시 요청해 주세요' })
     }
 
+    // 코드가 틀리면 시도 횟수만 올리고 실패 응답
     if (record.code !== code) {
       await pool.query(
         'UPDATE sms_verifications SET attempts = attempts + 1 WHERE id = $1',
@@ -198,6 +241,7 @@ router.post('/sms/verify', async (req, res) => {
       return res.status(400).json({ error: '인증번호가 일치하지 않습니다' })
     }
 
+    // 성공! verified=true 로 업데이트 → 회원가입 API 에서 이 값을 확인합니다.
     await pool.query(
       `UPDATE sms_verifications
        SET verified = true, verified_at = CURRENT_TIMESTAMP
@@ -210,7 +254,15 @@ router.post('/sms/verify', async (req, res) => {
     console.error('SMS 인증 오류:', error)
     res.status(500).json({ error: 'SMS 인증 처리 중 오류가 발생했습니다' })
   }
-})
+}
+
+// 기본 엔드포인트 (요구사항에서 명시한 경로)
+router.post('/send', handleSendSmsCode)
+router.post('/verify', handleVerifySmsCode)
+
+// 하위 호환 alias — 기존 프론트엔드 코드가 바로 깨지지 않도록 남겨둡니다.
+router.post('/sms/request', handleSendSmsCode)
+router.post('/sms/verify', handleVerifySmsCode)
 
 // 로그인
 router.post('/login', async (req, res) => {
@@ -310,23 +362,28 @@ router.post('/signup', async (req, res) => {
     let passwordHash = null
 
     if (isNewMember) {
+      // 1) 비밀번호 형식 검증
       if (!isValidPassword(password)) {
         return res.status(400).json({ error: '비밀번호는 6~20자의 영문 또는 숫자로 입력해 주세요' })
       }
 
+      // 2) 휴대폰 인증 여부 확인
+      //    sms_verifications 테이블에서 "해당 전화번호로 최근 N분 이내에 인증 성공한 기록"이
+      //    남아 있어야만 회원가입을 허용합니다. 그렇지 않으면 누구든 아무 번호로 가입할 수 있어요.
       const verified = await pool.query(
         `SELECT id FROM sms_verifications
          WHERE phone_number = $1
            AND verified = true
-           AND verified_at > NOW() - INTERVAL '30 minutes'
+           AND verified_at > NOW() - ($2 || ' minutes')::interval
          ORDER BY verified_at DESC
          LIMIT 1`,
-        [phone]
+        [phone, String(SMS_VERIFY_WINDOW_MINUTES)]
       )
       if (verified.rows.length === 0) {
         return res.status(400).json({ error: 'SMS 인증이 완료되지 않았습니다' })
       }
 
+      // 3) 비밀번호는 bcrypt 로 해시해서 저장 (원문은 DB 에 절대 저장하지 않음)
       passwordHash = await bcrypt.hash(password, 10)
     }
 

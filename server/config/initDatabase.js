@@ -221,7 +221,19 @@ const initDatabase = async () => {
       )
     `)
 
+    // =========================================================================
     // SMS 인증 (회원가입용) 테이블
+    // -------------------------------------------------------------------------
+    // 요구 스펙의 "sms_verification(phone, code, expire, verified)" 을
+    // 아래와 같이 맵핑한 테이블입니다.
+    //   - phone_number  ← phone  : 휴대폰 번호(숫자만, 예: 01012345678)
+    //   - code          ← code   : 발급된 6자리 인증번호
+    //   - expires_at    ← expire : 만료시각 (발급 시점 + 3분)
+    //   - verified      ← verified : 인증 성공 여부 (true/false)
+    //   - attempts      : 인증번호 입력 시도 횟수 (무차별 대입 방지용)
+    //   - verified_at   : 인증이 성공한 시각 (회원가입 시 유효 기간 확인용)
+    //   - created_at    : 발급 요청 시각 (가장 최근 기록을 찾을 때 사용)
+    // =========================================================================
     await pool.query(`
       CREATE TABLE IF NOT EXISTS sms_verifications (
         id SERIAL PRIMARY KEY,
