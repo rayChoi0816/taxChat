@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './Payment.css'
-import { productAPI, documentAPI, orderAPI } from '../utils/api'
+import { productAPI, documentAPI } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const ProductSelection = () => {
@@ -109,6 +109,8 @@ const ProductSelection = () => {
               code: product.code,
               price: product.price,
               description: product.description || '',
+              // 결제 페이지에 출력되는 상품 설명 (상품등록 모달에서 입력)
+              paymentDescription: product.payment_description || '',
               documents: documents // 서류 정보 객체 배열
             }
           })
@@ -138,63 +140,31 @@ const ProductSelection = () => {
     }
   }
 
-  const handlePayment = async () => {
-    if (!selectedProduct) {
-      return
-    }
-    
+  // [결제하기] 버튼 클릭 시
+  //  - 선택된 상품 정보를 들고 "결제하기 페이지"(/checkout) 로 이동합니다.
+  //  - PG 연동은 결제하기 페이지에서 처리 예정이므로 여기서는 주문을 생성하지 않습니다.
+  const handlePayment = () => {
+    if (!selectedProduct) return
+
     if (!user || !user.id) {
       alert('로그인이 필요합니다.')
       navigate('/login')
       return
     }
-    
+
     const product = products.find(p => p.id === selectedProduct)
     if (!product) {
       alert('상품 정보를 찾을 수 없습니다.')
       return
     }
-    
-    // 토스페이먼츠 PG API 연결 전: alert 출력 및 주문 생성
-    alert('결제를 진행합니다.')
-    
-    try {
-      // 주문 생성 (결제 완료 상태로 저장)
-      const orderResponse = await orderAPI.createOrder({
-        memberId: user.id,
-        productId: selectedProduct
-      })
-      
-      if (!orderResponse) {
-        alert('서버 응답이 없습니다. 다시 시도해주세요.')
-        return
+
+    // 결제하기 페이지로 "새 페이지" 이동. 선택된 상품 + 카테고리 정보를 state 로 전달.
+    navigate('/checkout', {
+      state: {
+        product,
+        category
       }
-      
-      if (orderResponse.success) {
-        // 주문이 이미 '결제완료' 상태로 생성됨
-        alert('결제가 완료되었습니다.')
-        // 사용자 페이지로 이동
-        navigate('/payment')
-      } else {
-        alert('주문 생성 중 오류가 발생했습니다: ' + (orderResponse.error || '알 수 없는 오류'))
-      }
-    } catch (error) {
-      console.error('결제 처리 오류:', error)
-      // 에러 메시지 추출
-      let errorMessage = '알 수 없는 오류'
-      if (error.message) {
-        // "주문 생성 중 오류가 발생했습니다" 같은 메시지는 그대로 사용
-        errorMessage = error.message
-      } else if (error.error) {
-        errorMessage = error.error
-      }
-      // 중복된 "오류가 발생했습니다" 메시지 제거
-      if (errorMessage.includes('주문 생성 중 오류가 발생했습니다')) {
-        alert(errorMessage)
-      } else {
-        alert('결제 처리 중 오류가 발생했습니다: ' + errorMessage)
-      }
-    }
+    })
   }
 
   const formatPrice = (price) => {

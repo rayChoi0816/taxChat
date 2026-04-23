@@ -97,10 +97,13 @@ const AdminProduct = () => {
     }
   }
 
-  // 카테고리 로드 (진열 상태인 것만 가져오기)
+  // 카테고리 로드
+  // - 상품 등록/수정 모달의 "상품 카테고리" 드롭다운은 등록된 모든 카테고리
+  //   (삭제되지 않은 것) 를 진열/비진열 여부와 상관없이 모두 선택 가능해야 합니다.
+  //   그래서 여기서는 displayStatus 필터 없이 전체를 불러옵니다.
   const loadCategories = async () => {
     try {
-      const response = await productAPI.getCategories({ displayStatus: '진열' })
+      const response = await productAPI.getCategories()
       console.log('카테고리 API 응답:', response) // 디버깅용
       if (response && response.success && response.data) {
         setCategories(response.data || [])
@@ -211,6 +214,7 @@ const AdminProduct = () => {
               법인사업자: product.available_for_corporate_business || false
             },
             description: product.description || '',
+            paymentDescription: product.payment_description || '',
             attachments: productAttachments
           }
         })
@@ -415,6 +419,7 @@ const AdminProduct = () => {
           name: prod.name,
           price: parseInt(prod.price) || 0,
           description: prod.description || '',
+          paymentDescription: prod.paymentDescription || '',
           requiredDocuments: documentIds,
           availableForNonBusiness: prod.availableUsers?.비사업자 || false,
           availableForIndividualBusiness: prod.availableUsers?.개인사업자 || false,
@@ -475,6 +480,7 @@ const AdminProduct = () => {
         name: updatedProduct.name,
         price: parseInt(updatedProduct.price) || 0,
         description: updatedProduct.description || '',
+        paymentDescription: updatedProduct.paymentDescription || '',
         requiredDocuments: documentIds,
         availableForNonBusiness: updatedProduct.availableUsers?.비사업자 || false,
         availableForIndividualBusiness: updatedProduct.availableUsers?.개인사업자 || false,

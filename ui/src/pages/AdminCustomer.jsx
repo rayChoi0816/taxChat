@@ -12,7 +12,8 @@ const AdminCustomer = () => {
   const [selectedItems, setSelectedItems] = useState([])
   const [itemsPerPage, setItemsPerPage] = useState(100)
   const [currentPage, setCurrentPage] = useState(1)
-  const [sortOrder, setSortOrder] = useState('등록일시순')
+  // 기본값: "등록일시 역순" = 최신순 (가장 최근에 가입한 회원이 맨 위에 오도록)
+  const [sortOrder, setSortOrder] = useState('등록일시 역순')
   const [loading, setLoading] = useState(true)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   
@@ -719,8 +720,8 @@ const AdminCustomer = () => {
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
               >
-                <option value="등록일시순">등록일시순</option>
-                <option value="등록일시 역순">등록일시 역순</option>
+                <option value="등록일시 역순">최신순 (등록일시 역순)</option>
+                <option value="등록일시순">과거순 (등록일시순)</option>
               </select>
             </div>
             <div className="admin-page-size">

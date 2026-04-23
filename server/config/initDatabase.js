@@ -163,6 +163,14 @@ const initDatabase = async () => {
       ADD COLUMN IF NOT EXISTS required_documents TEXT
     `)
 
+    // payment_description 컬럼 추가 (결제 페이지에 출력되는 상품 설명)
+    //  - "상품 설명" 과는 별개로, 결제 페이지 전용 안내/결제·환불 안내 등을 저장합니다.
+    //  - 기존 상품 데이터에는 비어 있을 수 있으므로 NULL 허용.
+    await pool.query(`
+      ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS payment_description TEXT
+    `)
+
     // 주문 테이블 (PRD에 맞게 수정)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS orders (

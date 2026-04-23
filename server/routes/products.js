@@ -226,10 +226,10 @@ router.post('/', authenticateToken, async (req, res) => {
 
       const result = await pool.query(
         `INSERT INTO products (
-          category_id, code, name, price, description, required_documents,
+          category_id, code, name, price, description, payment_description, required_documents,
           available_for_non_business, available_for_individual_business,
           available_for_corporate_business, display_status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
           categoryId,
@@ -237,6 +237,7 @@ router.post('/', authenticateToken, async (req, res) => {
           product.name,
           product.price,
           product.description,
+          product.paymentDescription || null,
           requiredDocuments,
           product.availableForNonBusiness || false,
           product.availableForIndividualBusiness || false,
@@ -262,7 +263,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params
-    const { categoryId, name, price, description, requiredDocuments, availableForNonBusiness, availableForIndividualBusiness, availableForCorporateBusiness } = req.body
+    const { categoryId, name, price, description, paymentDescription, requiredDocuments, availableForNonBusiness, availableForIndividualBusiness, availableForCorporateBusiness } = req.body
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: '상품명이 필요합니다' })
@@ -278,18 +279,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
         name = $2,
         price = $3,
         description = $4,
-        required_documents = $5,
-        available_for_non_business = $6,
-        available_for_individual_business = $7,
-        available_for_corporate_business = $8,
+        payment_description = $5,
+        required_documents = $6,
+        available_for_non_business = $7,
+        available_for_individual_business = $8,
+        available_for_corporate_business = $9,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9
+      WHERE id = $10
       RETURNING *`,
       [
         categoryId,
         name.trim(),
         price || 0,
         description || null,
+        paymentDescription || null,
         requiredDocumentsJson,
         availableForNonBusiness || false,
         availableForIndividualBusiness || false,

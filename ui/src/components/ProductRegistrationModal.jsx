@@ -17,6 +17,8 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
       name: '',
       price: '',
       description: '',
+      // 결제 페이지에 출력되는 상품 설명 (상품 설명과 별도)
+      paymentDescription: '',
       attachments: []
     }
   ])
@@ -45,6 +47,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         name: product.name || '',
         price: String(product.price || ''),
         description: product.description || '',
+        paymentDescription: product.paymentDescription || '',
         attachments: productAttachments
       }])
       setIsEditing(false)
@@ -60,6 +63,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         name: '',
         price: '',
         description: '',
+        paymentDescription: '',
         attachments: []
       }])
       setIsEditing(false)
@@ -84,6 +88,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
       name: '',
       price: '',
       description: '',
+      paymentDescription: '',
       attachments: []
     }])
   }
@@ -141,6 +146,15 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
     setProducts(prev => prev.map(product => 
       product.id === productId
         ? { ...product, description: value }
+        : product
+    ))
+  }
+
+  // 결제 페이지 상품 설명 변경
+  const handleProductPaymentDescriptionChange = (productId, value) => {
+    setProducts(prev => prev.map(product =>
+      product.id === productId
+        ? { ...product, paymentDescription: value }
         : product
     ))
   }
@@ -284,6 +298,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         price: parseInt(products[0].price),
         availableUsers: products[0].availableUsers,
         description: products[0].description.trim(),
+        paymentDescription: (products[0].paymentDescription || '').trim(),
         attachments: products[0].attachments.map(att => att.value).filter(v => v)
       }
       onUpdate(updatedProduct)
@@ -313,6 +328,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         deleted: false,
         availableUsers: prod.availableUsers,
         description: prod.description.trim(),
+        paymentDescription: (prod.paymentDescription || '').trim(),
         attachments: prod.attachments.map(att => att.value).filter(v => v)
       }))
 
@@ -330,6 +346,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         name: '',
         price: '',
         description: '',
+        paymentDescription: '',
         attachments: []
       }])
       
@@ -365,6 +382,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
           name: product.name || '',
           price: String(product.price || ''),
           description: product.description || '',
+          paymentDescription: product.paymentDescription || '',
           attachments: productAttachments
         }])
       }
@@ -382,6 +400,7 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
         name: '',
         price: '',
         description: '',
+        paymentDescription: '',
         attachments: []
       }])
       onClose()
@@ -421,10 +440,13 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
               >
                 <option value="">선택</option>
                 {categories
-                  .filter(cat => !cat.deleted && (cat.display_status === '진열' || cat.display === '진열'))
+                  // 등록되어 있고 삭제되지 않은 모든 카테고리를 드롭다운에 노출
+                  // (진열/비진열 상관없이 상품 등록 시 선택 가능)
+                  .filter(cat => !cat.deleted)
                   .map(category => (
                     <option key={category.id} value={category.id}>
                       {category.name}
+                      {(category.display_status === '비진열' || category.display === '비진열') ? ' (비진열)' : ''}
                     </option>
                   ))}
               </select>
@@ -528,6 +550,26 @@ const ProductRegistrationModal = ({ onClose, onSave, categories = [], attachment
                     placeholder="상품 설명 입력"
                     value={product.description}
                     onChange={(e) => handleProductDescriptionChange(product.id, e.target.value)}
+                    rows={5}
+                  />
+                )}
+              </div>
+
+              {/* 결제 페이지 상품 설명 */}
+              <div className="product-registration-form-group">
+                <label className="product-registration-label">
+                  결제페이지에 출력되는 상품 설명을 입력하세요
+                </label>
+                {isEditMode && !isEditing ? (
+                  <div className="product-registration-display">
+                    {product.paymentDescription || '-'}
+                  </div>
+                ) : (
+                  <textarea
+                    className="product-registration-textarea"
+                    placeholder="결제페이지 상품 설명 입력"
+                    value={product.paymentDescription || ''}
+                    onChange={(e) => handleProductPaymentDescriptionChange(product.id, e.target.value)}
                     rows={5}
                   />
                 )}

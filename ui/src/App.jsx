@@ -20,6 +20,7 @@ import AdminSMS from './pages/AdminSMS'
 import AdminOrderPayment from './pages/AdminOrderPayment'
 import Payment from './pages/Payment'
 import ProductSelection from './pages/ProductSelection'
+import CheckoutPage from './pages/CheckoutPage'
 import MyPage from './pages/MyPage'
 import ServiceHistory from './pages/ServiceHistory'
 import DocumentStorage from './pages/DocumentStorage'
@@ -291,10 +292,11 @@ function Home() {
             </div>
           </main>
 
-          {/* KakaoTalk Consultation Button */}
-          <button 
+          {/* KakaoTalk Consultation Floating Button (우측 하단 고정) */}
+          <button
             className="kakao-consult-btn"
-            onClick={() => window.open('https://pf.kakao.com/_your_channel_id', '_blank')}
+            onClick={() => window.open('https://pf.kakao.com/_cwjhG/chat', '_blank', 'noopener,noreferrer')}
+            aria-label="카카오톡 상담 (새 탭)"
           >
             <div className="kakao-icon">
               <img src={kLogo} alt="카카오톡" />
@@ -334,6 +336,14 @@ function App() {
                 <ProductSelection />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <CheckoutPage />
+              </ProtectedRoute>
+            }
           />
           <Route 
             path="/mypage" 
