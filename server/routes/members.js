@@ -611,14 +611,28 @@ router.get('/:id/member-types', authenticateToken, async (req, res) => {
     const member = memberResult.rows[0]
 
     // member_types 테이블에서 해당 회원의 모든 회원 유형 조회
+    //  - 각 회원 유형 행의 고유 PK(mt.id) 를 함께 가져와야
+    //    프론트 "회원 유형 선택" 카드마다 서로 다른 id 가 부여됩니다.
+    //    (예전에는 members.id 만 내려가서 같은 회원의 두 유형 행이
+    //    같은 id 를 공유 → 카드 1개 클릭 시 두 카드가 모두 selected 되는 버그)
     const result = await pool.query(
-      `SELECT 
+      `SELECT
+        mt.id AS mt_id,
         mt.member_type,
         mt.is_active,
-        mt.created_at
+        mt.created_at,
+        mt.customer_id AS mt_customer_id,
+        mt.name AS mt_name,
+        mt.business_name AS mt_business_name,
+        mt.representative_name AS mt_representative_name,
+        mt.base_address AS mt_base_address,
+        mt.detail_address AS mt_detail_address,
+        TO_CHAR(mt.start_date, 'YYYY-MM-DD') AS mt_start_date,
+        mt.gender AS mt_gender,
+        mt.resident_number AS mt_resident_number
       FROM member_types mt
       WHERE mt.member_id = $1
-      ORDER BY mt.created_at ASC`,
+      ORDER BY mt.created_at ASC, mt.id ASC`,
       [id]
     )
 
@@ -648,26 +662,42 @@ router.get('/:id/member-types', authenticateToken, async (req, res) => {
       )
 
       const memberInfo = memberInfoResult.rows[0] || member
-      
-      // 날짜 필드는 이미 문자열로 변환됨
-      const startDate = memberInfo.start_date
-      
+
+      // member_types 행의 값이 있으면 그 값을 우선 사용, 없으면 members 행의 값을 폴백으로 사용
+      const pick = (a, b) => (a !== null && a !== undefined && a !== '' ? a : b)
+      const rowName = pick(row.mt_name, memberInfo.name)
+      const rowBusinessName = pick(row.mt_business_name, memberInfo.business_name)
+      const rowRepName = pick(row.mt_representative_name, memberInfo.representative_name)
+      const rowBaseAddr = pick(row.mt_base_address, memberInfo.base_address)
+      const rowDetailAddr = pick(row.mt_detail_address, memberInfo.detail_address)
+      const rowStartDate = pick(row.mt_start_date, memberInfo.start_date)
+      const rowGender = pick(row.mt_gender, memberInfo.gender)
+      const rowRRN = pick(row.mt_resident_number, memberInfo.resident_number)
+      const rowCustomerId = pick(row.mt_customer_id, memberInfo.customer_id)
+
       memberTypes.push({
-        id: memberInfo.id,
-        customerId: memberInfo.customer_id,
+        // 각 회원 유형 행을 고유하게 식별하기 위한 composite id (프론트 카드 key/선택용)
+        //  - resolveMemberId() 가 "mt-<member_types.id>" 를 자동으로 member_id 로 풀어주므로
+        //    getMember(id) 호출 시에도 그대로 사용 가능합니다.
+        id: `mt-${row.mt_id}`,
+        // 원래 회원 PK (members.id) — 수정/삭제 등 member 단위 작업에 사용
+        memberId: memberInfo.id,
+        // 회원 유형 행의 PK (member_types.id)
+        memberTypeRowId: row.mt_id,
+        customerId: rowCustomerId,
         phoneNumber: member.phone_number,
         type: row.member_type,
         isActive: row.is_active,
-        name: row.member_type === '비사업자' 
-          ? (memberInfo.name || '회원') 
-          : (memberInfo.business_name || memberInfo.representative_name || '회원'),
-        businessName: memberInfo.business_name,
-        representativeName: memberInfo.representative_name,
-        baseAddress: memberInfo.base_address,
-        detailAddress: memberInfo.detail_address,
-        startDate: startDate,
-        gender: memberInfo.gender,
-        residentNumber: memberInfo.resident_number,
+        name: row.member_type === '비사업자'
+          ? (rowName || '회원')
+          : (rowBusinessName || rowRepName || '회원'),
+        businessName: rowBusinessName,
+        representativeName: rowRepName,
+        baseAddress: rowBaseAddr,
+        detailAddress: rowDetailAddr,
+        startDate: rowStartDate,
+        gender: rowGender,
+        residentNumber: rowRRN,
         createdAt: row.created_at
       })
     }

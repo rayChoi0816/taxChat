@@ -52,9 +52,16 @@ const CheckoutPage = () => {
           <h1 className="payment-title">결제하기 페이지</h1>
         </header>
 
-        {/* 선택한 상품 카드 (상품 선택 페이지의 .selected 카드와 동일 UI) */}
+        {/* 선택한 상품 카드
+         *  - 상품 선택 페이지와 동일한 클래스(`payment-item-card selected`) 를 유지하되,
+         *    결제 페이지에서는 비활성(읽기 전용) 스타일로 표시되도록 `checkout-product-card`
+         *    에서 오버라이드합니다.
+         *  - 클릭 이벤트를 연결하지 않아 선택/해제가 불가능합니다. */}
         <div className="payment-items checkout-items">
-          <div className="payment-item-card selected checkout-product-card">
+          <div
+            className="payment-item-card selected checkout-product-card"
+            aria-disabled="true"
+          >
             <h3 className="payment-item-title">{product.name}</h3>
             {product.description && (
               <div
