@@ -7,7 +7,8 @@ import mayLogo from '../assets/may_logo.png'
 import { authAPI } from '../utils/api'
 
 const PHONE_REGEX = /^01\d{8,9}$/
-const PASSWORD_REGEX = /^[A-Za-z0-9]{6,20}$/
+// 비밀번호 규칙: 영문/숫자/특수문자 6~20자 (공백 제외 ASCII 출력 가능 문자)
+const PASSWORD_REGEX = /^[\x21-\x7E]{6,20}$/
 const CODE_REGEX = /^\d{6}$/
 
 const formatPhoneNumber = (value) => {
@@ -244,7 +245,7 @@ const AuthVerify = () => {
               <div className="auth-verify-field">
                 <div className="auth-verify-label-row">
                   <label className="auth-verify-label">비밀번호</label>
-                  <span className="auth-verify-hint">영문 또는 숫자 6~20</span>
+                  <span className="auth-verify-hint">영문 또는 숫자 또는 특수문자 6~20</span>
                 </div>
                 <input
                   type="password"
@@ -257,7 +258,7 @@ const AuthVerify = () => {
                 />
                 {password.length > 0 && !isPasswordValid && (
                   <p className="auth-verify-field-error">
-                    영문 또는 숫자로 6~20자를 입력해 주세요
+                    영문 또는 숫자 또는 특수문자로 6~20자를 입력해 주세요
                   </p>
                 )}
               </div>

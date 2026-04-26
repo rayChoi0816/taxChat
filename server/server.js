@@ -30,6 +30,11 @@ const __dirname = dirname(__filename)
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Render / 일반 reverse proxy 뒤에서 동작하므로 X-Forwarded-* 헤더를 신뢰합니다.
+//  - 이 설정이 없으면 req.protocol 이 항상 'http' 로 잡혀, 업로드 이미지 URL이
+//    http:// 로 빌드되어 HTTPS 페이지에서 mixed-content 로 차단됩니다.
+app.set('trust proxy', true)
+
 // CORS 설정 (콤마로 여러 도메인 허용)
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')

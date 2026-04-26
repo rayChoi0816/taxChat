@@ -133,8 +133,9 @@ router.post('/admin-login', (req, res) => {
 const normalizePhone = (value) => String(value || '').replace(/[^\d]/g, '')
 // 010 / 011 ... 같은 한국 휴대폰 형식 체크
 const isValidKoreanPhone = (phone) => /^01\d{8,9}$/.test(phone)
-// 비밀번호 규칙: 영문/숫자 6~20자
-const isValidPassword = (password) => /^[A-Za-z0-9]{6,20}$/.test(String(password || ''))
+// 비밀번호 규칙: 영문 또는 숫자 또는 특수문자 6~20자
+//  - 공백을 제외한 ASCII 출력 가능 문자(0x21~0x7E) 만 허용합니다.
+const isValidPassword = (password) => /^[\x21-\x7E]{6,20}$/.test(String(password || ''))
 
 // 인증번호는 "발송 후 3분" 까지만 유효합니다. (요구사항)
 const SMS_CODE_TTL_MS = 3 * 60 * 1000
@@ -402,7 +403,7 @@ router.post('/signup', async (req, res) => {
     if (isNewMember) {
       // 1) 비밀번호 형식 검증
       if (!isValidPassword(password)) {
-        return res.status(400).json({ error: '비밀번호는 6~20자의 영문 또는 숫자로 입력해 주세요' })
+        return res.status(400).json({ error: '비밀번호는 6~20자의 영문 또는 숫자 또는 특수문자로 입력해 주세요' })
       }
 
       // 2) 휴대폰 인증 여부 확인

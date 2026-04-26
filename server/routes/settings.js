@@ -40,10 +40,24 @@ const upload = multer({
 const router = express.Router()
 
 function resolvePublicBaseUrl(req) {
+  // 1) 환경 변수가 지정되어 있으면 최우선 (예: https://api.taxchat.co.kr)
   if (process.env.PUBLIC_BASE_URL) {
     return process.env.PUBLIC_BASE_URL.replace(/\/$/, '')
   }
-  return `${req.protocol}://${req.get('host')}`
+
+  // 2) reverse proxy 가 보내주는 X-Forwarded-Proto 헤더를 사용 (Render 등 배포 환경)
+  //    - app.set('trust proxy', true) 가 설정돼 있으면 req.protocol 이 자동으로 정확해지지만,
+  //      혹시 누락된 환경에서도 mixed-content 가 발생하지 않도록 헤더를 직접 확인합니다.
+  const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim()
+  let protocol = forwardedProto || req.protocol
+
+  // 3) 운영(NODE_ENV=production) 환경에서는 안전을 위해 항상 https 로 강제합니다.
+  //    - http 로 빌드된 이미지 URL 이 HTTPS 프론트에서 차단되는 사고를 막기 위함.
+  if (process.env.NODE_ENV === 'production' && protocol !== 'https') {
+    protocol = 'https'
+  }
+
+  return `${protocol}://${req.get('host')}`
 }
 
 function clampDisplayTime(value, fallback = 3) {
