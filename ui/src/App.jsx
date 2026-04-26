@@ -292,7 +292,7 @@ function Home() {
               <div className="footer-brand">세무회계 오월 | 택스챗</div>
 
               <div className="footer-section">
-                <p>문의전화 : 010-2163-7610 (평일 10:00 ~ 18:00 / 주말, 공휴일 휴무)</p>
+                <p>전화 : 010-2163-7610 (평일 10:00 ~ 18:00 / 주말, 공휴일 휴무)</p>
                 <p>E-MAIL : tax5wol@gmail.com</p>
               </div>
 
@@ -307,9 +307,9 @@ function Home() {
               <div className="footer-links">
                 <a className="footer-link" href="/terms" onClick={(e) => e.preventDefault()}>택스챗 이용약관</a>
                 <span className="footer-divider">|</span>
-                <a className="footer-link" href="/privacy" onClick={(e) => e.preventDefault()}>개인정보 처리방침</a>
+                <a className="footer-link" href="/privacy" onClick={(e) => e.preventDefault()}>개인정보처리방침</a>
                 <span className="footer-divider">|</span>
-                <span>개인정보 보호책임자 : 최민용</span>
+                <span>개인정보보호책임자 : 최민용</span>
               </div>
 
               <div className="footer-copyright">Copyright © taxChat all rights reserved</div>

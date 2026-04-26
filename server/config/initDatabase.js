@@ -351,7 +351,24 @@ const initDatabase = async () => {
       ALTER TABLE main_banners
         ADD COLUMN IF NOT EXISTS link_url TEXT,
         ADD COLUMN IF NOT EXISTS display_time INTEGER DEFAULT 3,
-        ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true
+        ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
+        ADD COLUMN IF NOT EXISTS image_data BYTEA,
+        ADD COLUMN IF NOT EXISTS image_mime VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `)
+
+    // 기존에 NOT NULL 로 잡혀 있던 image_url 을 NULL 허용으로 풀어준다.
+    // (이제는 image_data/BYTEA 가 원본이며, image_url 은 호환용 캐시 경로로만 사용.)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='main_banners' AND column_name='image_url' AND is_nullable='NO'
+        ) THEN
+          ALTER TABLE main_banners ALTER COLUMN image_url DROP NOT NULL;
+        END IF;
+      END $$;
     `)
 
     console.log('데이터베이스 테이블 초기화 완료')

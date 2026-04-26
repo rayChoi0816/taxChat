@@ -40,19 +40,13 @@ const upload = multer({
 const router = express.Router()
 
 function resolvePublicBaseUrl(req) {
-  // 1) 환경 변수가 지정되어 있으면 최우선 (예: https://api.taxchat.co.kr)
   if (process.env.PUBLIC_BASE_URL) {
     return process.env.PUBLIC_BASE_URL.replace(/\/$/, '')
   }
 
-  // 2) reverse proxy 가 보내주는 X-Forwarded-Proto 헤더를 사용 (Render 등 배포 환경)
-  //    - app.set('trust proxy', true) 가 설정돼 있으면 req.protocol 이 자동으로 정확해지지만,
-  //      혹시 누락된 환경에서도 mixed-content 가 발생하지 않도록 헤더를 직접 확인합니다.
   const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim()
   let protocol = forwardedProto || req.protocol
 
-  // 3) 운영(NODE_ENV=production) 환경에서는 안전을 위해 항상 https 로 강제합니다.
-  //    - http 로 빌드된 이미지 URL 이 HTTPS 프론트에서 차단되는 사고를 막기 위함.
   if (process.env.NODE_ENV === 'production' && protocol !== 'https') {
     protocol = 'https'
   }
@@ -66,32 +60,60 @@ function clampDisplayTime(value, fallback = 3) {
   return Math.max(MIN_DISPLAY_TIME, Math.min(MAX_DISPLAY_TIME, n))
 }
 
+/**
+ * 이미지 바이너리를 직접 API 로 서빙한다.
+ *  - 원본은 main_banners.image_data (BYTEA) 이므로 서버 파일시스템이
+ *    재시작/재배포로 비워져도(Render 등 ephemeral disk) 이미지는 사라지지 않는다.
+ *  - 캐시 무효화는 ?v=updated_at(epoch) 으로 처리 → 변경 즉시 새 이미지 로드.
+ */
+function buildImageUrl(req, row) {
+  const base = resolvePublicBaseUrl(req)
+  const v = row.updated_at
+    ? new Date(row.updated_at).getTime()
+    : row.created_at
+    ? new Date(row.created_at).getTime()
+    : 0
+  return `${base}/api/settings/main-banners/${row.id}/image?v=${v}`
+}
+
 function rowToBanner(req, row) {
-  const rel = String(row.image_url || '').replace(/^\/+/, '')
   return {
     id: row.id,
-    imageUrl: `${resolvePublicBaseUrl(req)}/uploads/${rel}`,
+    imageUrl: buildImageUrl(req, row),
     linkUrl: row.link_url || '',
     displayOrder: row.display_order,
     displayTime: row.display_time,
     isActive: row.is_active,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
 }
 
-async function processAndSaveImage(buffer) {
-  // 720x600 센터 크롭 + 리사이즈, webp 로 저장 (용량 최적화)
-  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`
-  const absPath = path.join(bannersDir, filename)
-  await sharp(buffer)
+/**
+ * 업로드된 원본 버퍼를 720x600 webp 로 정규화한다.
+ *  - BYTEA 컬럼에 저장할 buffer 와 mime 를 리턴.
+ *  - 호환을 위해 파일도 함께 기록(image_url) 하지만, 파일은 캐시일 뿐이며
+ *    원본 데이터는 DB 의 image_data 이다.
+ */
+async function normalizeImage(buffer) {
+  const out = await sharp(buffer)
     .rotate()
-    .resize(BANNER_WIDTH, BANNER_HEIGHT, {
-      fit: 'cover',
-      position: 'centre',
-    })
+    .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: 'cover', position: 'centre' })
     .webp({ quality: 85 })
-    .toFile(absPath)
-  return `banners/${filename}`
+    .toBuffer()
+  return { buffer: out, mime: 'image/webp' }
+}
+
+function writeFileCacheSafe(buffer) {
+  // 파일 저장 실패는 치명적이지 않다(원본이 DB 에 있으므로).
+  try {
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`
+    const absPath = path.join(bannersDir, filename)
+    fs.writeFileSync(absPath, buffer)
+    return `banners/${filename}`
+  } catch {
+    return null
+  }
 }
 
 function unlinkIfExists(relPath) {
@@ -107,13 +129,45 @@ function unlinkIfExists(relPath) {
   }
 }
 
+/**
+ * 파일이 남아 있는 구버전 행에 대해, image_data 로 lazy 마이그레이션 한다.
+ *  - 한 번이라도 DB 에 백업되면 이후로는 절대 손상되지 않는다.
+ */
+async function lazyBackfillFromFile(row) {
+  if (row.image_data) return row
+  const rel = String(row.image_url || '').replace(/^\/+/, '')
+  if (!rel) return row
+  if (rel.includes('..')) return row
+  const abs = path.join(uploadsRoot, rel)
+  if (!abs.startsWith(uploadsRoot) || !fs.existsSync(abs)) return row
+  try {
+    const buf = fs.readFileSync(abs)
+    const ext = path.extname(rel).toLowerCase()
+    const mime =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.jpg' || ext === '.jpeg'
+        ? 'image/jpeg'
+        : 'image/webp'
+    await pool.query(
+      `UPDATE main_banners SET image_data = $1, image_mime = $2 WHERE id = $3`,
+      [buf, mime, row.id]
+    )
+    return { ...row, image_data: buf, image_mime: mime }
+  } catch {
+    return row
+  }
+}
+
 // 메인 배너 목록 (공개: 활성 배너만, 관리자: 전체)
 router.get('/main-banners', async (req, res) => {
   try {
     const includeInactive = req.query.all === '1' || req.query.all === 'true'
     const where = includeInactive ? '' : 'WHERE is_active = true'
     const result = await pool.query(
-      `SELECT id, image_url, link_url, display_order, display_time, is_active, created_at
+      `SELECT id, image_url, image_mime, link_url, display_order, display_time,
+              is_active, created_at, updated_at,
+              (image_data IS NOT NULL) AS has_data
        FROM main_banners
        ${where}
        ORDER BY display_order ASC, created_at ASC`
@@ -128,6 +182,32 @@ router.get('/main-banners', async (req, res) => {
   }
 })
 
+// 메인 배너 이미지 바이너리 서빙 (DB BYTEA 우선, 없으면 파일 fallback)
+router.get('/main-banners/:id/image', async (req, res) => {
+  try {
+    const idNum = Number.parseInt(req.params.id, 10)
+    if (Number.isNaN(idNum)) return res.status(400).end()
+    const result = await pool.query(
+      `SELECT id, image_data, image_mime, image_url FROM main_banners WHERE id = $1`,
+      [idNum]
+    )
+    if (result.rows.length === 0) return res.status(404).end()
+    let row = result.rows[0]
+    if (!row.image_data) {
+      row = await lazyBackfillFromFile(row)
+    }
+    if (row.image_data) {
+      res.setHeader('Content-Type', row.image_mime || 'image/webp')
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      return res.send(row.image_data)
+    }
+    return res.status(404).end()
+  } catch (error) {
+    console.error('메인 배너 이미지 서빙 오류:', error)
+    res.status(500).end()
+  }
+})
+
 // 메인 배너 등록 (이미지 + 선택 필드들)
 router.post(
   '/main-banners',
@@ -139,7 +219,8 @@ router.post(
         return res.status(400).json({ error: '이미지 파일이 필요합니다' })
       }
 
-      const relativePath = await processAndSaveImage(req.file.buffer)
+      const { buffer, mime } = await normalizeImage(req.file.buffer)
+      const relativePath = writeFileCacheSafe(buffer)
 
       const linkUrl = (req.body.linkUrl || '').trim() || null
       const displayTime = clampDisplayTime(req.body.displayTime, 3)
@@ -155,10 +236,12 @@ router.post(
           : String(req.body.isActive) === 'true' || req.body.isActive === true
 
       const inserted = await pool.query(
-        `INSERT INTO main_banners (image_url, link_url, display_order, display_time, is_active)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, image_url, link_url, display_order, display_time, is_active, created_at`,
-        [relativePath, linkUrl, nextOrder, displayTime, isActive]
+        `INSERT INTO main_banners
+           (image_url, image_data, image_mime, link_url, display_order, display_time, is_active, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+         RETURNING id, image_url, image_mime, link_url, display_order, display_time,
+                   is_active, created_at, updated_at`,
+        [relativePath, buffer, mime, linkUrl, nextOrder, displayTime, isActive]
       )
 
       res.json({
@@ -188,7 +271,8 @@ router.put(
       }
 
       const existing = await pool.query(
-        `SELECT id, image_url, link_url, display_order, display_time, is_active, created_at
+        `SELECT id, image_url, image_data, image_mime, link_url, display_order,
+                display_time, is_active, created_at, updated_at
          FROM main_banners WHERE id = $1`,
         [idNum]
       )
@@ -198,8 +282,15 @@ router.put(
       const current = existing.rows[0]
 
       let newImagePath = current.image_url
+      let newImageData = current.image_data
+      let newImageMime = current.image_mime
+      let oldImagePath = null
       if (req.file) {
-        newImagePath = await processAndSaveImage(req.file.buffer)
+        const { buffer, mime } = await normalizeImage(req.file.buffer)
+        newImageData = buffer
+        newImageMime = mime
+        oldImagePath = current.image_url
+        newImagePath = writeFileCacheSafe(buffer)
       }
 
       const linkUrl =
@@ -225,17 +316,21 @@ router.put(
       const updated = await pool.query(
         `UPDATE main_banners
          SET image_url = $1,
-             link_url = $2,
-             display_order = $3,
-             display_time = $4,
-             is_active = $5
-         WHERE id = $6
-         RETURNING id, image_url, link_url, display_order, display_time, is_active, created_at`,
-        [newImagePath, linkUrl, displayOrder, displayTime, isActive, idNum]
+             image_data = $2,
+             image_mime = $3,
+             link_url = $4,
+             display_order = $5,
+             display_time = $6,
+             is_active = $7,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $8
+         RETURNING id, image_url, image_mime, link_url, display_order, display_time,
+                   is_active, created_at, updated_at`,
+        [newImagePath, newImageData, newImageMime, linkUrl, displayOrder, displayTime, isActive, idNum]
       )
 
-      if (req.file && current.image_url && current.image_url !== newImagePath) {
-        unlinkIfExists(current.image_url)
+      if (oldImagePath && oldImagePath !== newImagePath) {
+        unlinkIfExists(oldImagePath)
       }
 
       res.json({ success: true, data: rowToBanner(req, updated.rows[0]) })
@@ -291,8 +386,10 @@ router.patch('/main-banners/:id/active', authenticateToken, async (req, res) => 
         : String(req.body.isActive) === 'true' || req.body.isActive === true
 
     const updated = await pool.query(
-      `UPDATE main_banners SET is_active = $1 WHERE id = $2
-       RETURNING id, image_url, link_url, display_order, display_time, is_active, created_at`,
+      `UPDATE main_banners SET is_active = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING id, image_url, image_mime, link_url, display_order, display_time,
+                 is_active, created_at, updated_at`,
       [isActive, idNum]
     )
     if (updated.rows.length === 0) {
@@ -305,7 +402,7 @@ router.patch('/main-banners/:id/active', authenticateToken, async (req, res) => 
   }
 })
 
-// 배너 삭제
+// 배너 삭제 (사용자가 명시적으로 삭제하기 전까지는 절대 사라지지 않는다)
 router.delete('/main-banners/:id', authenticateToken, async (req, res) => {
   try {
     const idNum = Number.parseInt(req.params.id, 10)

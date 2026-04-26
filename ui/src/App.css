@@ -105,6 +105,9 @@
 
 /* 모바일 전용 고정 레이아웃 */
 .app {
+  /* 헤더 높이를 변수로 두고 fixed 헤더에 가려지지 않도록 padding-top 으로 공간을 확보합니다. */
+  --header-height: 64px;
+  padding-top: var(--header-height);
   /* 콘텐츠 양에 따라 길이가 늘어나도록 height 를 풀어 둡니다. */
   min-height: 100vh;
   min-height: 100dvh;
@@ -116,23 +119,30 @@
   margin: 0 auto;
   position: relative;
   z-index: 2;
-  overflow: visible; /* sticky 헤더가 viewport 기준으로 동작하도록 부모 overflow 는 풀어 둡니다 */
+  overflow: visible; /* fixed/sticky 헤더가 viewport 기준으로 동작하도록 부모 overflow 는 풀어 둡니다 */
   box-sizing: border-box;
   border-radius: 0;
 }
 
-/* 모바일 뷰포트 설정 */
+/* 모바일 뷰포트 설정 — 페이지 전체 세로 스크롤 활성화 */
+html, body {
+  height: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   max-width: 100vw;
   overflow-x: hidden;
 }
 
 /* Header
- *  - 페이지가 세로 스크롤될 때 항상 상단에 고정되도록 sticky 사용.
- *    sticky 는 부모(.app) 너비 안에서 동작하므로 PC 의 9:20 박스에서도 가운데에 자연스럽게 따라옵니다.
- *  - 자체 공간을 차지하므로 더 이상 형제 요소에 margin-top 보정이 필요하지 않습니다. */
+ *  - 페이지(=body)가 세로 스크롤되더라도 헤더는 화면 상단에 항상 고정된다.
+ *  - 모바일(기본): position:fixed 로 viewport 상단에 고정 (전체 폭 사용)
+ *  - PC/태블릿(>=768px): 9:20 모바일 박스 내부에 정렬되어야 하므로 sticky 로 전환 (오버라이드 영역에서 처리)
+ *  - 헤더 높이만큼 형제(.banner-section) 가 가려지지 않도록 .app 에 padding-top 으로 보정한다. */
 .header {
-  position: sticky;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -142,6 +152,7 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   width: 100%;
   max-width: 100%;
+  height: var(--header-height, 64px);
   box-sizing: border-box;
   border-radius: 0px 0px 0 0;
 }
@@ -149,7 +160,8 @@ body {
 .header-content {
   width: 100%;
   max-width: 100%;
-  padding: 1rem;
+  height: 100%;
+  padding: 0 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -518,14 +530,14 @@ body {
 .footer-content {
   width: 100%;
   padding: 2rem 1rem 6rem;
-  text-align: center;
+  text-align: left;
   font-size: 0.75rem;
   line-height: 1.6;
   color: #64748b;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: flex-start;
   gap: 0.85rem;
   margin-top: auto;
   background-color: #f8fafc;
@@ -537,25 +549,43 @@ body {
   font-weight: 700;
   color: #1f2937;
   margin-bottom: 0.25rem;
+  text-align: left;
 }
 
 .footer-section {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 0.25rem;
+  text-align: left;
 }
 
 .footer-section p {
   margin: 0;
+  text-align: left;
 }
 
+/* 한 줄 표시: 줄바꿈 금지 + 가로 스크롤로 좁은 화면 대응 */
 .footer-links {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   margin-top: 0.25rem;
+  width: 100%;
+  white-space: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.footer-links::-webkit-scrollbar {
+  display: none;
+}
+
+.footer-links > * {
+  flex-shrink: 0;
 }
 
 .footer-divider {
@@ -566,6 +596,7 @@ body {
   margin-top: 0.5rem;
   color: #94a3b8;
   font-size: 0.7rem;
+  text-align: left;
 }
 
 .footer-link {
@@ -670,7 +701,17 @@ body {
     bottom: 7rem;
   }
 
+  /* PC/태블릿: 9:20 모바일 박스 안에 헤더가 정렬되어야 하므로
+   * fixed(=viewport 기준 전체 폭) 대신 sticky 로 동작시켜 박스 폭을 따라가게 한다.
+   * .app 의 padding-top 보정은 fixed 일 때만 필요하므로 여기서는 0 으로 풀어준다. */
+  .app {
+    padding-top: 0;
+  }
+
   .header {
+    position: sticky;
+    top: 0;
+    height: var(--header-height, 64px);
     border-radius: 0px 0px 0 0;
   }
 
