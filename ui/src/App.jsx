@@ -292,7 +292,10 @@ function Home() {
               <div className="footer-brand">세무회계 오월 | 택스챗</div>
 
               <div className="footer-section">
-                <p>전화 : 010-2163-7610 (평일 10:00 ~ 18:00 / 주말, 공휴일 휴무)</p>
+                <p className="footer-multiline">
+                  <span>전화 : 010-2163-7610</span>
+                  <span>(평일 10:00 ~ 18:00 / 주말•공휴일 휴무)</span>
+                </p>
                 <p>E-MAIL : tax5wol@gmail.com</p>
               </div>
 
@@ -301,15 +304,19 @@ function Home() {
                 <p>대표자 : 최미순 세무사</p>
                 <p>사업자번호 : 670-07-02709</p>
                 <p>통신 판매업 신고번호 : </p>
-                <p>사업장 소재지 : 충남 아산시 송악면 강당로 119번길 5 세무회계 오월</p>
+                <p className="footer-multiline">
+                  <span>사업장 소재지 : 충남 아산시 송악면 강당로 119번길 5</span>
+                  <span>세무회계 오월</span>
+                </p>
               </div>
 
-              <div className="footer-links">
-                <a className="footer-link" href="/terms" onClick={(e) => e.preventDefault()}>택스챗 이용약관</a>
-                <span className="footer-divider">|</span>
-                <a className="footer-link" href="/privacy" onClick={(e) => e.preventDefault()}>개인정보처리방침</a>
-                <span className="footer-divider">|</span>
-                <span>개인정보보호책임자 : 최민용</span>
+              <div className="footer-links-block">
+                <div className="footer-links">
+                  <a className="footer-link" href="/terms" onClick={(e) => e.preventDefault()}>택스챗 이용약관</a>
+                  <span className="footer-divider">|</span>
+                  <a className="footer-link" href="/privacy" onClick={(e) => e.preventDefault()}>개인정보책임처리방침</a>
+                </div>
+                <div className="footer-privacy-officer">개인정보보호책임자 : 최민용</div>
               </div>
 
               <div className="footer-copyright">Copyright © taxChat all rights reserved</div>

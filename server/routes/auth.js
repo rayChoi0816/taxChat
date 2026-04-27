@@ -2,7 +2,38 @@ import express from 'express'
 import pool from '../config/database.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { sendSms, buildVerificationMessage } from '../services/sms.js'
+import {
+  sendSms,
+  sendAlimtalk,
+  buildVerificationMessage,
+  buildSignupNotificationMessage,
+} from '../services/sms.js'
+
+// 회원가입 알림(카카오 알림톡)을 받을 관리자 번호.
+// 콤마(,) 로 여러 번호 등록 가능. 비어 있으면 알림 발송 생략.
+const getAdminNotifyPhones = () => {
+  return String(process.env.ADMIN_NOTIFY_PHONE || '')
+    .split(',')
+    .map((s) => s.replace(/[^\d]/g, ''))
+    .filter(Boolean)
+}
+
+// 회원가입 직후 비동기로 관리자에게 알림톡 발송.
+// 실패해도 회원가입 응답에는 영향을 주지 않는다(알림은 보조 기능).
+const notifyAdminSignup = (payload) => {
+  const phones = getAdminNotifyPhones()
+  if (phones.length === 0) return
+  const text = buildSignupNotificationMessage(payload)
+  for (const to of phones) {
+    sendAlimtalk({ to, text, subject: '[택스챗] 신규 회원가입' })
+      .then((r) =>
+        console.log(`[회원가입 알림] to=${to} channel=${r.channel}`)
+      )
+      .catch((err) =>
+        console.error('[회원가입 알림 실패]', err.message, err.detail || '')
+      )
+  }
+}
 
 const router = express.Router()
 
@@ -580,6 +611,20 @@ router.post('/signup', async (req, res) => {
         )
       }
 
+      // 관리자에게 카카오 알림톡 발송 (기존회원이 새 회원유형 추가)
+      notifyAdminSignup({
+        customerId: existingMemberType.rows[0]?.customer_id || newTypeCustomerId,
+        memberType,
+        name:
+          memberData?.name ||
+          memberData?.representativeName ||
+          memberData?.businessName ||
+          existingMemberRow.name ||
+          '',
+        phone: existingMemberRow.phone_number,
+        signupAt: new Date(),
+      })
+
       res.json({
         success: true,
         member: {
@@ -664,6 +709,19 @@ router.post('/signup', async (req, res) => {
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
       )
+
+      // 관리자에게 카카오 알림톡 발송 (신규 회원가입)
+      notifyAdminSignup({
+        customerId: member.customer_id,
+        memberType: member.member_type,
+        name:
+          member.name ||
+          memberData?.representativeName ||
+          memberData?.businessName ||
+          '',
+        phone: member.phone_number,
+        signupAt: member.created_at || new Date(),
+      })
 
       res.json({
         success: true,

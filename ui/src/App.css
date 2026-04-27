@@ -565,27 +565,43 @@ body {
   text-align: left;
 }
 
-/* 한 줄 표시: 줄바꿈 금지 + 가로 스크롤로 좁은 화면 대응 */
+/* 두 줄로 분리해서 출력하고 싶은 항목 (예: 전화번호+영업시간, 주소+상호) */
+.footer-multiline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.footer-multiline > span {
+  display: block;
+  text-align: left;
+}
+
+/* 약관/방침 + 책임자 블록 (총 2줄, 좌측 정렬) */
+.footer-links-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
 .footer-links {
   display: flex;
   flex-wrap: nowrap;
   justify-content: flex-start;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 0.25rem;
-  width: 100%;
   white-space: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.footer-links::-webkit-scrollbar {
-  display: none;
 }
 
 .footer-links > * {
   flex-shrink: 0;
+}
+
+.footer-privacy-officer {
+  text-align: left;
 }
 
 .footer-divider {
