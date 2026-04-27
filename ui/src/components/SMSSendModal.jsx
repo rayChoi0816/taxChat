@@ -120,8 +120,8 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
     }
   }
   
-  // 등록 버튼 활성화 여부 확인
-  const isRegisterEnabled = () => {
+  // 전송 버튼 활성화 여부 확인
+  const isSendEnabled = () => {
     // 수신인 확인
     if (recipientType === 'load' && !selectedRecipient) {
       return false
@@ -148,7 +148,7 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
   }
   
   const handlePreview = () => {
-    if (!isRegisterEnabled()) {
+    if (!isSendEnabled()) {
       return
     }
     setIsPreviewModalOpen(true)
@@ -164,8 +164,8 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
     }
   }
   
-  const handleRegister = () => {
-    if (!isRegisterEnabled()) {
+  const handleSend = () => {
+    if (!isSendEnabled()) {
       return
     }
     
@@ -401,9 +401,9 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
         {/* 액션 버튼 */}
         <div className="sms-send-modal-actions">
           <button
-            className={`sms-send-preview-btn ${isRegisterEnabled() ? 'enabled' : 'disabled'}`}
+            className={`sms-send-preview-btn ${isSendEnabled() ? 'enabled' : 'disabled'}`}
             onClick={handlePreview}
-            disabled={!isRegisterEnabled()}
+            disabled={!isSendEnabled()}
           >
             SMS 미리보기
           </button>
@@ -415,11 +415,13 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
               취소
             </button>
             <button
-              className={`sms-send-register-btn ${isRegisterEnabled() ? 'enabled' : 'disabled'}`}
-              onClick={handleRegister}
-              disabled={!isRegisterEnabled()}
+              type="button"
+              className={`sms-send-register-btn ${isSendEnabled() ? 'enabled' : 'disabled'}`}
+              onClick={handleSend}
+              disabled={!isSendEnabled()}
+              aria-label="SMS 전송"
             >
-              등록
+              전송
             </button>
           </div>
         </div>

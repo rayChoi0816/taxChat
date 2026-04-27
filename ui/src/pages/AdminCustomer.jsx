@@ -966,7 +966,7 @@ const AdminCustomer = () => {
       {selectedCustomer && (
         <MemoModal
           customer={selectedCustomer}
-          memos={customerMemos[selectedCustomer.memberId] || []}
+          memos={customerMemos[String(selectedCustomer.memberId)] || []}
           onClose={handleCloseMemoModal}
           onSave={handleSaveMemo}
           onDelete={handleDeleteMemo}

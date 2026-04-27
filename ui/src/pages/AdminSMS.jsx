@@ -9,13 +9,8 @@ import '../components/AdminLayout.css'
 import './AdminSMS.css'
 import './AdminCustomer.css'
 
-// smsTypes 상태 키 = DB sms_type 값, 표시는 한글로 통일
-const SMS_TYPE_FILTER_LABELS = {
-  결제링크: '결제 링크',
-  템플릿: '템플릿',
-  '내용 작성': '내용 작성',
-  '상품 결제 링크': '상품 결제 링크',
-}
+/** SMS 발신 이력 행마다 고유 메모 키 (회원 ID와 분리 — 동일 회원에게 여러 번 보내도 행별 메모 유지) */
+const smsRowMemoKey = (smsId) => `smsRow-${smsId}`
 
 const AdminSMS = () => {
   const [selectedItems, setSelectedItems] = useState([])
@@ -28,12 +23,11 @@ const AdminSMS = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedPeriod, setSelectedPeriod] = useState('3개월') // 기본값 3개월
   const [recipient, setRecipient] = useState('')
-  // 키는 DB sms_messages.sms_type 값과 동일해야 함 (SMSSendModal: 결제링크, 템플릿, …)
   const [smsTypes, setSmsTypes] = useState({
-    결제링크: true,
-    템플릿: true,
+    '결제 링크': true,
+    '템플릿': true,
     '내용 작성': true,
-    '상품 결제 링크': true,
+    '상품 결제 링크': true
   })
   const [successStatus, setSuccessStatus] = useState({
     '성공': true,
@@ -42,7 +36,7 @@ const AdminSMS = () => {
   
   // 메모 모달 상태
   const [selectedSMS, setSelectedSMS] = useState(null)
-  const { customerMemos, addMemo, deleteMemo, getLatestMemo: getLatestMemoFromContext, initializeMemos } = useCustomerMemo()
+  const { customerMemos, addMemo, deleteMemo, getLatestMemo: getLatestMemoFromContext } = useCustomerMemo()
   
   // SMS 전송 모달 상태
   const [isSMSSendModalOpen, setIsSMSSendModalOpen] = useState(false)
@@ -113,9 +107,7 @@ const AdminSMS = () => {
       
       // SMS 유형 필터
       const activeSmsTypes = Object.keys(smsTypes).filter(key => smsTypes[key])
-      const typeKeys = Object.keys(smsTypes)
-      // 전부 체크면 유형 조건을 보내지 않아 잘못된 필터·레거시 값도 목록에 포함
-      if (activeSmsTypes.length > 0 && activeSmsTypes.length < typeKeys.length) {
+      if (activeSmsTypes.length > 0) {
         params.smsType = activeSmsTypes
       }
       
@@ -134,37 +126,22 @@ const AdminSMS = () => {
       
       console.log('SMS 목록 API 응답:', response) // 디버깅용
       
-      if (response && response.success && Array.isArray(response.data)) {
-        const formatSentAt = (v) => {
-          if (v == null) return ''
-          const d = v instanceof Date ? v : new Date(v)
-          if (Number.isNaN(d.getTime())) return String(v)
-          return d
-            .toLocaleString('ko-KR', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false,
-            })
-            .replace(/\s/g, ' ')
-        }
-        // API 응답을 프론트엔드 형식으로 변환 (DB는 snake_case)
-        const formattedSMS = response.data.map((sms) => ({
+      if (response && response.success && response.data) {
+        // API 응답을 프론트엔드 형식으로 변환
+        const formattedSMS = (response.data || []).map(sms => ({
           id: sms.id,
-          sendDate: formatSentAt(sms.sent_at),
-          recipient: sms.recipient_name || sms.recipient_phone || '',
+          sendDate: sms.sent_at,
+          recipient: sms.recipient_name || sms.recipient_phone,
           smsType: sms.sms_type,
           content: sms.content,
           success: sms.success_status === '성공',
-          customerId: sms.member_id || null,
-          deleted: false,
+          memberId: sms.member_id || null,
+          /** 발신 이력 행 전용 — 회원/숫자 id 와 절대 공유하지 않음 (CustomerMemoContext 폴백 충돌 방지) */
+          memoKey: smsRowMemoKey(sms.id),
+          deleted: false
         }))
         setSmsList(formattedSMS)
         setTotalCount(response.pagination?.total || formattedSMS.length)
-        initializeMemos(formattedSMS, 'customerId')
       } else {
         console.error('SMS 목록 조회 실패:', response)
         setSmsList([])
@@ -297,7 +274,8 @@ const AdminSMS = () => {
           smsType: response.data.sms_type,
           content: response.data.content,
           success: response.data.success_status === '성공',
-          customerId: response.data.member_id || null,
+          memberId: response.data.member_id || null,
+          memoKey: smsRowMemoKey(response.data.id),
           deleted: false
         }
         setSmsList((prev) => [newSMS, ...prev])
@@ -339,10 +317,10 @@ const AdminSMS = () => {
     setSelectedPeriod('3개월')
     setRecipient('')
     setSmsTypes({
-      결제링크: true,
-      템플릿: true,
+      '결제 링크': true,
+      '템플릿': true,
       '내용 작성': true,
-      '상품 결제 링크': true,
+      '상품 결제 링크': true
     })
     setSuccessStatus({
       '성공': true,
@@ -402,7 +380,8 @@ const AdminSMS = () => {
             smsType: response.data.sms_type,
             content: response.data.content,
             success: response.data.success_status === '성공',
-            customerId: response.data.member_id || null,
+            memberId: response.data.member_id || null,
+            memoKey: smsRowMemoKey(response.data.id),
             deleted: false
           }
           setSmsList(prev => [newSMS, ...prev])
@@ -423,18 +402,19 @@ const AdminSMS = () => {
     setSelectedSMS(sms)
   }
 
-  const handleMemoSave = (customerId, memoContent) => {
-    addMemo(customerId, memoContent)
+  const handleMemoSave = (memoStorageKey, memoContent) => {
+    addMemo(String(memoStorageKey), memoContent)
   }
 
-  const handleMemoDelete = (customerId, memoId) => {
-    deleteMemo(customerId, memoId)
+  const handleMemoDelete = (memoStorageKey, memoId) => {
+    deleteMemo(String(memoStorageKey), memoId)
   }
 
   const getLatestMemo = (sms) => {
-    const customerId = sms.customerId
-    if (!customerId) return null
-    return getLatestMemoFromContext(customerId)
+    const key =
+      (sms && sms.memoKey) || (sms && sms.id != null ? smsRowMemoKey(sms.id) : null)
+    if (!key) return null
+    return getLatestMemoFromContext(String(key))
   }
 
   const truncateMemo = (memo) => {
@@ -538,7 +518,7 @@ const AdminSMS = () => {
                       checked={smsTypes[type]}
                       onChange={(e) => setSmsTypes(prev => ({ ...prev, [type]: e.target.checked }))}
                     />
-                    <span>{SMS_TYPE_FILTER_LABELS[type] || type}</span>
+                    <span>{type}</span>
                   </label>
                 ))}
               </div>
@@ -763,8 +743,18 @@ const AdminSMS = () => {
         {/* Memo Modal */}
         {selectedSMS && (
           <MemoModal
-            customer={{ ...selectedSMS, id: selectedSMS.customerId }}
-            memos={customerMemos[selectedSMS.customerId] || []}
+            customer={{
+              ...selectedSMS,
+              id: String(
+                selectedSMS.memoKey || smsRowMemoKey(selectedSMS.id)
+              ),
+              name: selectedSMS.recipient || `SMS #${selectedSMS.id}`,
+            }}
+            memos={
+              customerMemos[
+                String(selectedSMS.memoKey || smsRowMemoKey(selectedSMS.id))
+              ] || []
+            }
             onClose={() => setSelectedSMS(null)}
             onSave={handleMemoSave}
             onDelete={handleMemoDelete}
@@ -867,7 +857,7 @@ const AdminSMS = () => {
                               checked={smsTypes[type]}
                               onChange={(e) => setSmsTypes(prev => ({ ...prev, [type]: e.target.checked }))}
                             />
-                            <span>{SMS_TYPE_FILTER_LABELS[type] || type}</span>
+                            <span>{type}</span>
                           </label>
                         ))}
                       </div>

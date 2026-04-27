@@ -15,6 +15,7 @@ export const CustomerMemoProvider = ({ children }) => {
   }, [customerMemos])
 
   const addMemo = (customerId, memoContent) => {
+    const key = String(customerId)
     const newMemo = {
       id: Date.now(),
       content: memoContent,
@@ -23,23 +24,24 @@ export const CustomerMemoProvider = ({ children }) => {
     
     setCustomerMemos(prev => ({
       ...prev,
-      [customerId]: [...(prev[customerId] || []), newMemo]
+      [key]: [...(prev[key] || []), newMemo]
     }))
   }
 
   const deleteMemo = (customerId, memoId) => {
+    const key = String(customerId)
     setCustomerMemos(prev => ({
       ...prev,
-      [customerId]: (prev[customerId] || []).filter(memo => memo.id !== memoId)
+      [key]: (prev[key] || []).filter(memo => memo.id !== memoId)
     }))
   }
 
   const getMemos = (customerId) => {
-    return customerMemos[customerId] || []
+    return customerMemos[String(customerId)] || []
   }
 
   const getLatestMemo = (customerId) => {
-    const memos = customerMemos[customerId] || []
+    const memos = customerMemos[String(customerId)] || []
     if (memos.length === 0) return null
     
     const sortedMemos = [...memos].sort((a, b) => {
@@ -62,8 +64,10 @@ export const CustomerMemoProvider = ({ children }) => {
       items.forEach(item => {
         if (!item) return
         
-        const customerId = item[customerIdKey] || item.id
-        if (customerId && item.memo) {
+        const customerId = item[customerIdKey] != null && item[customerIdKey] !== ''
+          ? item[customerIdKey]
+          : item.id
+        if (customerId != null && customerId !== '' && item.memo) {
           let memosToAdd = []
           
           // memo가 문자열인 경우 (고객 관리 페이지)
