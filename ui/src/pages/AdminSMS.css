@@ -215,6 +215,159 @@
   box-sizing: border-box;
 }
 
+/* --------------------------------------------------------------------------
+   SMS 발신 결과 내역 테이블 (admin-table-container)
+   - 열 너비·말줄임·발신 결과 뱃지로 표 형태에 맞게 정렬
+   -------------------------------------------------------------------------- */
+.admin-sms-table-container.admin-table-container {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-sms-table.admin-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 920px;
+}
+
+.admin-sms-th {
+  vertical-align: middle;
+}
+
+.admin-sms-th--check {
+  width: 44px;
+  text-align: center;
+  padding-left: 0.75rem;
+  padding-right: 0.5rem;
+}
+
+.admin-sms-th--date {
+  width: 10.5rem;
+}
+
+.admin-sms-th--recipient {
+  width: 11rem;
+}
+
+.admin-sms-th--type {
+  width: 5.5rem;
+}
+
+.admin-sms-th--content {
+  min-width: 0;
+  width: auto;
+}
+
+.admin-sms-th--result {
+  width: 5.5rem;
+  text-align: center;
+}
+
+.admin-sms-th--memo {
+  width: 7.5rem;
+}
+
+.admin-sms-th--action {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.admin-sms-td {
+  vertical-align: top;
+}
+
+.admin-sms-td--check {
+  text-align: center;
+  vertical-align: middle;
+  width: 44px;
+}
+
+.admin-sms-td--date .admin-sms-cell-date,
+.admin-sms-td--recipient .admin-sms-cell-recipient,
+.admin-sms-td--type .admin-sms-cell-type {
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.admin-sms-td--date .admin-sms-cell-date {
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.admin-sms-td--recipient .admin-sms-cell-recipient {
+  color: #111827;
+}
+
+.admin-sms-td--type .admin-sms-cell-type {
+  color: #4b5563;
+}
+
+/* 긴 본문: 4줄 말줄임 + 전체는 title 로 확인 */
+.admin-sms-content-cell {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #374151;
+  max-height: 5.8em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.admin-sms-td--result {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.admin-sms-result-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  cursor: default;
+  line-height: 1.2;
+}
+
+.admin-sms-result-pill--ok {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.admin-sms-result-pill--fail {
+  background: #fee2e2;
+  color: #b91c1c;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+button.admin-sms-result-pill--fail:hover {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.admin-sms-td--action {
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.admin-sms-td--memo {
+  vertical-align: middle;
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
   .admin-search-area {

@@ -9,6 +9,34 @@ import '../components/AdminLayout.css'
 import './AdminSMS.css'
 import './AdminCustomer.css'
 
+/** SMS 이력 테이블용 발송일시 (ISO → 읽기 쉬운 로컬 문자열) */
+const formatSmsDateTime = (value) => {
+  if (value == null || value === '') return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  const y = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const s = String(d.getSeconds()).padStart(2, '0')
+  return `${y}-${mo}-${day} ${h}:${min}:${s}`
+}
+
+/** 수신인: 이름 + 휴대폰(하이픈) 한 줄로 */
+const formatSmsRecipientFromRow = (sms) => {
+  const name = (sms.recipient_name && String(sms.recipient_name).trim()) || ''
+  const raw = sms.recipient_phone != null ? String(sms.recipient_phone) : ''
+  const digits = raw.replace(/[^\d]/g, '')
+  const phone =
+    digits.length === 11
+      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+      : raw || digits
+  if (name && phone) return `${name} · ${phone}`
+  if (name) return name
+  return phone || '—'
+}
+
 const AdminSMS = () => {
   const [selectedItems, setSelectedItems] = useState([])
   const [itemsPerPage, setItemsPerPage] = useState(50)
@@ -125,15 +153,16 @@ const AdminSMS = () => {
       
       if (response && response.success && response.data) {
         // API 응답을 프론트엔드 형식으로 변환
-        const formattedSMS = (response.data || []).map(sms => ({
+        const formattedSMS = (response.data || []).map((sms) => ({
           id: sms.id,
-          sendDate: sms.sent_at,
-          recipient: sms.recipient_name || sms.recipient_phone,
+          sendDate: formatSmsDateTime(sms.sent_at),
+          sentAt: sms.sent_at,
+          recipient: formatSmsRecipientFromRow(sms),
           smsType: sms.sms_type,
-          content: sms.content,
+          content: sms.content || '',
           success: sms.success_status === '성공',
           customerId: sms.member_id || null,
-          deleted: false
+          deleted: false,
         }))
         setSmsList(formattedSMS)
         setTotalCount(response.pagination?.total || formattedSMS.length)
@@ -263,15 +292,17 @@ const AdminSMS = () => {
     try {
       const response = await smsAPI.sendSMS(smsData)
       if (response.data) {
+        const row = response.data
         const newSMS = {
-          id: response.data.id,
-          sendDate: response.data.sent_at,
-          recipient: response.data.recipient_name || response.data.recipient_phone,
-          smsType: response.data.sms_type,
-          content: response.data.content,
-          success: response.data.success_status === '성공',
-          customerId: response.data.member_id || null,
-          deleted: false
+          id: row.id,
+          sendDate: formatSmsDateTime(row.sent_at),
+          sentAt: row.sent_at,
+          recipient: formatSmsRecipientFromRow(row),
+          smsType: row.sms_type,
+          content: row.content || '',
+          success: row.success_status === '성공',
+          customerId: row.member_id || null,
+          deleted: false,
         }
         setSmsList((prev) => [newSMS, ...prev])
         if (response.success) {
@@ -366,21 +397,27 @@ const AdminSMS = () => {
     if (window.confirm('해당 SMS를 재발송하겠습니까?')) {
       try {
         const response = await smsAPI.resendSMS(sms.id)
-        if (response.success) {
-          // 재발송된 SMS를 목록에 추가
+        const row = response.data
+        if (row) {
           const newSMS = {
-            id: response.data.id,
-            sendDate: response.data.sent_at,
-            recipient: response.data.recipient_name || response.data.recipient_phone,
-            smsType: response.data.sms_type,
-            content: response.data.content,
-            success: response.data.success_status === '성공',
-            customerId: response.data.member_id || null,
-            deleted: false
+            id: row.id,
+            sendDate: formatSmsDateTime(row.sent_at),
+            sentAt: row.sent_at,
+            recipient: formatSmsRecipientFromRow(row),
+            smsType: row.sms_type,
+            content: row.content || '',
+            success: row.success_status === '성공',
+            customerId: row.member_id || null,
+            deleted: false,
           }
-          setSmsList(prev => [newSMS, ...prev])
-          alert('SMS가 재발송되었습니다.')
+          setSmsList((prev) => [newSMS, ...prev])
         }
+        if (response.success) {
+          alert(response.message || 'SMS가 재발송되었습니다.')
+        } else {
+          alert(response.message || '재발송에 실패했습니다. 이력에 실패로 저장되었습니다.')
+        }
+        loadSMSList()
       } catch (error) {
         console.error('SMS 재발송 오류:', error)
         alert('SMS 재발송 중 오류가 발생했습니다.')
@@ -612,26 +649,27 @@ const AdminSMS = () => {
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="admin-table-container">
-          <table className="admin-table">
+        {/* Data Table — SMS 발신 결과 내역 */}
+        <div className="admin-table-container admin-sms-table-container">
+          <table className="admin-table admin-sms-table">
             <thead>
               <tr>
-                <th>
+                <th className="admin-sms-th admin-sms-th--check" scope="col">
                   <input
                     type="checkbox"
                     className="admin-table-checkbox"
+                    title="전체 선택"
                     checked={visibleSMS.length > 0 && visibleSMS.every(sms => selectedItems.includes(sms.id))}
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th>발송일시</th>
-                <th>수신인</th>
-                <th>SMS 유형</th>
-                <th>SMS 내용</th>
-                <th>성공 여부</th>
-                <th>메모</th>
-                <th>재발송</th>
+                <th className="admin-sms-th admin-sms-th--date" scope="col">발송일시</th>
+                <th className="admin-sms-th admin-sms-th--recipient" scope="col">수신인</th>
+                <th className="admin-sms-th admin-sms-th--type" scope="col">SMS 유형</th>
+                <th className="admin-sms-th admin-sms-th--content" scope="col">SMS 내용</th>
+                <th className="admin-sms-th admin-sms-th--result" scope="col">발신 결과</th>
+                <th className="admin-sms-th admin-sms-th--memo" scope="col">메모</th>
+                <th className="admin-sms-th admin-sms-th--action" scope="col">재발송</th>
               </tr>
             </thead>
             <tbody>
@@ -645,8 +683,8 @@ const AdminSMS = () => {
                 visibleSMS.map((sms) => {
                   const latestMemo = getLatestMemo(sms)
                   return (
-                    <tr key={sms.id}>
-                      <td>
+                    <tr key={sms.id} className="admin-sms-tr">
+                      <td className="admin-sms-td admin-sms-td--check" data-label="선택">
                         <input
                           type="checkbox"
                           className="admin-table-checkbox"
@@ -654,42 +692,58 @@ const AdminSMS = () => {
                           onChange={() => handleSelectItem(sms.id)}
                         />
                       </td>
-                      <td data-label="발송일시">{sms.sendDate}</td>
-                      <td data-label="수신인">{sms.recipient}</td>
-                      <td data-label="SMS 유형">{sms.smsType}</td>
-                      <td data-label="SMS 내용">{sms.content}</td>
-                      <td data-label="성공 여부">
+                      <td className="admin-sms-td admin-sms-td--date" data-label="발송일시">
+                        <span className="admin-sms-cell-date">{sms.sendDate}</span>
+                      </td>
+                      <td className="admin-sms-td admin-sms-td--recipient" data-label="수신인">
+                        <span className="admin-sms-cell-recipient">{sms.recipient}</span>
+                      </td>
+                      <td className="admin-sms-td admin-sms-td--type" data-label="SMS 유형">
+                        <span className="admin-sms-cell-type">{sms.smsType}</span>
+                      </td>
+                      <td className="admin-sms-td admin-sms-td--content" data-label="SMS 내용">
+                        <div className="admin-sms-content-cell" title={sms.content || ''}>
+                          {sms.content || '—'}
+                        </div>
+                      </td>
+                      <td className="admin-sms-td admin-sms-td--result" data-label="발신 결과">
                         {sms.success ? (
-                          <span className="admin-success-label">성공</span>
+                          <span className="admin-sms-result-pill admin-sms-result-pill--ok">성공</span>
                         ) : (
-                          <button 
-                            className="admin-failure-btn"
+                          <button
+                            type="button"
+                            className="admin-sms-result-pill admin-sms-result-pill--fail"
                             onClick={() => handleFailureClick(sms)}
                           >
                             실패
                           </button>
                         )}
                       </td>
-                      <td data-label="메모">
+                      <td className="admin-sms-td admin-sms-td--memo" data-label="메모">
                         {latestMemo ? (
-                          <span 
+                          <span
                             className="admin-memo-text admin-memo-clickable"
                             onClick={() => handleMemoClick(sms)}
                             style={{ cursor: 'pointer' }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && handleMemoClick(sms)}
                           >
                             {truncateMemo(latestMemo)}
                           </span>
                         ) : (
-                          <button 
+                          <button
                             className="admin-memo-btn"
+                            type="button"
                             onClick={() => handleMemoClick(sms)}
                           >
                             메모
                           </button>
                         )}
                       </td>
-                      <td data-label="재발송">
-                        <button 
+                      <td className="admin-sms-td admin-sms-td--action" data-label="재발송">
+                        <button
+                          type="button"
                           className="admin-table-btn"
                           onClick={() => handleResend(sms)}
                         >
