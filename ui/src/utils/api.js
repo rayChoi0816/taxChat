@@ -296,8 +296,21 @@ export const smsAPI = {
   }),
   
   getMessages: (params = {}) => {
-    const queryString = new URLSearchParams(params).toString()
-    return fetchAPI(`/sms?${queryString}`)
+    // URLSearchParams(plainObject) 는 배열 값을 "a,b" 한 덩어리로 보내
+    // Express req.query.smsType 이 배열이 아니게 되어 DB 필터가 전부 틀어짐.
+    // 회원 API(getMembers)와 동일하게 배열은 키를 반복 append 한다.
+    const queryParams = new URLSearchParams()
+    Object.keys(params).forEach((key) => {
+      const value = params[key]
+      if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value)) {
+          value.forEach((v) => queryParams.append(key, v))
+        } else {
+          queryParams.append(key, value)
+        }
+      }
+    })
+    return fetchAPI(`/sms?${queryParams.toString()}`)
   },
   
   sendSMS: (smsData) => fetchAPI('/sms/send', {
