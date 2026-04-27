@@ -55,6 +55,14 @@ const AdminSMS = () => {
     loadProducts()
   }, [])
 
+  // SMS 전송 모달을 열 때마다 회원·템플릿을 다시 불러 최신 가입자·템플릿 반영
+  useEffect(() => {
+    if (isSMSSendModalOpen) {
+      loadMembers()
+      loadTemplates()
+    }
+  }, [isSMSSendModalOpen])
+
   // 3개월 기본값 설정
   useEffect(() => {
     const today = new Date()
@@ -174,9 +182,9 @@ const AdminSMS = () => {
   // 회원 목록 로드
   const loadMembers = async () => {
     try {
-      const response = await memberAPI.getMembers({ limit: 1000 })
+      const response = await memberAPI.getMembers({ limit: 1000, page: 1 })
       if (response.success) {
-        setMembers(response.data)
+        setMembers(Array.isArray(response.data) ? response.data : [])
       }
     } catch (error) {
       console.error('회원 목록 로드 오류:', error)
@@ -254,8 +262,7 @@ const AdminSMS = () => {
   const handleSMSSend = async (smsData) => {
     try {
       const response = await smsAPI.sendSMS(smsData)
-      if (response.success) {
-        // 전송된 SMS를 목록에 추가
+      if (response.data) {
         const newSMS = {
           id: response.data.id,
           sendDate: response.data.sent_at,
@@ -266,45 +273,23 @@ const AdminSMS = () => {
           customerId: response.data.member_id || null,
           deleted: false
         }
-        setSmsList(prev => [newSMS, ...prev])
-        alert('SMS가 발송되었습니다.')
+        setSmsList((prev) => [newSMS, ...prev])
+        if (response.success) {
+          alert(response.message || 'SMS가 발송되었습니다.')
+        } else {
+          alert(response.message || '뿌리오 발송에 실패했습니다. 이력에 실패로 저장되었습니다.')
+        }
         setIsSMSSendModalOpen(false)
+        loadSMSList()
       }
     } catch (error) {
       console.error('SMS 전송 오류:', error)
-      alert('SMS 전송 중 오류가 발생했습니다.')
+      alert(error.message || 'SMS 전송 중 오류가 발생했습니다.')
     }
   }
 
-  // 템플릿 변경 핸들러
-  const handleTemplatesChange = async (updatedTemplates) => {
-    setSmsTemplates(updatedTemplates)
-    // 템플릿 변경사항을 서버에 저장 (필요시)
-    // 각 템플릿의 변경사항을 API로 전송
-    for (const template of updatedTemplates) {
-      try {
-        if (template.id && template.id > 1000) {
-          // 새로 생성된 템플릿 (로컬 ID)
-          await smsAPI.createTemplate({
-            name: template.name,
-            content: template.content
-          })
-        } else {
-          // 기존 템플릿 업데이트
-          await smsAPI.updateTemplate(template.id, {
-            name: template.name,
-            content: template.content
-          })
-          if (template.usageStatus) {
-            await smsAPI.updateTemplateUsage(template.id, template.usageStatus)
-          }
-        }
-      } catch (error) {
-        console.error('템플릿 저장 오류:', error)
-      }
-    }
-    // 템플릿 목록 다시 로드
-    await loadTemplates()
+  const handleTemplatesChange = () => {
+    loadTemplates()
   }
 
   const handleReset = () => {
@@ -773,9 +758,13 @@ const AdminSMS = () => {
         {/* SMS 템플릿 관리 모달 */}
         {isTemplateManagementModalOpen && (
           <SMSTemplateManagementModal
-            onClose={() => setIsTemplateManagementModalOpen(false)}
+            onClose={() => {
+              setIsTemplateManagementModalOpen(false)
+              loadTemplates()
+            }}
             templates={smsTemplates}
             onTemplatesChange={handleTemplatesChange}
+            reloadTemplates={loadTemplates}
           />
         )}
 

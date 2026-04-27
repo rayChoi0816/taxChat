@@ -253,17 +253,22 @@ export const buildVerificationMessage = (code) => {
 }
 
 // ============================================================================
-// 카카오 알림톡 (Ppurio Alimtalk)
+// 카카오 알림톡 (Ppurio Alimtalk - v1)
 // ----------------------------------------------------------------------------
-// - 같은 뿌리오 계정/토큰을 그대로 재사용한다 (PPURIO_ACCOUNT / PPURIO_API_KEY)
-// - 추가로 필요한 환경변수:
-//    PPURIO_KAKAO_SENDER_KEY   : 뿌리오에 등록한 카카오 채널 발신프로필 키
-//    PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드
-// - 알림톡은 사전 승인된 템플릿 본문과 100% 일치해야 발송 가능하다.
-//   본문이 템플릿과 다르거나 채널이 막혀 있으면 자동으로 LMS 로 fallback
-//   되도록 messageType 을 "AI" (Alimtalk + Image/LMS fallback) 로 보낸다.
-// - 환경변수 미설정/미수신자 차단 등으로 알림톡이 불가능하면, 이 함수는
-//   곧바로 LMS 로 발송하여 메시지가 끊기지 않도록 한다.
+// 뿌리오 v1 알림톡 정식 명세
+//   - URL          : POST {PPURIO_BASE_URL}/v1/kakao    (※ /v1/message 가 아님)
+//   - messageType  : "ALT"                              (※ "AT"/"AI" 아님)
+//   - senderProfile: 최상위 필드 (발신프로필 키)
+//   - templateCode : 최상위 필드 (사전 승인된 템플릿 코드)
+//   - isResend/resend: 알림톡 실패시 SMS/LMS 로 대체 발송할 본문
+//
+// 추가로 필요한 환경변수:
+//   PPURIO_KAKAO_SENDER_KEY   : 뿌리오에 등록한 카카오 채널 발신프로필 키
+//   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드
+//
+// 알림톡 본문은 사전 승인된 템플릿 본문과 100% 일치해야 발송 가능하다.
+// 본문이 다르거나 차단된 경우 isResend=Y 의 resend 본문이 SMS/LMS 로 발송된다.
+// 그래도 실패하면 마지막 안전장치로 별도 LMS 호출까지 시도한다.
 // ============================================================================
 
 const isAlimtalkConfigured = () => {
@@ -278,7 +283,7 @@ const isAlimtalkConfigured = () => {
  * LMS(장문 SMS) 발송 - 90byte 초과 시 자동으로 LMS 로 분기.
  * 알림톡이 불가능할 때의 fallback 으로 사용된다.
  */
-const sendLms = async ({ to, subject, text }) => {
+export const sendLms = async ({ to, subject, text }) => {
   if (!isPpurioConfigured()) {
     console.log(`[개발 LMS] to=${to} | subject=${subject || ''} | text=${text}`)
     return { ok: true, dev: true }
@@ -293,7 +298,7 @@ const sendLms = async ({ to, subject, text }) => {
     account: process.env.PPURIO_ACCOUNT,
     messageType: 'LMS',
     from: process.env.PPURIO_FROM,
-    subject: subject || '[taxChat] 알림',
+    subject: (subject || '[taxChat] 알림').slice(0, 30),
     content: text,
     duplicateFlag: 'N',
     refKey,
@@ -321,23 +326,25 @@ const sendLms = async ({ to, subject, text }) => {
 }
 
 /**
- * 카카오 알림톡 발송
+ * 카카오 알림톡 발송 (뿌리오 v1 /v1/kakao)
  *
  * @param {Object} params
- * @param {string} params.to       - 받는 사람 휴대폰 번호 (01012345678)
- * @param {string} params.text     - 알림톡 본문 (템플릿과 동일해야 함, 변수는 치환된 최종 문구)
- * @param {string} [params.subject]- LMS fallback 시 제목
- * @returns {Promise<{ok:boolean, channel:'AT'|'LMS'|'DEV', data?:any}>}
+ * @param {string} params.to        - 받는 사람 휴대폰 번호 (01012345678)
+ * @param {string} params.text      - 알림톡 본문 (템플릿과 동일해야 함, 변수치환 후 최종 문구)
+ * @param {string} [params.subject] - SMS/LMS 대체발송 시 제목
+ * @param {Object} [params.changeWord] - 알림톡 템플릿 변수치환 맵 (예: { "고객명": "홍길동" })
+ * @returns {Promise<{ok:boolean, channel:'ALT'|'LMS'|'DEV', data?:any}>}
  *
  * 알림톡 미설정/실패 시 자동으로 LMS 로 대체 발송하여 메시지 누락을 방지.
  */
-export const sendAlimtalk = async ({ to, text, subject }) => {
+export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
   // 1) 알림톡 설정 자체가 비어있다면 곧장 LMS/개발 로그로 처리
   if (!isAlimtalkConfigured()) {
     if (!isPpurioConfigured()) {
       console.log(`[개발 알림톡] to=${to} | text=${text}`)
       return { ok: true, channel: 'DEV', dev: true }
     }
+    console.log('[알림톡] 환경변수 미설정 → LMS 로 발송')
     const r = await sendLms({ to, subject, text })
     return { ok: true, channel: 'LMS', data: r.data }
   }
@@ -359,43 +366,54 @@ export const sendAlimtalk = async ({ to, text, subject }) => {
     .toString(36)
     .slice(2, 8)}`.slice(0, 30)
 
-  // 3) 알림톡 + LMS fallback 으로 발송 (messageType=AI : 알림톡 우선, 실패 시 LMS)
+  // 3) 뿌리오 v1 알림톡 정식 포맷 (/v1/kakao + messageType=ALT)
+  //    isResend=Y 로 두면, 알림톡 실패 시 resend 객체의 SMS/LMS 본문이 자동 대체 발송됨.
+  const target = { to }
+  if (changeWord && Object.keys(changeWord).length > 0) {
+    target.changeWord = changeWord
+  }
+
   const body = {
     account: process.env.PPURIO_ACCOUNT,
-    messageType: 'AI',
-    from: process.env.PPURIO_FROM,
+    messageType: 'ALT',
+    senderProfile: process.env.PPURIO_KAKAO_SENDER_KEY,
+    templateCode: process.env.PPURIO_KAKAO_TEMPLATE_CODE,
+    content: text,
     duplicateFlag: 'N',
     refKey,
     targetCount: 1,
-    targets: [{ to }],
-    kakaoOptions: {
-      senderKey: process.env.PPURIO_KAKAO_SENDER_KEY,
-      templateCode: process.env.PPURIO_KAKAO_TEMPLATE_CODE,
+    targets: [target],
+    isResend: 'Y',
+    resend: {
+      messageType: 'LMS',
+      from: process.env.PPURIO_FROM,
+      subject: (subject || '[taxChat] 알림').slice(0, 30),
       content: text,
-      // LMS fallback 옵션
-      resMethod: 'PUSH_ALIM',
     },
-    // 알림톡 실패 시 LMS 로 자동 대체 발송될 본문 (messageType=AI 동작)
-    subject: subject || '[taxChat] 알림',
-    content: text,
   }
 
+  console.log(
+    `[알림톡 요청] to=${to} senderProfile=${(process.env.PPURIO_KAKAO_SENDER_KEY || '').slice(0, 6)}*** ` +
+      `template=${process.env.PPURIO_KAKAO_TEMPLATE_CODE}`
+  )
+
   try {
-    const res = await axios.post(`${PPURIO_BASE_URL}/v1/message`, body, {
+    const res = await axios.post(`${PPURIO_BASE_URL}/v1/kakao`, body, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       timeout: 10_000,
     })
-    return { ok: true, channel: 'AT', data: res.data }
+    console.log('[알림톡 응답]', res.data)
+    return { ok: true, channel: 'ALT', data: res.data }
   } catch (err) {
     if (err.response?.status === 401) {
       cachedToken = null
       tokenExpiresAt = 0
     }
     const info = await summarizePpurioError('alimtalk', err)
-    console.error('알림톡 발송 실패 → LMS 대체 시도', info.message)
+    console.error('알림톡 발송 실패 → LMS 대체 시도:', info.message)
     // 알림톡이 어떤 사유로든 실패하면 LMS 로라도 메시지가 가도록 한다.
     try {
       const r = await sendLms({ to, subject, text })
@@ -445,8 +463,22 @@ export const buildSignupNotificationMessage = ({
   ].join('\n')
 }
 
+/**
+ * 뿌리오 단문(SMS) 또는 장문(LMS) 자동 선택 (90byte 초과 시 LMS)
+ */
+export const sendSmsOrLms = async ({ to, text, subject }) => {
+  const body = String(text || '')
+  const byteLen = Buffer.byteLength(body, 'utf8')
+  if (byteLen > 90) {
+    return sendLms({ to, subject: subject || '[taxChat] 알림', text: body })
+  }
+  return sendSms({ to, text: body })
+}
+
 export default {
   sendSms,
+  sendLms,
+  sendSmsOrLms,
   sendAlimtalk,
   buildVerificationMessage,
   buildSignupNotificationMessage,

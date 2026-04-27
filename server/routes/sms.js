@@ -1,8 +1,11 @@
 import express from 'express'
 import pool from '../config/database.js'
 import { authenticateToken } from '../middleware/auth.js'
+import { sendSmsOrLms } from '../services/sms.js'
 
 const router = express.Router()
+
+const normalizePhone = (value) => String(value || '').replace(/[^\d]/g, '')
 
 // SMS 템플릿 조회
 router.get('/templates', authenticateToken, async (req, res) => {
@@ -44,7 +47,7 @@ router.post('/templates', authenticateToken, async (req, res) => {
       `INSERT INTO sms_templates (name, content, usage_status)
        VALUES ($1, $2, $3)
        RETURNING *`,
-      [name, content, '미사용']
+      [name, content, '사용']
     )
 
     res.json({
@@ -159,9 +162,9 @@ router.get('/', authenticateToken, async (req, res) => {
     const params = []
     let paramIndex = 1
 
-    // 날짜 필터
+    // 날짜 필터 (일 단위 — 종료일 당일 전체 포함)
     if (startDate && endDate) {
-      query += ` AND sent_at >= $${paramIndex} AND sent_at <= $${paramIndex + 1}`
+      query += ` AND sent_at::date >= $${paramIndex}::date AND sent_at::date <= $${paramIndex + 1}::date`
       params.push(startDate, endDate)
       paramIndex += 2
     }
@@ -210,9 +213,8 @@ router.get('/', authenticateToken, async (req, res) => {
     const countParams = []
     let countParamIndex = 1
 
-    // 날짜 필터
     if (startDate && endDate) {
-      countQuery += ` AND sent_at >= $${countParamIndex} AND sent_at <= $${countParamIndex + 1}`
+      countQuery += ` AND sent_at::date >= $${countParamIndex}::date AND sent_at::date <= $${countParamIndex + 1}::date`
       countParams.push(startDate, endDate)
       countParamIndex += 2
     }
@@ -265,7 +267,6 @@ router.get('/', authenticateToken, async (req, res) => {
       error: 'SMS 전송 이력 조회 중 오류가 발생했습니다',
       details: error.message
     })
-    res.status(500).json({ error: 'SMS 전송 이력 조회 중 오류가 발생했습니다' })
   }
 })
 
@@ -287,20 +288,41 @@ router.post('/send', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: '수신인 전화번호와 SMS 유형은 필수입니다' })
     }
 
-    // 템플릿이 선택된 경우 템플릿 내용 가져오기
-    let finalContent = content
+    const phone = normalizePhone(recipientPhone)
+    if (!/^01\d{8,9}$/.test(phone)) {
+      return res.status(400).json({ error: '유효한 휴대폰 번호를 입력해 주세요' })
+    }
+
+    // 템플릿: DB에서 최신 본문 사용 (usage 무관, 삭제되지 않은 것만) + 클라이언트가 보낸 본문은 보조
+    let finalContent = (content && String(content).trim()) || ''
     if (smsType === '템플릿' && templateId) {
       const templateResult = await pool.query(
-        'SELECT content FROM sms_templates WHERE id = $1 AND usage_status = $2',
-        [templateId, '사용']
+        'SELECT content FROM sms_templates WHERE id = $1 AND deleted = false',
+        [templateId]
       )
       if (templateResult.rows.length > 0) {
         finalContent = templateResult.rows[0].content
+      } else if (!finalContent) {
+        return res.status(400).json({ error: '템플릿을 찾을 수 없습니다' })
       }
     }
+    if (!finalContent) {
+      return res.status(400).json({ error: '전송할 메시지 내용이 없습니다' })
+    }
 
-    // 실제 SMS 발송은 외부 서비스 연동 필요 (현재는 DB에만 저장)
-    // TODO: 실제 SMS 서비스 연동
+    let successStatus = '성공'
+    let lastError = null
+    try {
+      await sendSmsOrLms({
+        to: phone,
+        text: finalContent,
+        subject: `[${smsType || '알림'}]`,
+      })
+    } catch (smsErr) {
+      successStatus = '실패'
+      lastError = smsErr.ppurioMessage || smsErr.message
+      console.error('뿌리오 SMS/LMS 실패:', lastError, smsErr.detail || '')
+    }
 
     const result = await pool.query(
       `INSERT INTO sms_messages (
@@ -311,21 +333,24 @@ router.post('/send', authenticateToken, async (req, res) => {
       RETURNING *`,
       [
         recipientName || null,
-        recipientPhone,
+        phone,
         smsType,
         templateId || null,
         finalContent,
         paymentAmount || null,
         productId || null,
         productPaymentLink || null,
-        '성공' // 실제 SMS 서비스 연동 시 결과에 따라 변경
+        successStatus,
       ]
     )
 
     res.json({
-      success: true,
+      success: successStatus === '성공',
       data: result.rows[0],
-      message: 'SMS가 발송되었습니다'
+      message:
+        successStatus === '성공'
+          ? 'SMS가 발송되었습니다'
+          : `SMS 발송에 실패했습니다${lastError ? `: ${lastError}` : ''}`,
     })
   } catch (error) {
     console.error('SMS 전송 오류:', error)
@@ -346,8 +371,23 @@ router.post('/:id/resend', authenticateToken, async (req, res) => {
     }
 
     const originalSMS = smsResult.rows[0]
+    const phone = normalizePhone(originalSMS.recipient_phone)
+    const text = String(originalSMS.content || '')
 
-    // 재발송
+    let successStatus = '성공'
+    let lastError = null
+    try {
+      await sendSmsOrLms({
+        to: phone,
+        text,
+        subject: `[${originalSMS.sms_type || '재발송'}]`,
+      })
+    } catch (smsErr) {
+      successStatus = '실패'
+      lastError = smsErr.ppurioMessage || smsErr.message
+      console.error('뿌리오 SMS/LMS 재발송 실패:', lastError)
+    }
+
     const result = await pool.query(
       `INSERT INTO sms_messages (
         recipient_name, recipient_phone, sms_type, template_id,
@@ -357,21 +397,24 @@ router.post('/:id/resend', authenticateToken, async (req, res) => {
       RETURNING *`,
       [
         originalSMS.recipient_name,
-        originalSMS.recipient_phone,
+        phone,
         originalSMS.sms_type,
         originalSMS.template_id,
-        originalSMS.content,
+        text,
         originalSMS.payment_amount,
         originalSMS.product_id,
         originalSMS.product_payment_link,
-        '성공'
+        successStatus,
       ]
     )
 
     res.json({
-      success: true,
+      success: successStatus === '성공',
       data: result.rows[0],
-      message: 'SMS가 재발송되었습니다'
+      message:
+        successStatus === '성공'
+          ? 'SMS가 재발송되었습니다'
+          : `재발송 실패${lastError ? `: ${lastError}` : ''}`,
     })
   } catch (error) {
     console.error('SMS 재발송 오류:', error)

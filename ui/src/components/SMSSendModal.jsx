@@ -108,8 +108,13 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
   }
   
   const handleTemplateSelect = (templateId) => {
-    const template = templates.find(t => t.id === templateId)
-    setSelectedTemplate(templateId)
+    if (templateId === '' || templateId == null) {
+      setSelectedTemplate('')
+      return
+    }
+    const n = Number(templateId)
+    setSelectedTemplate(n)
+    const template = templates.find((t) => Number(t.id) === n)
     if (template) {
       setCustomContent(template.content)
     }
@@ -126,7 +131,7 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
     }
     
     // SMS 유형별 필수 입력 확인
-    if (smsType === '템플릿' && !selectedTemplate) {
+    if (smsType === '템플릿' && (selectedTemplate === '' || selectedTemplate == null)) {
       return false
     }
     if (smsType === '결제링크' && (!paymentAmount || !paymentContent.trim())) {
@@ -174,7 +179,10 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
       recipientName,
       recipientPhone: phoneNumber,
       smsType: smsType === '내용 작성' ? '내용 작성' : smsType,
-      templateId: smsType === '템플릿' ? parseInt(selectedTemplate) : null,
+      templateId:
+        smsType === '템플릿' && selectedTemplate !== '' && selectedTemplate != null
+          ? Number(selectedTemplate)
+          : null,
       content: getSMSContent(),
       paymentAmount: smsType === '결제링크' ? parseInt(paymentAmount) : null,
       productId: smsType === '상품 결제링크' ? parseInt(selectedProduct) : null,
@@ -188,9 +196,10 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
   
   const getSMSContent = () => {
     switch (smsType) {
-      case '템플릿':
-        const template = templates.find(t => t.id === selectedTemplate)
+      case '템플릿': {
+        const template = templates.find((t) => Number(t.id) === Number(selectedTemplate))
         return template ? template.content : ''
+      }
       case '결제링크':
         return paymentContent
       case '상품 결제링크':
@@ -312,8 +321,11 @@ const SMSSendModal = ({ onClose, onSend, templates: externalTemplates = [], memb
               <label className="sms-send-form-label">템플릿 선택</label>
               <select
                 className="sms-send-form-select"
-                value={selectedTemplate}
-                onChange={(e) => handleTemplateSelect(Number(e.target.value))}
+                value={selectedTemplate === '' ? '' : String(selectedTemplate)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  handleTemplateSelect(v === '' ? '' : Number(v))
+                }}
               >
                 <option value="">선택</option>
                 {templates.map((template) => (

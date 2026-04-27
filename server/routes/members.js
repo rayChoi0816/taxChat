@@ -67,8 +67,11 @@ router.get('/', authenticateToken, async (req, res) => {
                      WHERE m.deleted = false`
 
     // 날짜 필터
+    // NOTE: 'YYYY-MM-DD' 문자열만으로 timestamp 와 비교하면 종료일이 00:00:00 으로 해석되어
+    //       당일 오후에 가입한 회원이 목록에서 빠지는 버그가 생긴다.
+    //       날짜 단위(일)로만 비교한다.
     if (startDate && endDate) {
-      whereSql += ` AND m.created_at >= $${paramIndex} AND m.created_at <= $${paramIndex + 1}`
+      whereSql += ` AND m.created_at::date >= $${paramIndex}::date AND m.created_at::date <= $${paramIndex + 1}::date`
       params.push(startDate, endDate)
       paramIndex += 2
     }
