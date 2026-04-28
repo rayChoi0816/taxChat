@@ -64,7 +64,7 @@ router.get('/', authenticateToken, async (req, res) => {
     let paramIndex = 1
     let whereSql = ` FROM members m
                      LEFT JOIN member_types mt ON mt.member_id = m.id
-                     WHERE m.deleted = false`
+                     WHERE TRUE`
 
     // 날짜 필터
     // NOTE: 'YYYY-MM-DD' 문자열만으로 timestamp 와 비교하면 종료일이 00:00:00 으로 해석되어

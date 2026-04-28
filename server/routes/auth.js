@@ -194,6 +194,15 @@ const handleSendSmsCode = async (req, res) => {
       return res.status(400).json({ error: '유효한 휴대폰 번호를 입력해 주세요' })
     }
 
+    // 활동 중인(탈퇴하지 않은) 회원이 이미 쓰는 번호면 SMS 발송 차단 — 탈퇴 회원 번호는 재인증 허용
+    const dupActive = await pool.query(
+      'SELECT id FROM members WHERE phone_number = $1 AND deleted = false',
+      [phone]
+    )
+    if (dupActive.rows.length > 0) {
+      return res.status(409).json({ error: '이미 가입된 휴대폰번호입니다.' })
+    }
+
     // 100000 ~ 999999 사이의 6자리 랜덤 숫자
     const code = String(Math.floor(100000 + Math.random() * 900000))
     const expiresAt = new Date(Date.now() + SMS_CODE_TTL_MS)
@@ -421,45 +430,12 @@ router.post('/signup', async (req, res) => {
 
     const phone = phoneNumber.replace(/[^\d]/g, '')
 
-    // 기존 회원 확인
-    const existingMember = await pool.query(
-      'SELECT * FROM members WHERE phone_number = $1 AND deleted = false',
-      [phone]
-    )
+    const existingByPhone = await pool.query('SELECT * FROM members WHERE phone_number = $1', [phone])
+    const existingRow = existingByPhone.rows[0]
 
-    // 신규 회원가입이면 비밀번호 + SMS 인증 필수
-    const isNewMember = existingMember.rows.length === 0
-    let passwordHash = null
-
-    if (isNewMember) {
-      // 1) 비밀번호 형식 검증
-      if (!isValidPassword(password)) {
-        return res.status(400).json({ error: '비밀번호는 6~20자의 영문 또는 숫자 또는 특수문자로 입력해 주세요' })
-      }
-
-      // 2) 휴대폰 인증 여부 확인
-      //    sms_verifications 테이블에서 "해당 전화번호로 최근 N분 이내에 인증 성공한 기록"이
-      //    남아 있어야만 회원가입을 허용합니다. 그렇지 않으면 누구든 아무 번호로 가입할 수 있어요.
-      const verified = await pool.query(
-        `SELECT id FROM sms_verifications
-         WHERE phone_number = $1
-           AND verified = true
-           AND verified_at > NOW() - ($2 || ' minutes')::interval
-         ORDER BY verified_at DESC
-         LIMIT 1`,
-        [phone, String(SMS_VERIFY_WINDOW_MINUTES)]
-      )
-      if (verified.rows.length === 0) {
-        return res.status(400).json({ error: 'SMS 인증이 완료되지 않았습니다' })
-      }
-
-      // 3) 비밀번호는 bcrypt 로 해시해서 저장 (원문은 DB 에 절대 저장하지 않음)
-      passwordHash = await bcrypt.hash(password, 10)
-    }
-
-    if (existingMember.rows.length > 0) {
+    if (existingRow && !existingRow.deleted) {
       // 기존 회원이 있는 경우, 새로운 회원 유형으로 추가
-      const existingMemberRow = existingMember.rows[0]
+      const existingMemberRow = existingRow
 
       // 새로 추가하는 회원 유형 전용 customer_id (예: 02260422003c)
       // - members.customer_id 는 "첫 가입 유형" 의 ID 라서 그대로 두고,
@@ -634,104 +610,236 @@ router.post('/signup', async (req, res) => {
         }
       })
     } else {
-      // 신규 회원 가입
-      // 고객 ID 생성 (회원 유형과 현재 날짜 사용)
-      const customerId = await generateCustomerId(memberType)
+      // 완전 신규 또는 탈퇴한 동일 번호 재가입 — 비밀번호 + SMS 인증 필수
+      if (!isValidPassword(password)) {
+        return res.status(400).json({ error: '비밀번호는 6~20자의 영문 또는 숫자 또는 특수문자로 입력해 주세요' })
+      }
 
-      // 회원 정보 저장
-      const result = await pool.query(
-        `INSERT INTO members (
-          customer_id, phone_number, member_type, name, business_name, 
-          representative_name, business_number, industry, 
-          business_type, base_address, detail_address, start_date, gender, resident_number,
-          signup_method, has_info_input, password_hash
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-        RETURNING id, customer_id, phone_number, member_type, name, business_name,
-          representative_name, business_number, industry, business_type, 
-          base_address, detail_address, 
-          TO_CHAR(start_date, 'YYYY-MM-DD') as start_date,
-          signup_method, has_info_input, created_at, updated_at, gender, resident_number, deleted`,
-        [
-          customerId,
-          phone,
-          memberType,
-          memberData?.name || memberData?.representativeName,
-          memberData?.businessName,
-          memberData?.representativeName,
-          memberData?.businessNumber,
-          memberData?.industry,
-          memberData?.businessType,
-          memberData?.baseAddress,
-          memberData?.detailAddress,
-          memberData?.startDate,
-          memberData?.gender,
-          memberData?.residentNumber,
-          '회원 직접 가입',
-          true,
-          passwordHash,
-        ]
+      const verified = await pool.query(
+        `SELECT id FROM sms_verifications
+         WHERE phone_number = $1
+           AND verified = true
+           AND verified_at > NOW() - ($2 || ' minutes')::interval
+         ORDER BY verified_at DESC
+         LIMIT 1`,
+        [phone, String(SMS_VERIFY_WINDOW_MINUTES)]
       )
+      if (verified.rows.length === 0) {
+        return res.status(400).json({ error: 'SMS 인증이 완료되지 않았습니다' })
+      }
 
-      // 날짜 필드는 이미 문자열로 변환됨
-      const member = result.rows[0]
+      const passwordHash = await bcrypt.hash(password, 10)
+      const isRejoinWithdrawn = existingRow?.deleted === true
 
-      // 회원 유형 추가 (첫 가입이므로 members.customer_id 와 동일하게 저장)
-      // type 별 정보도 함께 저장해 두면 향후 같은 회원이 다른 유형을 추가해도
-      // 이 행의 정보는 그대로 보존됩니다.
-      await pool.query(
-        `INSERT INTO member_types (
-           member_id, member_type, customer_id, is_active,
-           name, gender, resident_number,
-           business_name, representative_name, business_number,
-           industry, business_type, base_address, detail_address, start_date
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-        [
-          member.id,
-          memberType,
-          customerId,
-          true,
-          memberData?.name || null,
-          memberData?.gender || null,
-          memberData?.residentNumber || null,
-          memberData?.businessName || null,
-          memberData?.representativeName || null,
-          memberData?.businessNumber || null,
-          memberData?.industry || null,
-          memberData?.businessType || null,
-          memberData?.baseAddress || null,
-          memberData?.detailAddress || null,
-          memberData?.startDate || null,
-        ]
-      )
+      if (isRejoinWithdrawn) {
+        const customerId = await generateCustomerId(memberType)
+        const withdrawnId = existingRow.id
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await client.query('DELETE FROM member_types WHERE member_id = $1', [withdrawnId])
 
-      const token = jwt.sign(
-        { id: member.id, phone: phone },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      )
+          const upd = await client.query(
+            `UPDATE members SET
+               deleted = false,
+               password_hash = $1,
+               member_type = $2,
+               customer_id = $3,
+               name = $4,
+               business_name = $5,
+               representative_name = $6,
+               business_number = $7,
+               industry = $8,
+               business_type = $9,
+               base_address = $10,
+               detail_address = $11,
+               start_date = $12,
+               gender = $13,
+               resident_number = $14,
+               signup_method = $15,
+               has_info_input = $16,
+               updated_at = CURRENT_TIMESTAMP
+             WHERE id = $17
+             RETURNING id, customer_id, phone_number, member_type, name, business_name,
+               representative_name, business_number, industry, business_type,
+               base_address, detail_address,
+               TO_CHAR(start_date, 'YYYY-MM-DD') as start_date,
+               signup_method, has_info_input, created_at, updated_at, gender, resident_number, deleted`,
+            [
+              passwordHash,
+              memberType,
+              customerId,
+              memberData?.name || memberData?.representativeName,
+              memberData?.businessName,
+              memberData?.representativeName,
+              memberData?.businessNumber,
+              memberData?.industry,
+              memberData?.businessType,
+              memberData?.baseAddress,
+              memberData?.detailAddress,
+              memberData?.startDate || null,
+              memberData?.gender,
+              memberData?.residentNumber,
+              '회원 직접 가입',
+              true,
+              withdrawnId,
+            ]
+          )
+          const member = upd.rows[0]
 
-      // 관리자에게 카카오 알림톡 발송 (신규 회원가입)
-      notifyAdminSignup({
-        customerId: member.customer_id,
-        memberType: member.member_type,
-        name:
-          member.name ||
-          memberData?.representativeName ||
-          memberData?.businessName ||
-          '',
-        phone: member.phone_number,
-        signupAt: member.created_at || new Date(),
-      })
+          await client.query(
+            `INSERT INTO member_types (
+               member_id, member_type, customer_id, is_active,
+               name, gender, resident_number,
+               business_name, representative_name, business_number,
+               industry, business_type, base_address, detail_address, start_date
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+            [
+              member.id,
+              memberType,
+              customerId,
+              true,
+              memberData?.name || null,
+              memberData?.gender || null,
+              memberData?.residentNumber || null,
+              memberData?.businessName || null,
+              memberData?.representativeName || null,
+              memberData?.businessNumber || null,
+              memberData?.industry || null,
+              memberData?.businessType || null,
+              memberData?.baseAddress || null,
+              memberData?.detailAddress || null,
+              memberData?.startDate || null,
+            ]
+          )
+          await client.query('COMMIT')
 
-      res.json({
-        success: true,
-        token,
-        member: {
-          id: member.id,
-          phoneNumber: member.phone_number,
-          memberType: member.member_type
+          const token = jwt.sign(
+            { id: member.id, phone: phone },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '7d' }
+          )
+
+          notifyAdminSignup({
+            customerId: member.customer_id,
+            memberType: member.member_type,
+            name:
+              member.name ||
+              memberData?.representativeName ||
+              memberData?.businessName ||
+              '',
+            phone: member.phone_number,
+            signupAt: member.created_at || new Date(),
+          })
+
+          res.json({
+            success: true,
+            token,
+            member: {
+              id: member.id,
+              phoneNumber: member.phone_number,
+              memberType: member.member_type
+            }
+          })
+        } catch (e) {
+          await client.query('ROLLBACK')
+          throw e
+        } finally {
+          client.release()
         }
-      })
+      } else {
+        // 완전 신규 회원 가입 (INSERT)
+        const customerId = await generateCustomerId(memberType)
+
+        const result = await pool.query(
+          `INSERT INTO members (
+            customer_id, phone_number, member_type, name, business_name,
+            representative_name, business_number, industry,
+            business_type, base_address, detail_address, start_date, gender, resident_number,
+            signup_method, has_info_input, password_hash
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          RETURNING id, customer_id, phone_number, member_type, name, business_name,
+            representative_name, business_number, industry, business_type,
+            base_address, detail_address,
+            TO_CHAR(start_date, 'YYYY-MM-DD') as start_date,
+            signup_method, has_info_input, created_at, updated_at, gender, resident_number, deleted`,
+          [
+            customerId,
+            phone,
+            memberType,
+            memberData?.name || memberData?.representativeName,
+            memberData?.businessName,
+            memberData?.representativeName,
+            memberData?.businessNumber,
+            memberData?.industry,
+            memberData?.businessType,
+            memberData?.baseAddress,
+            memberData?.detailAddress,
+            memberData?.startDate,
+            memberData?.gender,
+            memberData?.residentNumber,
+            '회원 직접 가입',
+            true,
+            passwordHash,
+          ]
+        )
+
+        const member = result.rows[0]
+
+        await pool.query(
+          `INSERT INTO member_types (
+             member_id, member_type, customer_id, is_active,
+             name, gender, resident_number,
+             business_name, representative_name, business_number,
+             industry, business_type, base_address, detail_address, start_date
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [
+            member.id,
+            memberType,
+            customerId,
+            true,
+            memberData?.name || null,
+            memberData?.gender || null,
+            memberData?.residentNumber || null,
+            memberData?.businessName || null,
+            memberData?.representativeName || null,
+            memberData?.businessNumber || null,
+            memberData?.industry || null,
+            memberData?.businessType || null,
+            memberData?.baseAddress || null,
+            memberData?.detailAddress || null,
+            memberData?.startDate || null,
+          ]
+        )
+
+        const token = jwt.sign(
+          { id: member.id, phone: phone },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '7d' }
+        )
+
+        notifyAdminSignup({
+          customerId: member.customer_id,
+          memberType: member.member_type,
+          name:
+            member.name ||
+            memberData?.representativeName ||
+            memberData?.businessName ||
+            '',
+          phone: member.phone_number,
+          signupAt: member.created_at || new Date(),
+        })
+
+        res.json({
+          success: true,
+          token,
+          member: {
+            id: member.id,
+            phoneNumber: member.phone_number,
+            memberType: member.member_type
+          }
+        })
+      }
     }
   } catch (error) {
     console.error('회원가입 오류:', error)

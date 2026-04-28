@@ -40,6 +40,7 @@ const AuthVerify = () => {
   const [smsInfoMsg, setSmsInfoMsg] = useState('')
 
   const timerRef = useRef(null)
+  const phoneInputRef = useRef(null)
 
   const phoneDigits = useMemo(() => toDigits(phoneNumber), [phoneNumber])
   const isPhoneValid = PHONE_REGEX.test(phoneDigits)
@@ -135,7 +136,15 @@ const AuthVerify = () => {
         setSmsErrorMsg(res.error || '인증번호 발송에 실패했습니다')
       }
     } catch (err) {
-      setSmsErrorMsg(err.message || '인증번호 발송에 실패했습니다')
+      const msg = err.message || ''
+      if (msg.includes('이미 가입된 휴대폰')) {
+        alert('이미 가입된 휴대폰번호입니다.')
+        setSmsOpen(false)
+        setSmsErrorMsg('')
+        phoneInputRef.current?.focus()
+        return
+      }
+      setSmsErrorMsg(msg || '인증번호 발송에 실패했습니다')
     } finally {
       setRequesting(false)
     }
@@ -217,6 +226,7 @@ const AuthVerify = () => {
               <div className="auth-verify-field">
                 <label className="auth-verify-label">휴대폰 번호</label>
                 <input
+                  ref={phoneInputRef}
                   type="tel"
                   className="login-input auth-verify-input"
                   placeholder="휴대전화번호 입력"

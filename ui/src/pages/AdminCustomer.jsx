@@ -188,7 +188,8 @@ const AdminCustomer = () => {
               second: '2-digit',
               hour12: false
             }).replace(/\. /g, '-').replace(/\./g, '').replace(/,/g, '') : '',
-            deleted: member.deleted || false
+            deleted: member.deleted || false,
+            accountStatus: member.deleted ? '탈퇴' : '활동'
           }
         })
         
@@ -242,9 +243,9 @@ const AdminCustomer = () => {
     loadCustomers()
   }, [currentPage, itemsPerPage, sortOrder, dateRange.start, dateRange.end, searchKeyword, searchType, memberTypes, signupMethods])
 
-  // 필터링된 회원 목록 계산 (서버에서 필터링하므로 클라이언트에서는 그대로 반환)
+  // 필터링된 회원 목록 (서버에서 필터링·탈퇴 포함)
   const getFilteredCustomers = () => {
-    return customers.filter(c => !c.deleted)
+    return customers
   }
 
   // 정렬된 회원 목록 (서버에서 정렬하므로 그대로 반환)
@@ -389,15 +390,15 @@ const AdminCustomer = () => {
   }
 
   const handleDelete = (customer) => {
-    if (window.confirm('해당 회원을 삭제하시겠습니까? (DB는 유지되며 출력만 제외됩니다)')) {
-      // 한 회원이 여러 유형으로 펼쳐져 있더라도 회원 자체를 숨김 처리합니다.
+    if (customer.deleted) return
+    if (window.confirm('해당 회원을 탈퇴 처리하시겠습니까? 서비스 이용이 제한됩니다.')) {
+      // 한 회원이 여러 유형으로 펼쳐져 있더라도 회원 단위로 탈퇴 처리합니다.
       const targetMemberId = customer.memberId
       setCustomers(prev => prev.map(c =>
-        c.memberId === targetMemberId ? { ...c, deleted: true } : c
+        c.memberId === targetMemberId ? { ...c, deleted: true, accountStatus: '탈퇴' } : c
       ))
-      // 서버에 회원 삭제 요청 (출력만 제외)
       memberAPI.deleteMember(targetMemberId).catch(err => {
-        console.error('회원 삭제 오류:', err)
+        console.error('회원 탈퇴 처리 오류:', err)
       })
     }
   }
@@ -770,13 +771,14 @@ const AdminCustomer = () => {
                       <th>연락처</th>
                       <th>메모</th>
                       <th>회원 정보 입력 여부</th>
-                      <th>삭제</th>
+                      <th>상태</th>
+                      <th>탈퇴</th>
                       <th>등록일</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td colSpan="10" className="admin-table-empty">
+                      <td colSpan="11" className="admin-table-empty">
                         검색 결과가 없습니다.
                       </td>
                     </tr>
@@ -804,7 +806,8 @@ const AdminCustomer = () => {
                     <th>연락처</th>
                     <th>메모</th>
                     <th>회원 정보 입력 여부</th>
-                    <th>삭제</th>
+                    <th>상태</th>
+                    <th>탈퇴</th>
                     <th>등록일</th>
                   </tr>
                 </thead>
@@ -865,13 +868,21 @@ const AdminCustomer = () => {
                         {customer.hasInfoInput ? '입력완료' : '입력하기'}
                       </button>
                     </td>
-                    <td data-label="기능">
+                    <td data-label="상태">
+                      <span>{customer.accountStatus || (customer.deleted ? '탈퇴' : '활동')}</span>
+                    </td>
+                    <td data-label="탈퇴">
+                      {!customer.deleted ? (
                       <button 
+                        type="button"
                         className="admin-table-btn danger"
                         onClick={() => handleDelete(customer)}
                       >
-                        삭제
+                        탈퇴
                       </button>
+                      ) : (
+                        <span>—</span>
+                      )}
                     </td>
                     <td>{formatDate(customer.registrationDate)}</td>
                   </tr>
