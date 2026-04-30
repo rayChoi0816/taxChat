@@ -1,77 +1,25 @@
+/* 이용약관 / 개인정보처리방침 등 법무 문서 본문 (헤더·스크롤은 app-auth 레이아웃과 AuthPageHeader) */
+
 .terms-of-service-page {
-  position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   background-color: #f5f5f5;
-}
-
-.terms-close-btn {
-  position: fixed;
-  top: max(0.35rem, env(safe-area-inset-top, 0px));
-  right: max(0.5rem, env(safe-area-inset-right, 0px));
-  z-index: 300;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.96);
-  color: #4b5563;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-}
-
-.terms-close-btn:hover {
-  background: #f3f4f6;
 }
 
 .terms-of-service-page .mobile-app-container {
   justify-content: center;
 }
 
-.terms-of-service-scroll {
-  width: 100%;
-  max-width: 520px;
-  margin: 0 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
 .terms-of-service-article {
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
-  padding: 2.75rem 1.25rem 2.5rem;
+  padding: 1rem 1.25rem 2.25rem;
   box-sizing: border-box;
   background-color: #ffffff;
   color: #1f2937;
   font-size: 0.9375rem;
   line-height: 1.65;
-}
-
-@media (max-width: 767px) {
-  .terms-of-service-article {
-    padding-left: 1rem;
-    padding-right: max(3rem, 1rem);
-  }
-}
-
-.terms-of-service-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 1.5rem;
-  text-align: center;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .terms-of-service-section {
@@ -124,4 +72,42 @@
 
 .terms-of-service-supplement h2 {
   margin-bottom: 0.35rem;
+}
+
+.legal-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.25rem 0;
+}
+
+.legal-doc-lead {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem;
+}
+
+.privacy-bullet-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+}
+
+.privacy-bullet-list li {
+  margin-top: 0.35rem;
+}
+
+.footer-mail-link {
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.privacy-block-title {
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.privacy-block-title-spaced {
+  font-weight: 600;
+  margin: 0.75rem 0 0.35rem;
 }

@@ -658,11 +658,8 @@ body {
   color: #1d4ed8;
 }
 
-/* KakaoTalk Consultation Button */
+/* KakaoTalk Consultation Button — 위치는 KakaoConsultDragButton 인라인 스타일로 제어 */
 .kakao-consult-btn {
-  position: fixed;
-  bottom: 7rem;
-  right: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -676,20 +673,22 @@ body {
   border-radius: 50px;
   font-size: 1.2rem;
   font-weight: 500;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 999;
-  transition: all 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
 .kakao-consult-btn:hover {
   background-color: #444444;
-  transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .kakao-consult-btn:active {
-  transform: translateY(0);
+  cursor: grabbing;
+}
+
+.kakao-consult-btn-draggable:hover {
+  transform: none;
 }
 
 .kakao-icon {
@@ -741,13 +740,6 @@ body {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 8px rgba(37, 99, 235, 0.05);
     overflow: visible;
     position: relative;
-  }
-
-  .kakao-consult-btn {
-    /* 페이지 스크롤 시에도 우측 하단에 항상 보이도록 fixed 유지 */
-    position: fixed;
-    right: 1rem;
-    bottom: 7rem;
   }
 
   /* PC/태블릿: 9:20 모바일 박스 안에 헤더가 정렬되어야 하므로

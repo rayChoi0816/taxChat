@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay, Pagination } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/autoplay'
 import 'swiper/css/pagination'
 import './App.css'
-import kLogo from './assets/k_logo.png'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CustomerMemoProvider } from './contexts/CustomerMemoContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -31,10 +30,12 @@ import MemberTypeForm from './pages/MemberTypeForm'
 import Login from './pages/Login'
 import AuthVerify from './pages/AuthVerify'
 import TermsOfService from './pages/TermsOfService'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminLogin from './pages/AdminLogin'
 import AdminSettings from './pages/AdminSettings'
 import AdminRoute from './components/AdminRoute'
 import { AdminAuthProvider } from './contexts/AdminAuthContext'
+import KakaoConsultDragButton from './components/KakaoConsultDragButton'
 
 function BannerSlider({ banners }) {
   const swiperRef = useRef(null)
@@ -297,7 +298,12 @@ function Home() {
                   <span>전화 : 010-2163-7610</span>
                   <span>(평일 10:00 ~ 18:00 / 주말•공휴일 휴무)</span>
                 </p>
-                <p>E-MAIL : tax5wol@gmail.com</p>
+                <p>
+                  E-MAIL :{' '}
+                  <a className="footer-mail-link" href="mailto:tax5wol@gmail.com">
+                    tax5wol@gmail.com
+                  </a>
+                </p>
               </div>
 
               <div className="footer-section">
@@ -313,9 +319,13 @@ function Home() {
 
               <div className="footer-links-block">
                 <div className="footer-links">
-                  <a className="footer-link" href="/terms" onClick={(e) => e.preventDefault()}>택스챗 이용약관</a>
+                  <Link className="footer-link" to="/terms-of-service">
+                    택스챗 이용약관
+                  </Link>
                   <span className="footer-divider">|</span>
-                  <a className="footer-link" href="/privacy" onClick={(e) => e.preventDefault()}>개인정보책임처리방침</a>
+                  <Link className="footer-link" to="/privacy-policy">
+                    개인정보처리방침
+                  </Link>
                 </div>
                 <div className="footer-privacy-officer">개인정보보호책임자 : 최민용</div>
               </div>
@@ -325,16 +335,7 @@ function Home() {
           </main>
 
           {/* KakaoTalk Consultation Floating Button (우측 하단 고정) */}
-          <button
-            className="kakao-consult-btn"
-            onClick={() => window.open('https://pf.kakao.com/_cwjhG/chat', '_blank', 'noopener,noreferrer')}
-            aria-label="카카오톡 상담 (새 탭)"
-          >
-            <div className="kakao-icon">
-              <img src={kLogo} alt="카카오톡" />
-            </div>
-            <span>카카오톡 상담</span>
-          </button>
+          <KakaoConsultDragButton />
         </div>
       </div>
     </div>
@@ -418,6 +419,7 @@ function App() {
             } 
           />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/auth-verify" element={<AuthVerify />} />
           <Route path="/add-member-type" element={<AddMemberType />} />
           <Route path="/member-type-form" element={<MemberTypeForm />} />

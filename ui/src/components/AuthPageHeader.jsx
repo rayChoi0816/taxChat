@@ -1,6 +1,18 @@
 import './AuthPageHeader.css'
 
-const AuthPageHeader = ({ title, onBack }) => {
+const AuthPageHeader = ({ title, onBack, onClose }) => {
+  if (typeof onClose === 'function') {
+    return (
+      <header className="auth-page-header">
+        <span className="auth-page-header-spacer" aria-hidden />
+        <h1 className="auth-page-header-title">{title}</h1>
+        <button type="button" className="auth-page-header-close" onClick={onClose} aria-label="닫기">
+          ×
+        </button>
+      </header>
+    )
+  }
+
   return (
     <header className="auth-page-header">
       <button type="button" className="auth-page-header-back" onClick={onBack} aria-label="뒤로가기">

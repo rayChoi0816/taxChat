@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import '../App.css'
 import './TermsOfService.css'
+import AuthPageHeader from '../components/AuthPageHeader'
 
 const TermsOfService = () => {
   const navigate = useNavigate()
@@ -18,16 +19,15 @@ const TermsOfService = () => {
   }
 
   return (
-  <div className="app-wrapper terms-of-service-page">
-    <button type="button" className="terms-close-btn" onClick={handleClose} aria-label="닫기">
-      ×
-    </button>
-    <div className="mobile-app-container">
-      <div className="terms-of-service-scroll">
-      <article className="terms-of-service-article">
-        <h1 className="terms-of-service-title">택스챗(TaxChat) 서비스 이용약관</h1>
-
-        <section className="terms-of-service-section">
+    <div className="app-wrapper terms-of-service-page">
+      <div className="mobile-app-container">
+        <div className="app app-auth">
+          <div className="auth-page-shell">
+            <div className="auth-page-scroll">
+              <AuthPageHeader title="택스챗 서비스 이용약관" onClose={handleClose} />
+              <div className="auth-page-content legal-doc-static">
+                <article className="terms-of-service-article">
+                  <section className="terms-of-service-section">
           <h2>제1조 (목적)</h2>
           <p>
             본 약관은 회사가 제공하는 택스챗(TaxChat) 서비스와 관련하여 회사와 이용자 간의 권리, 의무 및
@@ -233,10 +233,13 @@ const TermsOfService = () => {
           <h2>부칙</h2>
           <p>본 약관은 2026년 07월 01일부터 시행됩니다.</p>
         </section>
-      </article>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
   )
 }
 
