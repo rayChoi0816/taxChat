@@ -1,9 +1,29 @@
+import { useNavigate } from 'react-router-dom'
 import '../App.css'
 import './TermsOfService.css'
 
-const TermsOfService = () => (
+const TermsOfService = () => {
+  const navigate = useNavigate()
+
+  const handleClose = () => {
+    if (window.opener != null) {
+      window.close()
+      return
+    }
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate('/', { replace: true })
+  }
+
+  return (
   <div className="app-wrapper terms-of-service-page">
+    <button type="button" className="terms-close-btn" onClick={handleClose} aria-label="닫기">
+      ×
+    </button>
     <div className="mobile-app-container">
+      <div className="terms-of-service-scroll">
       <article className="terms-of-service-article">
         <h1 className="terms-of-service-title">택스챗(TaxChat) 서비스 이용약관</h1>
 
@@ -214,8 +234,10 @@ const TermsOfService = () => (
           <p>본 약관은 2026년 07월 01일부터 시행됩니다.</p>
         </section>
       </article>
+      </div>
     </div>
   </div>
-)
+  )
+}
 
 export default TermsOfService

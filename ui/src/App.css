@@ -103,29 +103,37 @@
   }
 }
 
-/* 메인 앱 고정 헤더가 없는 인증·로그인 화면 (모바일에서 .app 의 padding-top 제거) */
+/* 메인 앱 고정 헤더가 없는 인증·로그인 화면 */
 .app.app-auth {
   padding-top: 0;
-}
-
-.shell-back-btn {
-  position: absolute;
-  top: 0.5rem;
-  left: 1rem;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  color: #4b5563;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: 50%;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.shell-back-btn:hover {
-  background: #f3f4f6;
+.auth-page-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.auth-page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .app.app-auth .auth-page-scroll {
+    /* 모바일: 헤더는 fixed 라서 본문이 가려지지 않도록 패딩 */
+    padding-top: calc(52px + env(safe-area-inset-top, 0px));
+  }
 }
 
 /* 모바일 전용 고정 레이아웃 */

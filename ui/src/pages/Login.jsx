@@ -4,6 +4,7 @@ import '../App.css'
 import './Login.css'
 import mayLogo from '../assets/may_logo.png'
 import { useAuth } from '../contexts/AuthContext'
+import AuthPageHeader from '../components/AuthPageHeader'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -91,79 +92,80 @@ const Login = () => {
 
       <div className="mobile-app-container">
         <div className="app app-auth">
-          <div className="login-content login-content--with-shell-back">
-            <button type="button" className="shell-back-btn" onClick={handleBack} aria-label="뒤로가기">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
-            </button>
+          <div className="auth-page-shell">
+            <div className="auth-page-scroll">
+              <AuthPageHeader title="로그인" onBack={handleBack} />
+              <div className="auth-page-content">
+                <div className="login-content">
+                  {/* Logo */}
+                  <div className="login-logo-section">
+                    <div className="login-logo">
+                      <div className="logo-circle">
+                        <img src={mayLogo} alt="세무회계 오월 로고" className="logo-image" />
+                      </div>
+                    </div>
+                    <h1 className="login-service-name">세무회계 오월</h1>
+                  </div>
 
-            {/* Logo */}
-            <div className="login-logo-section">
-              <div className="login-logo">
-                <div className="logo-circle">
-                  <img src={mayLogo} alt="세무회계 오월 로고" className="logo-image" />
+                  {/* Login Form */}
+                  <div className="login-form">
+                    <input
+                      type="tel"
+                      className="login-input"
+                      placeholder="휴대전화번호 입력"
+                      value={phoneNumber}
+                      onChange={handlePhoneNumberChange}
+                      onKeyDown={handleKeyDown}
+                      maxLength={13}
+                      inputMode="numeric"
+                      autoComplete="tel"
+                    />
+
+                    <input
+                      type="password"
+                      className="login-input"
+                      placeholder="비밀번호 입력"
+                      value={password}
+                      onChange={handlePasswordChange}
+                      onKeyDown={handleKeyDown}
+                      autoComplete="current-password"
+                    />
+
+                    <button
+                      className={`login-button ${isLoginEnabled ? 'enabled' : 'disabled'}`}
+                      onClick={handleLogin}
+                      disabled={!isLoginEnabled}
+                    >
+                      {submitting ? '로그인 중...' : '로그인'}
+                    </button>
+
+                    {errorMsg && <p className="login-error">{errorMsg}</p>}
+
+                    <div className="login-links">
+                      <button type="button" className="login-link-btn" onClick={handleSignUp}>
+                        회원 가입하기
+                      </button>
+                      <span className="login-link-sep">|</span>
+                      <button type="button" className="login-link-btn" onClick={handleResetPassword}>
+                        비밀번호 재설정
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="login-footer">
+                    <div className="login-footer-title">사용문의</div>
+                    <button
+                      type="button"
+                      className="login-footer-link"
+                      onClick={handleKakaoChannel}
+                    >
+                      카카오채널
+                    </button>
+                    <div className="login-footer-brand">byray</div>
+                  </div>
                 </div>
               </div>
-              <h1 className="login-service-name">세무회계 오월</h1>
-            </div>
-
-            {/* Login Form */}
-            <div className="login-form">
-              <input
-                type="tel"
-                className="login-input"
-                placeholder="휴대전화번호 입력"
-                value={phoneNumber}
-                onChange={handlePhoneNumberChange}
-                onKeyDown={handleKeyDown}
-                maxLength={13}
-                inputMode="numeric"
-                autoComplete="tel"
-              />
-
-              <input
-                type="password"
-                className="login-input"
-                placeholder="비밀번호 입력"
-                value={password}
-                onChange={handlePasswordChange}
-                onKeyDown={handleKeyDown}
-                autoComplete="current-password"
-              />
-
-              <button
-                className={`login-button ${isLoginEnabled ? 'enabled' : 'disabled'}`}
-                onClick={handleLogin}
-                disabled={!isLoginEnabled}
-              >
-                {submitting ? '로그인 중...' : '로그인'}
-              </button>
-
-              {errorMsg && <p className="login-error">{errorMsg}</p>}
-
-              <div className="login-links">
-                <button type="button" className="login-link-btn" onClick={handleSignUp}>
-                  회원 가입하기
-                </button>
-                <span className="login-link-sep">|</span>
-                <button type="button" className="login-link-btn" onClick={handleResetPassword}>
-                  비밀번호 재설정
-                </button>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="login-footer">
-              <div className="login-footer-title">사용문의</div>
-              <button
-                type="button"
-                className="login-footer-link"
-                onClick={handleKakaoChannel}
-              >
-                카카오채널
-              </button>
-              <div className="login-footer-brand">byray</div>
             </div>
           </div>
         </div>

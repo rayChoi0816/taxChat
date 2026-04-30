@@ -5,6 +5,7 @@ import './Login.css'
 import './AuthVerify.css'
 import mayLogo from '../assets/may_logo.png'
 import { authAPI } from '../utils/api'
+import AuthPageHeader from '../components/AuthPageHeader'
 
 const PHONE_REGEX = /^01\d{8,9}$/
 // 비밀번호 규칙: 영문/숫자/특수문자 6~20자 (공백 제외 ASCII 출력 가능 문자)
@@ -214,20 +215,18 @@ const AuthVerify = () => {
 
       <div className="mobile-app-container">
         <div className="app app-auth">
-          <div className="login-content auth-verify-content">
-            <button type="button" className="shell-back-btn" onClick={handleBack} aria-label="뒤로가기">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
-            </button>
-
-            <div className="login-logo-section auth-verify-logo">
+          <div className="auth-page-shell">
+            <div className="auth-page-scroll">
+              <AuthPageHeader title="회원가입" onBack={handleBack} />
+              <div className="auth-page-content">
+                <div className="login-content auth-verify-content">
+                  <div className="login-logo-section auth-verify-logo">
               <div className="login-logo">
                 <div className="logo-circle">
                   <img src={mayLogo} alt="세무회계 오월 로고" className="logo-image" />
                 </div>
               </div>
-              <h1 className="login-service-name">인증하기</h1>
+              <h1 className="login-service-name">세무회계 오월</h1>
               <p className="auth-verify-subtitle">
                 회원가입을 위해 휴대폰 인증을 진행해 주세요
               </p>
@@ -417,6 +416,9 @@ const AuthVerify = () => {
                 </div>
               </div>
             )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
