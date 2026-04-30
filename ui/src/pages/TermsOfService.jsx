@@ -2,9 +2,11 @@ import { useNavigate } from 'react-router-dom'
 import '../App.css'
 import './TermsOfService.css'
 import AuthPageHeader from '../components/AuthPageHeader'
+import { useLegalPageScrollTop } from '../hooks/useLegalPageScrollTop'
 
 const TermsOfService = () => {
   const navigate = useNavigate()
+  const legalScrollRef = useLegalPageScrollTop()
 
   const handleClose = () => {
     if (window.opener != null) {
@@ -23,7 +25,7 @@ const TermsOfService = () => {
       <div className="mobile-app-container">
         <div className="app app-auth">
           <div className="auth-page-shell">
-            <div className="auth-page-scroll">
+            <div ref={legalScrollRef} className="auth-page-scroll">
               <AuthPageHeader title="택스챗 서비스 이용약관" onClose={handleClose} />
               <div className="auth-page-content legal-doc-static">
                 <article className="terms-of-service-article">

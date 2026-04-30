@@ -5,6 +5,7 @@ import './Login.css'
 import mayLogo from '../assets/may_logo.png'
 import { useAuth } from '../contexts/AuthContext'
 import AuthPageHeader from '../components/AuthPageHeader'
+import { KAKAO_CONSULT_CHAT_URL } from '../components/KakaoConsultDragButton'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -78,7 +79,7 @@ const Login = () => {
   }
 
   const handleKakaoChannel = () => {
-    window.open('https://pf.kakao.com/_your_channel_id', '_blank')
+    window.open(KAKAO_CONSULT_CHAT_URL, '_blank', 'noopener,noreferrer')
   }
 
   return (

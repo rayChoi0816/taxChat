@@ -3,7 +3,7 @@ import kLogo from '../assets/k_logo.png'
 
 const MARGIN = 8
 
-const KAKAO_CHAT_URL = 'https://pf.kakao.com/_cwjhG/chat'
+export const KAKAO_CONSULT_CHAT_URL = 'https://pf.kakao.com/_cwjhG/chat'
 
 /** 홈 우측 하단 기준 위치 근처(기존 약 7rem / 1rem 과 유사). */
 function defaultCornerPosition(el) {
@@ -57,7 +57,7 @@ export default function KakaoConsultDragButton() {
   }, [])
 
   const openKakao = useCallback(() => {
-    window.open(KAKAO_CHAT_URL, '_blank', 'noopener,noreferrer')
+    window.open(KAKAO_CONSULT_CHAT_URL, '_blank', 'noopener,noreferrer')
   }, [])
 
   const onPointerDown = (e) => {

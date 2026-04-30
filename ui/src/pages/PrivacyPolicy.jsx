@@ -2,9 +2,11 @@ import { useNavigate } from 'react-router-dom'
 import '../App.css'
 import './TermsOfService.css'
 import AuthPageHeader from '../components/AuthPageHeader'
+import { useLegalPageScrollTop } from '../hooks/useLegalPageScrollTop'
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate()
+  const legalScrollRef = useLegalPageScrollTop()
 
   const handleClose = () => {
     if (window.opener != null) {
@@ -23,14 +25,10 @@ const PrivacyPolicy = () => {
       <div className="mobile-app-container">
         <div className="app app-auth">
           <div className="auth-page-shell">
-            <div className="auth-page-scroll">
+            <div ref={legalScrollRef} className="auth-page-scroll">
               <AuthPageHeader title="개인정보처리방침" onClose={handleClose} />
               <div className="auth-page-content legal-doc-static">
                 <article className="terms-of-service-article">
-                  <p className="legal-doc-lead">
-                    개인정보처리방침 (민감정보·세무 대응 강화 버전)
-                  </p>
-
                   <section className="terms-of-service-section">
                     <h2>제1조 (개인정보 처리 목적)</h2>
                     <p>회사는 다음 목적을 위해 개인정보를 처리합니다.</p>
@@ -52,7 +50,7 @@ const PrivacyPolicy = () => {
                       <li>이름, 연락처, 이메일</li>
                       <li>생년월일, 주소</li>
                     </ul>
-                    <p className="privacy-block-title-spaced">2. 세무 처리 정보 (민감정보 포함 가능)</p>
+                    <p className="privacy-block-title-spaced">2. 세무 처리 정보</p>
                     <ul className="privacy-bullet-list">
                       <li>주민등록번호(법령 허용 범위 내)</li>
                       <li>소득, 매출, 사업자 정보</li>
@@ -158,8 +156,13 @@ const PrivacyPolicy = () => {
                   <section className="terms-of-service-section terms-of-service-supplement">
                     <h2>제10조 (개인정보 보호책임자)</h2>
                     <ul className="privacy-bullet-list">
-                      <li>성명: OOO</li>
-                      <li>연락처: OOO</li>
+                      <li>성명: 최민용</li>
+                      <li>
+                        이메일:{' '}
+                        <a className="footer-mail-link" href="mailto:choiminyong0816@gmail.com">
+                          choiminyong0816@gmail.com
+                        </a>
+                      </li>
                     </ul>
                   </section>
                 </article>

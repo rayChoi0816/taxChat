@@ -295,7 +295,12 @@ function Home() {
 
               <div className="footer-section">
                 <p className="footer-multiline">
-                  <span>전화 : 010-2163-7610</span>
+                  <span>
+                    전화 :{' '}
+                    <a className="footer-tel-link" href="tel:01021637610">
+                      010-2163-7610
+                    </a>
+                  </span>
                   <span>(평일 10:00 ~ 18:00 / 주말•공휴일 휴무)</span>
                 </p>
                 <p>

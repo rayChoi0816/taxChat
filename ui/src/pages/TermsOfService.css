@@ -8,6 +8,7 @@
 
 .terms-of-service-page .mobile-app-container {
   justify-content: center;
+  align-items: flex-start;
 }
 
 .terms-of-service-article {
@@ -40,7 +41,7 @@
 .terms-of-service-section ol,
 .terms-of-service-section ul {
   margin: 0.35rem 0 0;
-  padding-left: 1.15rem;
+  padding-left: 0.7rem;
 }
 
 .terms-of-service-section li + li {
@@ -49,7 +50,7 @@
 
 .terms-of-service-sublist {
   margin-top: 0.35rem;
-  padding-left: 1rem;
+  padding-left: 0.45rem;
   list-style: none;
 }
 
@@ -80,23 +81,16 @@
   margin: 1.25rem 0;
 }
 
-.legal-doc-lead {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 1rem;
-}
-
-.privacy-bullet-list {
   margin: 0.35rem 0 0;
-  padding-left: 1rem;
+  padding-left: 0.45rem;
 }
 
 .privacy-bullet-list li {
   margin-top: 0.35rem;
 }
 
-.footer-mail-link {
+.footer-mail-link,
+.footer-tel-link {
   color: inherit;
   text-decoration: underline;
   cursor: pointer;
