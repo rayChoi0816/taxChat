@@ -64,6 +64,10 @@ const Login = () => {
     if (e.key === 'Enter') handleLogin()
   }
 
+  const handleBack = () => {
+    navigate('/')
+  }
+
   const handleSignUp = () => {
     navigate('/auth-verify')
   }
@@ -86,8 +90,14 @@ const Login = () => {
       </div>
 
       <div className="mobile-app-container">
-        <div className="app">
-          <div className="login-content">
+        <div className="app app-auth">
+          <div className="login-content login-content--with-shell-back">
+            <button type="button" className="shell-back-btn" onClick={handleBack} aria-label="뒤로가기">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+
             {/* Logo */}
             <div className="login-logo-section">
               <div className="login-logo">

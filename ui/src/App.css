@@ -103,6 +103,31 @@
   }
 }
 
+/* 메인 앱 고정 헤더가 없는 인증·로그인 화면 (모바일에서 .app 의 padding-top 제거) */
+.app.app-auth {
+  padding-top: 0;
+}
+
+.shell-back-btn {
+  position: absolute;
+  top: 0.5rem;
+  left: 1rem;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.shell-back-btn:hover {
+  background: #f3f4f6;
+}
+
 /* 모바일 전용 고정 레이아웃 */
 .app {
   /* 헤더 높이를 변수로 두고 fixed 헤더에 가려지지 않도록 padding-top 으로 공간을 확보합니다. */

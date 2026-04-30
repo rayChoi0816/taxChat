@@ -30,6 +30,7 @@ import AddMemberType from './pages/AddMemberType'
 import MemberTypeForm from './pages/MemberTypeForm'
 import Login from './pages/Login'
 import AuthVerify from './pages/AuthVerify'
+import TermsOfService from './pages/TermsOfService'
 import AdminLogin from './pages/AdminLogin'
 import AdminSettings from './pages/AdminSettings'
 import AdminRoute from './components/AdminRoute'
@@ -416,6 +417,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/auth-verify" element={<AuthVerify />} />
           <Route path="/add-member-type" element={<AddMemberType />} />
           <Route path="/member-type-form" element={<MemberTypeForm />} />

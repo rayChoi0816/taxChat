@@ -22,8 +22,14 @@ const getAdminNotifyPhones = () => {
 // 실패해도 회원가입 응답에는 영향을 주지 않는다(알림은 보조 기능).
 const notifyAdminSignup = (payload) => {
   const phones = getAdminNotifyPhones()
-  if (phones.length === 0) return
+  if (phones.length === 0) {
+    console.warn(
+      '[회원가입 알림] 수신 번호 미설정: .env 에 ADMIN_NOTIFY_PHONE(숫자만, 콤마 구분)을 넣어야 알림톡/LMS가 발송됩니다.'
+    )
+    return
+  }
   const text = buildSignupNotificationMessage(payload)
+  console.log(`[회원가입 알림] 수신처 ${phones.length}건 발송 시도`)
   for (const to of phones) {
     sendAlimtalk({ to, text, subject: '[택스챗] 신규 회원가입' })
       .then((r) =>

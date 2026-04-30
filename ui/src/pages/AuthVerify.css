@@ -3,24 +3,10 @@
   padding-top: 3.75rem;
 }
 
-.auth-verify-back-btn {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  color: #4b5563;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: 50%;
-}
-
-.auth-verify-back-btn:hover {
-  background: #f3f4f6;
+@media (max-width: 767px) {
+  .auth-verify-content {
+    padding-top: 2.25rem;
+  }
 }
 
 .auth-verify-logo {

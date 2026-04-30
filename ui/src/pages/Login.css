@@ -11,6 +11,20 @@
   overflow-y: auto;
 }
 
+.login-content--with-shell-back {
+  position: relative;
+}
+
+@media (max-width: 767px) {
+  .login-content--with-shell-back {
+    padding-top: 2.5rem !important;
+  }
+
+  .login-content--with-shell-back .login-logo-section {
+    margin-top: 0.25rem;
+  }
+}
+
 /* Logo Section */
 .login-logo-section {
   display: flex;

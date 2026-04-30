@@ -1,0 +1,85 @@
+.terms-of-service-page .mobile-app-container {
+  justify-content: center;
+}
+
+.terms-of-service-article {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 2.5rem;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  color: #1f2937;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+@media (max-width: 767px) {
+  .terms-of-service-article {
+    padding-top: 0.75rem;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+}
+
+.terms-of-service-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 1.5rem;
+  text-align: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.terms-of-service-section {
+  margin-bottom: 1.35rem;
+}
+
+.terms-of-service-section h2 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 0.5rem;
+}
+
+.terms-of-service-section p {
+  margin: 0 0 0.5rem;
+}
+
+.terms-of-service-section ol,
+.terms-of-service-section ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.terms-of-service-section li + li {
+  margin-top: 0.35rem;
+}
+
+.terms-of-service-sublist {
+  margin-top: 0.35rem;
+  padding-left: 1rem;
+  list-style: none;
+}
+
+.terms-of-service-sublist li {
+  position: relative;
+  padding-left: 0;
+}
+
+.terms-of-service-note {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin-top: 0.5rem !important;
+}
+
+.terms-of-service-supplement {
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.terms-of-service-supplement h2 {
+  margin-bottom: 0.35rem;
+}

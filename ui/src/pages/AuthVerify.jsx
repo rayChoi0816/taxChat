@@ -109,31 +109,36 @@ const AuthVerify = () => {
 
   const openSmsModal = async () => {
     if (!canOpenSms) return
-    setSmsOpen(true)
-    setSmsErrorMsg('')
-    setSmsInfoMsg('')
-    await handleRequestCode()
+    await handleRequestCode({ openModalOnSuccess: true })
   }
 
   const closeSmsModal = () => {
     setSmsOpen(false)
   }
 
-  const handleRequestCode = async () => {
+  const applySuccessfulSmsRequest = (res) => {
+    setCodeSent(true)
+    setVerified(false)
+    setCode('')
+    setDevCode(res.devCode || '')
+    startTimer(res.ttlSeconds || 300)
+    setSmsInfoMsg('인증번호가 발송되었습니다. SMS를 확인해 주세요.')
+  }
+
+  const handleRequestCode = async (options = {}) => {
+    const { openModalOnSuccess = false } = options
     setRequesting(true)
     setSmsErrorMsg('')
     setSmsInfoMsg('')
     try {
       const res = await authAPI.requestSmsCode(phoneDigits)
       if (res.success) {
-        setCodeSent(true)
-        setVerified(false)
-        setCode('')
-        setDevCode(res.devCode || '')
-        startTimer(res.ttlSeconds || 300)
-        setSmsInfoMsg('인증번호가 발송되었습니다. SMS를 확인해 주세요.')
+        applySuccessfulSmsRequest(res)
+        if (openModalOnSuccess) setSmsOpen(true)
       } else {
-        setSmsErrorMsg(res.error || '인증번호 발송에 실패했습니다')
+        const errMsg = res.error || '인증번호 발송에 실패했습니다'
+        if (openModalOnSuccess && !smsOpen) alert(errMsg)
+        else setSmsErrorMsg(errMsg)
       }
     } catch (err) {
       const msg = err.message || ''
@@ -144,7 +149,11 @@ const AuthVerify = () => {
         phoneInputRef.current?.focus()
         return
       }
-      setSmsErrorMsg(msg || '인증번호 발송에 실패했습니다')
+      if (openModalOnSuccess && !smsOpen) {
+        alert(msg || '인증번호 발송에 실패했습니다')
+      } else {
+        setSmsErrorMsg(msg || '인증번호 발송에 실패했습니다')
+      }
     } finally {
       setRequesting(false)
     }
@@ -188,7 +197,10 @@ const AuthVerify = () => {
   const handleOpenTerms = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    alert('이용 약관은 준비 중입니다.')
+    const raw = import.meta.env.BASE_URL || '/'
+    const normalized = raw.endsWith('/') ? raw : `${raw}/`
+    const url = `${window.location.origin}${normalized}terms-of-service`
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -201,9 +213,9 @@ const AuthVerify = () => {
       </div>
 
       <div className="mobile-app-container">
-        <div className="app">
+        <div className="app app-auth">
           <div className="login-content auth-verify-content">
-            <button type="button" className="auth-verify-back-btn" onClick={handleBack}>
+            <button type="button" className="shell-back-btn" onClick={handleBack} aria-label="뒤로가기">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
@@ -243,12 +255,12 @@ const AuthVerify = () => {
               <button
                 type="button"
                 className={`login-button auth-verify-phone-btn ${
-                  verified ? 'disabled verified' : canOpenSms ? 'enabled' : 'disabled'
+                  verified ? 'disabled verified' : canOpenSms && !requesting ? 'enabled' : 'disabled'
                 }`}
                 onClick={openSmsModal}
-                disabled={!canOpenSms}
+                disabled={!canOpenSms || requesting}
               >
-                {verified ? '휴대폰 인증완료' : '휴대폰 인증하기'}
+                {verified ? '휴대폰 인증완료' : requesting && !smsOpen ? '확인 중...' : '휴대폰 인증하기'}
               </button>
 
               {/* 비밀번호 */}
@@ -308,14 +320,10 @@ const AuthVerify = () => {
                   )}
                 </span>
                 <span className="auth-verify-agree-text">
-                  <button
-                    type="button"
-                    className="auth-verify-agree-link"
-                    onClick={handleOpenTerms}
-                  >
-                    이용
+                  <button type="button" className="auth-verify-agree-link" onClick={handleOpenTerms}>
+                    이용 약관
                   </button>
-                  {' 약관에 동의합니다.'}
+                  에 동의합니다.
                 </span>
               </label>
 
