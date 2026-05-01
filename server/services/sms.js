@@ -280,10 +280,14 @@ export const clipPpurioChangeWordValue = (s, max = PPURIO_VAR_MAX_LEN) => {
   return x.slice(0, max)
 }
 
-/** 템플릿 문자열 불일치 방지: BOM 제거 · CRLF→LF · 선행 줄바꿈 제거(승인본이 첫 줄부터 시작하는 경우) */
+/** 템플릿 문자열: BOM·CRLF 정규화. 선행 빈 줄 제거는 뿌리오 등록본과 맞출 때만 `PPURIO_ALIMTALK_STRIP_LEADING_NL=1` */
 export const normalizeAlimtalkContentBody = (raw) => {
   if (typeof raw !== 'string') return ''
-  return raw.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/^[\n\r]+/, '')
+  let s = raw.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
+  if (String(process.env.PPURIO_ALIMTALK_STRIP_LEADING_NL || '').trim() === '1') {
+    s = s.replace(/^[\n\r]+/, '')
+  }
+  return s
 }
 
 function normalizeAndClipChangeWord(cw) {
@@ -370,6 +374,8 @@ export const sendAlimtalk = async ({
   lmsFallbackBody,
 }) => {
   const resolvedTo = await getSendPhoneNumber(to)
+  const toDigitsOnly = String(resolvedTo).replace(/\D/g, '')
+  const recipientPhone = toDigitsOnly.length >= 10 ? toDigitsOnly : String(resolvedTo).trim()
   const rawText = typeof text === 'string' ? text : String(text ?? '')
   const normalizedAlimtalkBody = normalizeAlimtalkContentBody(rawText)
   const lmsText =
@@ -384,7 +390,7 @@ export const sendAlimtalk = async ({
       return { ok: true, channel: 'DEV', dev: true }
     }
     console.log('[알림톡] 환경변수 미설정 → LMS 로 발송')
-    const r = await sendLms({ to: resolvedTo, subject, text: lmsText })
+    const r = await sendLms({ to: recipientPhone, subject, text: lmsText })
     return { ok: true, channel: 'LMS', data: r.data }
   }
 
@@ -405,9 +411,14 @@ export const sendAlimtalk = async ({
     .toString(36)
     .slice(2, 8)}`.slice(0, 30)
 
-  // 3) 뿌리오 v1 알림톡 정식 포맷 (/v1/kakao + messageType=ALT)
-  //    isResend=Y 로 두면, 알림톡 실패 시 resend 객체의 SMS/LMS 본문이 자동 대체 발송됨.
-  const target = { to: resolvedTo }
+  // 3) 뿌리오 v1 /v1/kakao — 공식 필드 표에 **최상위 content 없음**. "추가 필드는 허용되지 않습니다" 로
+  //    루트에 content 를 넣으면 카카오 발송이 스킵·실패하고 isResend 로 LMS 만 가는 사례가 있다.
+  //    변수는 templateCode + targets[].changeWord 로 전달. (구버전/특수 계정만 루트 content 필요 시 env 로 켬)
+  const includeRootContent = ['1', 'true', 'yes', 'y'].includes(
+    String(process.env.PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT || '').trim().toLowerCase()
+  )
+
+  const target = { to: recipientPhone }
   const clippedCw = normalizeAndClipChangeWord(changeWord)
   if (clippedCw && Object.keys(clippedCw).length > 0) {
     target.changeWord = clippedCw
@@ -418,7 +429,6 @@ export const sendAlimtalk = async ({
     messageType: 'ALT',
     senderProfile: process.env.PPURIO_KAKAO_SENDER_KEY,
     templateCode: process.env.PPURIO_KAKAO_TEMPLATE_CODE,
-    content: normalizedAlimtalkBody,
     duplicateFlag: 'N',
     refKey,
     targetCount: 1,
@@ -432,12 +442,20 @@ export const sendAlimtalk = async ({
     },
   }
 
-  const content = normalizedAlimtalkBody
+  if (includeRootContent && normalizedAlimtalkBody) {
+    body.content = normalizedAlimtalkBody
+  }
+
+  const contentForCompare = normalizedAlimtalkBody
   const effectiveChangeWord = clippedCw
 
   console.log('========== 환경 설정 ==========')
   console.log('WORD_STYLE:', process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE)
   console.log('TEMPLATE_CODE:', process.env.PPURIO_KAKAO_TEMPLATE_CODE)
+  console.log(
+    'KAKAO_ROOT_CONTENT:',
+    includeRootContent ? '포함(PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT)' : '미포함(기본·뿌리오 표준)'
+  )
 
   if (effectiveChangeWord) {
     Object.entries(effectiveChangeWord).forEach(([key, value]) => {
@@ -449,14 +467,17 @@ export const sendAlimtalk = async ({
     console.log('[알림톡 진단] changeWord 없음(치환 변수 미사용 또는 plain 경로 가능)')
   }
 
-  console.log('========== content 비교 ==========')
-  console.log(String(content || '').replace(/\s/g, '_'))
+  console.log('========== content 비교(참고·요청에 넣는지는 KAKAO_ROOT_CONTENT) ==========')
+  console.log(String(contentForCompare || '').replace(/\s/g, '_'))
+  if (!includeRootContent) {
+    console.log('[참고] 위 본문은 로그용입니다. JSON 요청에는 넣지 않음 → templateCode + changeWord 만 전달.')
+  }
 
   console.log('========== 알림톡 요청 payload ==========')
   console.log('template_code:', process.env.PPURIO_KAKAO_TEMPLATE_CODE)
-  console.log('content:', content)
+  console.log('content(최상위):', includeRootContent ? normalizedAlimtalkBody : undefined)
   console.log('changeWord:', effectiveChangeWord)
-  console.log('to:', resolvedTo)
+  console.log('to:', recipientPhone, '| raw:', resolvedTo)
   console.log('senderProfile:', process.env.PPURIO_KAKAO_SENDER_KEY)
   console.log('refKey:', refKey)
   console.log('isResend:', body.isResend)
@@ -503,7 +524,7 @@ export const sendAlimtalk = async ({
     )
 
     try {
-      const r = await sendLms({ to: resolvedTo, subject, text: lmsText })
+      const r = await sendLms({ to: recipientPhone, subject, text: lmsText })
       return {
         ok: true,
         channel: 'LMS',
@@ -543,7 +564,7 @@ export const sendAlimtalk = async ({
     console.error('알림톡 발송 실패 → LMS 대체 시도:', info.message)
     // 알림톡이 어떤 사유로든 실패하면 LMS 로라도 메시지가 가도록 한다.
     try {
-      const r = await sendLms({ to: resolvedTo, subject, text: lmsText })
+      const r = await sendLms({ to: recipientPhone, subject, text: lmsText })
       return { ok: true, channel: 'LMS', data: r.data, alimtalkError: info.message }
     } catch (lmsErr) {
       const e = new Error('카카오 알림톡 및 LMS 발송 모두 실패했습니다')
