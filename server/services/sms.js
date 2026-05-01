@@ -267,10 +267,33 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_KAKAO_SENDER_KEY   : 뿌리오에 등록한 카카오 채널 발신프로필 키
 //   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드
 //
-// 알림톡 본문은 사전 승인된 템플릿 본문과 100% 일치해야 발송 가능하다.
-// 본문이 다르거나 차단된 경우 isResend=Y 의 resend 본문이 SMS/LMS 로 발송된다.
-// 그래도 실패하면 마지막 안전장치로 별도 LMS 호출까지 시도한다.
-// ============================================================================
+// 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
+// #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PPURIO_VAR_MAX_LEN = 100
+
+/** 뿌리오 changeWord varN 은 text(100) */
+export const clipPpurioChangeWordValue = (s, max = PPURIO_VAR_MAX_LEN) => {
+  const x = String(s ?? '')
+  if (x.length <= max) return x
+  return x.slice(0, max)
+}
+
+/** 템플릿 문자열 불일치 방지: BOM 제거 · CRLF→LF · 선행 줄바꿈 제거(승인본이 첫 줄부터 시작하는 경우) */
+export const normalizeAlimtalkContentBody = (raw) => {
+  if (typeof raw !== 'string') return ''
+  return raw.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/^[\n\r]+/, '')
+}
+
+function normalizeAndClipChangeWord(cw) {
+  if (!cw || typeof cw !== 'object') return cw
+  const out = {}
+  for (const [k, val] of Object.entries(cw)) {
+    out[k] = typeof val === 'string' ? clipPpurioChangeWordValue(val) : val
+  }
+  return out
+}
 
 const isAlimtalkConfigured = () => {
   return Boolean(
@@ -347,13 +370,17 @@ export const sendAlimtalk = async ({
   lmsFallbackBody,
 }) => {
   const resolvedTo = await getSendPhoneNumber(to)
+  const rawText = typeof text === 'string' ? text : String(text ?? '')
+  const normalizedAlimtalkBody = normalizeAlimtalkContentBody(rawText)
   const lmsText =
-    typeof lmsFallbackBody === 'string' && lmsFallbackBody.length > 0 ? lmsFallbackBody : text
+    typeof lmsFallbackBody === 'string' && lmsFallbackBody.length > 0
+      ? lmsFallbackBody
+      : normalizedAlimtalkBody
 
   // 1) 알림톡 설정 자체가 비어있다면 곧장 LMS/개발 로그로 처리
   if (!isAlimtalkConfigured()) {
     if (!isPpurioConfigured()) {
-      console.log(`[개발 알림톡] to=${resolvedTo} | text=${text}`)
+      console.log(`[개발 알림톡] to=${resolvedTo} | text=${normalizedAlimtalkBody}`)
       return { ok: true, channel: 'DEV', dev: true }
     }
     console.log('[알림톡] 환경변수 미설정 → LMS 로 발송')
@@ -381,8 +408,9 @@ export const sendAlimtalk = async ({
   // 3) 뿌리오 v1 알림톡 정식 포맷 (/v1/kakao + messageType=ALT)
   //    isResend=Y 로 두면, 알림톡 실패 시 resend 객체의 SMS/LMS 본문이 자동 대체 발송됨.
   const target = { to: resolvedTo }
-  if (changeWord && Object.keys(changeWord).length > 0) {
-    target.changeWord = changeWord
+  const clippedCw = normalizeAndClipChangeWord(changeWord)
+  if (clippedCw && Object.keys(clippedCw).length > 0) {
+    target.changeWord = clippedCw
   }
 
   const body = {
@@ -390,7 +418,7 @@ export const sendAlimtalk = async ({
     messageType: 'ALT',
     senderProfile: process.env.PPURIO_KAKAO_SENDER_KEY,
     templateCode: process.env.PPURIO_KAKAO_TEMPLATE_CODE,
-    content: text,
+    content: normalizedAlimtalkBody,
     duplicateFlag: 'N',
     refKey,
     targetCount: 1,
@@ -404,11 +432,8 @@ export const sendAlimtalk = async ({
     },
   }
 
-  const content = text
-  const effectiveChangeWord =
-    changeWord && typeof changeWord === 'object' && Object.keys(changeWord).length > 0
-      ? changeWord
-      : undefined
+  const content = normalizedAlimtalkBody
+  const effectiveChangeWord = clippedCw
 
   console.log('========== 환경 설정 ==========')
   console.log('WORD_STYLE:', process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE)
@@ -458,24 +483,41 @@ export const sendAlimtalk = async ({
     const bizDesc = res.data?.description != null ? String(res.data.description) : ''
     if (bizCode === '1000') {
       console.log('[뿌리오 알림톡] 응답 코드 해석: SUCCESS (통상 code=1000)')
-    } else {
-      console.warn(
-        `[뿌리오 알림톡] HTTP 200 이어도 본문 code로 실패 가능 | code="${bizCode}" description="${bizDesc}"`
-      )
-      const hints = []
-      if (/template|매칭|match|내용|불일치/i.test(bizDesc)) {
-        hints.push('TEMPLATE 또는 content 불일치·TEMPLATE_CODE 불일치 의심')
-      }
-      if (/parm|파라미터|invalid|변수|change/i.test(bizDesc)) {
-        hints.push('INVALID_PARAMETER · changeWord·본문 변수 의심')
-      }
-      console.warn(
-        '[뿌리오 알림톡] 진단 힌트:',
-        hints.length > 0 ? hints.join(' | ') : '뿌리오 연동 에러 코드표·대시보드 확인'
-      )
+      return { ok: true, channel: 'ALT', data: res.data }
     }
 
-    return { ok: true, channel: 'ALT', data: res.data }
+    console.error(
+      '========== 알림톡 API code≠1000 (카카오 미수락 가능) ==========',
+      `code="${bizCode}" description="${bizDesc}"`
+    )
+    const hints = []
+    if (/template|매칭|match|내용|불일치|코드/i.test(bizDesc)) {
+      hints.push('TEMPLATE·content·TEMPLATE_CODE 불일치 의심')
+    }
+    if (/parm|파라미터|invalid|변수|change/i.test(bizDesc)) {
+      hints.push('INVALID_PARAMETER · changeWord·본문 변수 의심')
+    }
+    console.warn(
+      '[뿌리오 알림톡] 진단 힌트:',
+      hints.length > 0 ? hints.join(' | ') : '뿌리오 에러 코드표·대시보드 확인 → 아래 LMS 수동 재시도'
+    )
+
+    try {
+      const r = await sendLms({ to: resolvedTo, subject, text: lmsText })
+      return {
+        ok: true,
+        channel: 'LMS',
+        data: r.data,
+        alimtalkError: `[code≠1000] ${bizCode} ${bizDesc}`.slice(0, 300),
+      }
+    } catch (lmsErr) {
+      const e = new Error('카카오 알림톡 거절(응답 code≠1000) 후 LMS 대체도 실패했습니다')
+      const info = await summarizePpurioError('alimtalk-lms-after-codefail', lmsErr)
+      e.detail = info.detail || lmsErr.detail
+      e.serverIp = info.serverIp || lmsErr.serverIp
+      e.ppurioMessage = info.message
+      throw e
+    }
   } catch (err) {
     console.log('========== 알림톡 실패 ==========')
     if (err.response) {
@@ -574,13 +616,14 @@ export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGI
 /**
  * 신규가입 카카오 알림톡 (관리자 수신)
  *
- * - 카카오 쪽은 #{memberType} 승인을 유지하고, 레포에는 **원본 문자열** 과 **numbered 전송용 문자열** 을 함께 둠.
- * - `PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=numbered` 이면 뿌리오에 [*1*]~[*4*] + var1~var4 로 전송.
+ * **기본 전송 모드는 뿌리오 규격 `[*n*]` + `var1…var4`(numbered)** 입니다. 카카오 콘솔에서는 #{변수}로
+ * 보이더라도 API 연동은 대개 번호 변수가 맞습니다. `#{memberType}+memberType키` 형만 쓰는 계정이면
+ * `PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=hash` 로 명시합니다.
  *
- * payload (routes/auth.js): memberType, name → memberName, phone, signupAt (+ customerId는 LMS 폴백)
+ * payload (routes/auth.js): memberType, name→memberName, phone, signupAt (+ customerId는 LMS 폴백)
  *
  * - PPURIO_SIGNUP_ALIMTALK_MODE=plain → 치환 없이 LMS 위주
- * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE → (선택) hash 분기만 덮어쓰기(#{ } 본문, changeWord가 hash 키와 일치해야 함)
+ * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE → (선택) hash 분기만 본문 덮어쓰기 (#{ })
  */
 export const buildSignupAdminAlimtalkRequest = (payload) => {
   const plainText = buildSignupNotificationMessage(payload)
@@ -614,29 +657,44 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   const pad = (n) => String(n).padStart(2, '0')
   const signupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 
-  const hashChangeWord = {
+  const envStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').trim().toLowerCase()
+  const useHashBranch =
+    envStyle === 'hash' ||
+    envStyle === 'kakao_hash' ||
+    envStyle === 'legacy_hash' ||
+    envStyle === 'sharp'
+
+  /** 기본값: numbered (환경변수 비움 또는 `numbered` 명시 동일 처리) → #{ } 분기 미매칭으로 대체문자만 가는 현상 예방 */
+  const isNumbered = !useHashBranch
+
+  const envOriginal = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
+  const originalContentRaw = envOriginal || SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
+  const numberedContentRaw = SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT
+
+  const pickedRaw = isNumbered ? numberedContentRaw : originalContentRaw
+  const content = normalizeAlimtalkContentBody(pickedRaw)
+
+  const hashChangeWord = normalizeAndClipChangeWord({
     memberType,
     memberName,
     phone,
     signupAt,
-  }
+  })
 
-  const numberedChangeWord = {
+  const numberedChangeWord = normalizeAndClipChangeWord({
     var1: memberType,
     var2: memberName,
     var3: phone,
     var4: signupAt,
-  }
+  })
 
-  const envStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').trim().toLowerCase()
-  const isNumbered = envStyle === 'numbered'
-
-  const envOriginal = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
-  const originalContent = envOriginal || SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
-  const numberedContent = SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT
-
-  const content = isNumbered ? numberedContent : originalContent
   const changeWord = isNumbered ? numberedChangeWord : hashChangeWord
+
+  console.log(
+    `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered([*]+var)' : 'hash(#{memberType}+키일치 필수)'} ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
+      process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '(기본 numbered)'
+    }"`
+  )
 
   if (!payload.name || String(payload.name).trim() === '') {
     console.warn('[회원가입 알림톡] payload.name 비어 있음 → memberName 은 "-" 로 대체됩니다.')
@@ -645,9 +703,6 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
     console.warn('[회원가입 알림톡] payload.phone 이 짧거나 비어 있을 수 있습니다.')
   }
 
-  console.log(
-    `[회원가입 알림톡] wordStyle=${isNumbered ? 'numbered([*1*]+var1)' : 'hash(#{ }+memberType…)'} ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || ''}"`
-  )
   console.log('[회원가입 알림톡] content(앞 120자):', String(content).replace(/\r/g, '').slice(0, 120))
   console.log('[회원가입 알림톡] changeWord:', changeWord)
   console.log('[회원가입 알림톡] 회원명(payload.name→memberName):', memberName)
