@@ -333,7 +333,7 @@ export const sendLms = async ({ to, subject, text }) => {
  * @param {string} params.to        - 받는 사람 휴대폰 번호 (01012345678)
  * @param {string} params.text      - 알림톡 본문 (템플릿과 동일해야 함, 변수치환 후 최종 문구)
  * @param {string} [params.subject] - SMS/LMS 대체발송 시 제목
- * @param {Object} [params.changeWord] - 알림톡 템플릿 변수치환 맵 (예: { "고객명": "홍길동" })
+ * @param {Object} [params.changeWord] - 템플릿 변수 치환 (예: 카카오 #{키} 이름과 동일한 키, 또는 뿌리오 var1~var8)
  * @returns {Promise<{ok:boolean, channel:'ALT'|'LMS'|'DEV', data?:any}>}
  *
  * 알림톡 미설정/실패 시 자동으로 LMS 로 대체 발송하여 메시지 누락을 방지.
@@ -479,17 +479,29 @@ export const buildSignupNotificationMessage = ({
   ].join('\n')
 }
 
+/** 카카오 승인 템플릿 예시(변수 이름 #{memberType} … 와 반드시 일치 — 본문은 승인문 그대로 유지). */
+export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT =
+  '택스챗 신규 회원이 가입되었습니다.\n' +
+  '\n' +
+  '사업자 유형: #{memberType}\n' +
+  '회원명: #{memberName}\n' +
+  '연락처: #{phone}\n' +
+  '가입일시: #{signupAt}\n' +
+  '\n' +
+  '택스쳇 관리자페이지로 이동\n'
+
 /**
- * 신규가입 카카오 알림톡: 승인 템플릿(변수) + changeWord 또는 plain(LMS 우선 모드).
+ * 신규가입 카카오 알림톡 (관리자 수신)
  *
- * 뿌리오(/v1/kakao)는 changeWord를 **var1 ~ var8** 로만 받으며, 본문(content)의
- * [*1*] ~ [*8*] 자리에 치환합니다. (카카오 비즈니스 센터에 #{이름}으로 보여도
- * 뿌리오 연동 시에는 번호 치환이 맞는 경우가 많습니다 — 미수신 시 PPURIO_SIGNUP_ALIMTALK_WORD_STYLE 확인)
+ * 실제 호출 payload (routes/auth.js → notifyAdminSignup):
+ *   memberType, name, phone, signupAt, customerId
+ * changeWord 키는 카카오 템플릿 #{이름} 과 **동일**해야 하므로:
+ *   memberName ← payload.name (코드상 이름 필드)
  *
  * 환경변수:
- * - PPURIO_SIGNUP_ALIMTALK_MODE=plain  → 치환 없이 장문으로만 발송에 가깝게 처리
- * - PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=hash → 본문에 #{memberType} … + changeWord에 동일 키(비권장, 뿌리오 미지원 가능)
- * - 그 외(기본): [*1*]~[*4*] + var1~var4
+ * - PPURIO_SIGNUP_ALIMTALK_MODE=plain  → 치환 없이 LMS 중심
+ * - PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=numbered → 뿌리오 var1~var4 + [*1*]~[*4*] (문서 기준 대체)
+ * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE    → 본문 덮어쓰기(승인문과 반드시 동일해야 함)
  */
 export const buildSignupAdminAlimtalkRequest = (payload) => {
   const plainText = buildSignupNotificationMessage(payload)
@@ -503,40 +515,37 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
     }
   }
 
-  const formattedPhone = payload.phone
-    ? String(payload.phone).replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')
+  const memberType = payload.memberType != null && String(payload.memberType).trim() !== ''
+    ? String(payload.memberType)
     : '-'
+  const memberName = payload.name != null && String(payload.name).trim() !== ''
+    ? String(payload.name)
+    : '-'
+  const rawPhone = payload.phone != null ? String(payload.phone).replace(/[^\d]/g, '') : ''
+  const phone =
+    rawPhone.length >= 10
+      ? rawPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')
+      : payload.phone != null && String(payload.phone).trim() !== ''
+        ? String(payload.phone)
+        : '-'
+
   const ts = payload.signupAt ? new Date(payload.signupAt) : new Date()
   const pad = (n) => String(n).padStart(2, '0')
-  const formattedSignupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
-
-  const var1 = String(payload.memberType ?? '-')
-  const var2 = String(payload.name ?? '-')
-  const var3 = formattedPhone
-  const var4 = formattedSignupAt
+  const signupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 
   const wordStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').toLowerCase()
 
   let templateContent
+  /** @type {Record<string, string>} */
   let changeWord
 
-  if (wordStyle === 'hash') {
+  if (wordStyle === 'numbered') {
     changeWord = {
-      memberType: var1,
-      memberName: var2,
-      phone: var3,
-      signupAt: var4,
+      var1: memberType,
+      var2: memberName,
+      var3: phone,
+      var4: signupAt,
     }
-    templateContent =
-      String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
-      [
-        '사업자 유형: #{memberType}',
-        '회원명: #{memberName}',
-        '연락처: #{phone}',
-        '가입일시: #{signupAt}',
-      ].join('\n')
-  } else {
-    changeWord = { var1, var2, var3, var4 }
     templateContent =
       String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
       [
@@ -545,13 +554,35 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
         '연락처: [*3*]',
         '가입일시: [*4*]',
       ].join('\n')
+  } else {
+    changeWord = {
+      memberType,
+      memberName,
+      phone,
+      signupAt,
+    }
+    templateContent =
+      String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
+      SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT
   }
+
+  if (!payload.name || String(payload.name).trim() === '') {
+    console.warn('[회원가입 알림톡] payload.name 비어 있음 → changeWord.memberName 은 "-" 로 대체됩니다.')
+  }
+  if (!payload.phone || String(payload.phone).replace(/[^\d]/g, '').length < 10) {
+    console.warn('[회원가입 알림톡] payload.phone 이 짧거나 비어 있을 수 있습니다.')
+  }
+
+  console.log('[회원가입 알림톡] changeWord:', changeWord)
+  console.log('[회원가입 알림톡] 회원명(payload.name→memberName):', memberName)
+  console.log('[회원가입 알림톡] 회원 연락처(raw):', payload.phone ?? '(payload 없음)')
+  console.log('[회원가입 알림톡] 회원 연락처(변수 phone):', phone)
+  console.log('[회원가입 알림톡] 사업자 유형(payload.memberType):', memberType)
 
   return {
     text: templateContent,
     changeWord,
     plainText,
-    // Y: 알림톡 실패 시 뿌리오 대체(LMS) 허용 — 관리 알림 누락 방지
     ppurioIsResend: 'Y',
   }
 }
