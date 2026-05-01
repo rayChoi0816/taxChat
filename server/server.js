@@ -17,6 +17,8 @@ import smsRoutes from './routes/sms.js'
 import paymentRoutes from './routes/payments.js'
 import settingsRoutes from './routes/settings.js'
 import debugRoutes from './routes/debug.js'
+import adminRoutes from './routes/admin.js'
+import { ensureSystemSettingsDefaults } from './services/testModeService.js'
 
 dotenv.config()
 
@@ -111,6 +113,7 @@ app.use('/api/sms', smsRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/settings', settingsRoutes)
 app.use('/api/debug', debugRoutes)
+app.use('/api/admin', adminRoutes)
 
 // 404 핸들러
 app.use((req, res) => {
@@ -134,22 +137,35 @@ app.use((err, req, res, next) => {
   })
 })
 
-// 데이터베이스 초기화 및 마이그레이션 (개발 환경에서만)
-if (process.env.NODE_ENV === 'development') {
-  initDatabase()
-    .then(() => migrateCustomerId())
-    .catch(console.error)
+// 데이터베이스 초기화 및 마이그레이션 (개발 환경), 전역 설정 기본값 (모든 환경)
+const bootServer = async () => {
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      await initDatabase()
+      await migrateCustomerId()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  try {
+    await ensureSystemSettingsDefaults()
+    console.log('system_settings 기본값 확인 완료')
+  } catch (err) {
+    console.warn('system_settings 기본값 확인 실패:', err.message)
+  }
+
+  app.listen(PORT, () => {
+    console.log('='.repeat(50))
+    console.log(`🚀 TaxChat 서버가 포트 ${PORT}에서 실행 중입니다`)
+    console.log(`📝 환경: ${process.env.NODE_ENV || 'development'}`)
+    console.log(`🌐 API 엔드포인트: http://localhost:${PORT}/api`)
+    console.log(`💚 헬스 체크: http://localhost:${PORT}/api/health`)
+    console.log('='.repeat(50))
+  })
 }
 
-// 서버 시작
-app.listen(PORT, () => {
-  console.log('='.repeat(50))
-  console.log(`🚀 TaxChat 서버가 포트 ${PORT}에서 실행 중입니다`)
-  console.log(`📝 환경: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`🌐 API 엔드포인트: http://localhost:${PORT}/api`)
-  console.log(`💚 헬스 체크: http://localhost:${PORT}/api/health`)
-  console.log('='.repeat(50))
-})
+bootServer()
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

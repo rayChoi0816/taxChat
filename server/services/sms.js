@@ -10,6 +10,7 @@
 // ============================================================================
 
 import axios from 'axios'
+import { getSendPhoneNumber } from './testModeService.js'
 
 // 뿌리오 서버 기본 주소 (공식 문서 기준)
 const PPURIO_BASE_URL = 'https://message.ppurio.com'
@@ -338,14 +339,16 @@ export const sendLms = async ({ to, subject, text }) => {
  * 알림톡 미설정/실패 시 자동으로 LMS 로 대체 발송하여 메시지 누락을 방지.
  */
 export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
+  const resolvedTo = await getSendPhoneNumber(to)
+
   // 1) 알림톡 설정 자체가 비어있다면 곧장 LMS/개발 로그로 처리
   if (!isAlimtalkConfigured()) {
     if (!isPpurioConfigured()) {
-      console.log(`[개발 알림톡] to=${to} | text=${text}`)
+      console.log(`[개발 알림톡] to=${resolvedTo} | text=${text}`)
       return { ok: true, channel: 'DEV', dev: true }
     }
     console.log('[알림톡] 환경변수 미설정 → LMS 로 발송')
-    const r = await sendLms({ to, subject, text })
+    const r = await sendLms({ to: resolvedTo, subject, text })
     return { ok: true, channel: 'LMS', data: r.data }
   }
 
@@ -368,7 +371,7 @@ export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
 
   // 3) 뿌리오 v1 알림톡 정식 포맷 (/v1/kakao + messageType=ALT)
   //    isResend=Y 로 두면, 알림톡 실패 시 resend 객체의 SMS/LMS 본문이 자동 대체 발송됨.
-  const target = { to }
+  const target = { to: resolvedTo }
   if (changeWord && Object.keys(changeWord).length > 0) {
     target.changeWord = changeWord
   }
@@ -393,7 +396,7 @@ export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
   }
 
   console.log(
-    `[알림톡 요청] to=${to} senderProfile=${(process.env.PPURIO_KAKAO_SENDER_KEY || '').slice(0, 6)}*** ` +
+    `[알림톡 요청] to=${resolvedTo} senderProfile=${(process.env.PPURIO_KAKAO_SENDER_KEY || '').slice(0, 6)}*** ` +
       `template=${process.env.PPURIO_KAKAO_TEMPLATE_CODE}`
   )
 
@@ -416,7 +419,7 @@ export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
     console.error('알림톡 발송 실패 → LMS 대체 시도:', info.message)
     // 알림톡이 어떤 사유로든 실패하면 LMS 로라도 메시지가 가도록 한다.
     try {
-      const r = await sendLms({ to, subject, text })
+      const r = await sendLms({ to: resolvedTo, subject, text })
       return { ok: true, channel: 'LMS', data: r.data, alimtalkError: info.message }
     } catch (lmsErr) {
       const e = new Error('카카오 알림톡 및 LMS 발송 모두 실패했습니다')

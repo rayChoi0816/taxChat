@@ -398,6 +398,15 @@ export const settingsAPI = {
     fetchAPI(`/settings/main-banners/${id}`, {
       method: 'DELETE',
     }),
+
+  /** 카카오 알림톡 테스트 모드 (관리자) */
+  getTestMode: () => fetchAPI('/admin/test-mode'),
+
+  setTestMode: (body) =>
+    fetchAPI('/admin/test-mode', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 }
 
 export default fetchAPI

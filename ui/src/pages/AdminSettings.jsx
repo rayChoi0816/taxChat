@@ -52,6 +52,27 @@ const AdminSettings = () => {
   const [error, setError] = useState(null)
   const fileInputsRef = useRef({})
 
+  const [testMode, setTestMode] = useState(false)
+  const [testModeLoading, setTestModeLoading] = useState(true)
+  const [testModeSaving, setTestModeSaving] = useState(false)
+  const [testModeError, setTestModeError] = useState(null)
+  const [testPhoneDraft, setTestPhoneDraft] = useState('')
+  const [testPhoneSaving, setTestPhoneSaving] = useState(false)
+
+  const loadTestMode = async () => {
+    setTestModeLoading(true)
+    setTestModeError(null)
+    try {
+      const data = await settingsAPI.getTestMode()
+      setTestMode(Boolean(data.testMode))
+      setTestPhoneDraft(String(data.testPhone ?? '').replace(/[^\d]/g, ''))
+    } catch (e) {
+      setTestModeError(e.message || '테스트 모드를 불러오지 못했습니다')
+    } finally {
+      setTestModeLoading(false)
+    }
+  }
+
   const load = async () => {
     setLoading(true)
     setError(null)
@@ -69,7 +90,9 @@ const AdminSettings = () => {
 
   useEffect(() => {
     load()
+    loadTestMode()
   }, [])
+
 
   useEffect(() => {
     return () => {
@@ -200,6 +223,37 @@ const AdminSettings = () => {
 
   const hasAny = items.length > 0
 
+  const handleTestModeToggle = async () => {
+    const next = !testMode
+    setTestModeSaving(true)
+    setTestModeError(null)
+    try {
+      await settingsAPI.setTestMode({ testMode: next })
+      setTestMode(next)
+    } catch (e) {
+      setTestModeError(e.message || '테스트 모드 변경에 실패했습니다')
+    } finally {
+      setTestModeSaving(false)
+    }
+  }
+
+  const handleSaveTestPhone = async () => {
+    setTestPhoneSaving(true)
+    setTestModeError(null)
+    try {
+      const data = await settingsAPI.setTestMode({
+        testMode,
+        testPhone: testPhoneDraft.replace(/[^\d]/g, ''),
+      })
+      setTestMode(Boolean(data.testMode))
+      setTestPhoneDraft(String(data.testPhone ?? '').replace(/[^\d]/g, ''))
+    } catch (e) {
+      setTestModeError(e.message || '테스트 번호 저장에 실패했습니다')
+    } finally {
+      setTestPhoneSaving(false)
+    }
+  }
+
   const summary = useMemo(() => {
     const active = items.filter((it) => it.isActive && it.id).length
     return `총 ${items.length}개 · 활성 ${active}개`
@@ -211,6 +265,67 @@ const AdminSettings = () => {
         <h1 className="admin-settings-title">환경 설정</h1>
 
         <section className="admin-settings-section">
+          <div className="admin-settings-section-head">
+            <div>
+              <h2 className="admin-settings-section-title">카카오 알림톡 테스트 모드</h2>
+              <p className="admin-settings-desc">
+                ON이면 모든 알림톡이 아래 테스트 번호로 발송되며, 로그에 [TEST MODE]가 남습니다.
+              </p>
+            </div>
+          </div>
+
+          {testModeLoading ? (
+            <p className="admin-settings-muted">테스트 모드 불러오는 중…</p>
+          ) : (
+            <>
+              <div className="admin-settings-test-row">
+                <span className="admin-settings-test-label">테스트 모드</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={testMode}
+                  className={`admin-settings-toggle ${testMode ? 'on' : 'off'}${testModeSaving ? ' pending' : ''}`}
+                  onClick={handleTestModeToggle}
+                  disabled={testModeSaving}
+                >
+                  <span className="admin-settings-toggle-knob" />
+                </button>
+              </div>
+              <p className="admin-settings-test-status">
+                현재 상태: <strong>{testMode ? 'ON' : 'OFF'}</strong>
+              </p>
+
+              <div className="admin-settings-test-phone">
+                <label className="admin-settings-test-phone-label">
+                  <span>테스트 수신 번호</span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="01088810816"
+                    value={testPhoneDraft}
+                    onChange={(e) => setTestPhoneDraft(e.target.value.replace(/[^\d-]/g, ''))}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="admin-settings-test-phone-save"
+                  onClick={handleSaveTestPhone}
+                  disabled={testPhoneSaving || !testPhoneDraft.replace(/[^\d]/g, '')}
+                >
+                  {testPhoneSaving ? '저장 중…' : '번호 저장'}
+                </button>
+              </div>
+              <p className="admin-settings-desc admin-settings-env-hint">
+                기본값은 서버 환경변수 <code>TEST_MODE</code>, <code>TEST_PHONE</code> 및 DB 테이블{' '}
+                <code>system_settings</code>로 관리됩니다.
+              </p>
+              {testModeError && <div className="admin-settings-error admin-settings-error-spaced">{testModeError}</div>}
+            </>
+          )}
+        </section>
+
+        <section className="admin-settings-section admin-settings-section-spaced">
           <div className="admin-settings-section-head">
             <div>
               <h2 className="admin-settings-section-title">메인 배너</h2>

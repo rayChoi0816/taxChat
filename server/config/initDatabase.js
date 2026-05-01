@@ -357,6 +357,14 @@ const initDatabase = async () => {
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     `)
 
+    // 전역 설정 (카카오 알림톡 테스트 모드 등)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `)
+
     // 기존에 NOT NULL 로 잡혀 있던 image_url 을 NULL 허용으로 풀어준다.
     // (이제는 image_data/BYTEA 가 원본이며, image_url 은 호환용 캐시 경로로만 사용.)
     await pool.query(`
