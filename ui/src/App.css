@@ -538,6 +538,11 @@ body {
   color: #ffffff;
 }
 
+.action-button.primary.tax-preview {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+}
+
 .action-button.secondary {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #ffffff;

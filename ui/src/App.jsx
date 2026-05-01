@@ -36,6 +36,10 @@ import AdminSettings from './pages/AdminSettings'
 import AdminRoute from './components/AdminRoute'
 import { AdminAuthProvider } from './contexts/AdminAuthContext'
 import KakaoConsultDragButton from './components/KakaoConsultDragButton'
+import TaxSelectPage from './pages/TaxSelectPage.jsx'
+import CapitalGainsLayout from './pages/CapitalGainsLayout.jsx'
+import CapitalGainsFlowPage from './pages/CapitalGainsFlowPage.jsx'
+import CapitalGainsResultPage from './pages/CapitalGainsResultPage.jsx'
 
 function BannerSlider({ banners }) {
   const swiperRef = useRef(null)
@@ -173,6 +177,10 @@ function Home() {
     }
   }
 
+  const handleTaxPreviewClick = () => {
+    navigate('/tax-preview')
+  }
+
   const handleDocumentClick = () => {
     if (isAuthenticated) {
     navigate('/document-storage')
@@ -269,6 +277,12 @@ function Home() {
           <main className="main-content">
             {/* Action Buttons */}
             <section className="action-buttons">
+              <button className="action-button primary tax-preview" onClick={handleTaxPreviewClick}>
+                <div className="button-content">
+                  <h3>세금 미리 보기</h3>
+                  <p>양도 등 세금을 한 번 점검해 보세요. (간이 참고)</p>
+                </div>
+              </button>
               <button className="action-button primary" onClick={handlePaymentClick}>
                 <div className="button-content">
                   <h3>결제하기</h3>
@@ -359,6 +373,11 @@ function App() {
             path="/" 
             element={<Home />} 
           />
+          <Route path="/tax-preview" element={<TaxSelectPage />} />
+          <Route path="/tax-preview/capital-gains" element={<CapitalGainsLayout />}>
+            <Route index element={<CapitalGainsFlowPage />} />
+            <Route path="result" element={<CapitalGainsResultPage />} />
+          </Route>
           <Route 
             path="/payment" 
             element={

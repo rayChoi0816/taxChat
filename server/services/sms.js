@@ -408,6 +408,14 @@ export const sendAlimtalk = async ({
     `[알림톡 요청] to=${resolvedTo} senderProfile=${(process.env.PPURIO_KAKAO_SENDER_KEY || '').slice(0, 6)}*** ` +
       `template=${process.env.PPURIO_KAKAO_TEMPLATE_CODE}`
   )
+  if (changeWord && Object.keys(changeWord).length > 0) {
+    const preview = String(text || '').replace(/\r/g, '').slice(0, 220)
+    console.log(
+      `[알림톡 치환] changeWord 키: ${Object.keys(changeWord).join(', ')} | 본문 앞부분: ${preview}${
+        (text || '').length > 220 ? '…' : ''
+      }`
+    )
+  }
 
   try {
     const res = await axios.post(`${PPURIO_BASE_URL}/v1/kakao`, body, {
@@ -473,11 +481,15 @@ export const buildSignupNotificationMessage = ({
 
 /**
  * 신규가입 카카오 알림톡: 승인 템플릿(변수) + changeWord 또는 plain(LMS 우선 모드).
- * - 카카오 승인 본문(기본값):
- *   사업자 유형: #{memberType}
- *   회원명: #{memberName}
- *   연락처: #{phone}
- *   가입일시: #{signupAt}
+ *
+ * 뿌리오(/v1/kakao)는 changeWord를 **var1 ~ var8** 로만 받으며, 본문(content)의
+ * [*1*] ~ [*8*] 자리에 치환합니다. (카카오 비즈니스 센터에 #{이름}으로 보여도
+ * 뿌리오 연동 시에는 번호 치환이 맞는 경우가 많습니다 — 미수신 시 PPURIO_SIGNUP_ALIMTALK_WORD_STYLE 확인)
+ *
+ * 환경변수:
+ * - PPURIO_SIGNUP_ALIMTALK_MODE=plain  → 치환 없이 장문으로만 발송에 가깝게 처리
+ * - PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=hash → 본문에 #{memberType} … + changeWord에 동일 키(비권장, 뿌리오 미지원 가능)
+ * - 그 외(기본): [*1*]~[*4*] + var1~var4
  */
 export const buildSignupAdminAlimtalkRequest = (payload) => {
   const plainText = buildSignupNotificationMessage(payload)
@@ -498,28 +510,49 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   const pad = (n) => String(n).padStart(2, '0')
   const formattedSignupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 
-  const changeWord = {
-    memberType: String(payload.memberType ?? '-'),
-    memberName: String(payload.name ?? '-'),
-    phone: formattedPhone,
-    signupAt: formattedSignupAt,
+  const var1 = String(payload.memberType ?? '-')
+  const var2 = String(payload.name ?? '-')
+  const var3 = formattedPhone
+  const var4 = formattedSignupAt
+
+  const wordStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').toLowerCase()
+
+  let templateContent
+  let changeWord
+
+  if (wordStyle === 'hash') {
+    changeWord = {
+      memberType: var1,
+      memberName: var2,
+      phone: var3,
+      signupAt: var4,
+    }
+    templateContent =
+      String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
+      [
+        '사업자 유형: #{memberType}',
+        '회원명: #{memberName}',
+        '연락처: #{phone}',
+        '가입일시: #{signupAt}',
+      ].join('\n')
+  } else {
+    changeWord = { var1, var2, var3, var4 }
+    templateContent =
+      String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
+      [
+        '사업자 유형: [*1*]',
+        '회원명: [*2*]',
+        '연락처: [*3*]',
+        '가입일시: [*4*]',
+      ].join('\n')
   }
-
-  const defaultTemplate = [
-    '사업자 유형: #{memberType}',
-    '회원명: #{memberName}',
-    '연락처: #{phone}',
-    '가입일시: #{signupAt}',
-  ].join('\n')
-
-  const envTpl = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
-  const templateContent = envTpl || defaultTemplate
 
   return {
     text: templateContent,
     changeWord,
     plainText,
-    ppurioIsResend: 'N',
+    // Y: 알림톡 실패 시 뿌리오 대체(LMS) 허용 — 관리 알림 누락 방지
+    ppurioIsResend: 'Y',
   }
 }
 
