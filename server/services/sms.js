@@ -317,6 +317,7 @@ export const buildVerificationMessage = (code) => {
 //   - messageType  : "ALT"                              (※ "AT"/"AI" 아님)
 //   - senderProfile: 최상위 필드 (발신프로필 키)
 //   - templateCode : 최상위 필드 (사전 승인된 템플릿 코드)
+//   - 본문       : API 요청 시 루트 content 사용 안 함 · 뿌리오 등록 템플릿만 사용(changeWord 로 변수만 전달)
 //   - isResend/resend: 알림톡 실패시 SMS/LMS 로 대체 발송할 본문
 //
 // 추가로 필요한 환경변수:
@@ -413,12 +414,9 @@ export const sendLms = async ({ to, subject, text }) => {
  *
  * @param {Object} params
  * @param {string} params.to        - 받는 사람 휴대폰 번호 (01012345678)
- * @param {string} params.text      - 알림톡 본문 (템플릿과 동일해야 함, 변수치환 후 최종 문구)
+ * @param {string} params.text      - 카카오 본문은 뿌리오 등록 템플릿 사용(text 는 로그·LMS 폴백용 본문)
  * @param {string} [params.subject] - SMS/LMS 대체발송 시 제목
- * @param {Object} [params.changeWord] - 템플릿 변수 치환 (예: 카카오 #{키} 이름과 동일한 키, 또는 뿌리오 var1~var8)
- * 루트 {@code content} 포함 규칙:
- * - {@code PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT=1|true…} 이면 강제 포함, {@code 0|false|off} 이면 강제 제외.
- * - 그 외: changeWord 가 있으면 기본 포함(회원가입 알림 등). 없으면 미포함(디버그 LMS 문구 테스트 등).
+ * @param {Object} [params.changeWord] - 치환 변수만 전달(뿌리오 카카오 API 는 루트 content 필드 미사용)
  * @returns {Promise<{ok:boolean, channel:'ALT'|'LMS'|'DEV', data?:any}>}
  *
  * 알림톡 미설정/실패 시 자동으로 LMS 로 대체 발송하여 메시지 누락을 방지.
@@ -470,25 +468,12 @@ export const sendAlimtalk = async ({
     .toString(36)
     .slice(2, 8)}`.slice(0, 30)
 
-  // 3) 뿌리오 v1 /v1/kakao
-  //    - 템플릿 검증 시 루트 content 를 카카오 등록본과 동일하게 보내는 경우가 많다.
-  //    - 기본: changeWord 가 있으면 루트 content 도 함께 전송(LMS 테스트 엔드포인트 등 changeWord 없으면 미포함).
-  //      끄려면 PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT=0|false|off
-  //    - 강제 켜기: PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT=1|true|on
+  // 3) 뿌리오 v1 /v1/kakao — 루트에 content 는 넣지 않음(JSON 스키마 additionalProperties 거절).
+  //    템플릿 문구는 뿌리오 등록본 + templateCode, 변수는 targets[].changeWord 로만 전달.
   const clippedCw = normalizeAndClipChangeWord(changeWord)
-  const cwKeyCount =
-    clippedCw && typeof clippedCw === 'object' ? Object.keys(clippedCw).length : 0
-  const kw = String(process.env.PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT || '')
-    .trim()
-    .toLowerCase()
-  const rootExplicitOff = ['0', 'false', 'no', 'n', 'off'].includes(kw)
-  const rootExplicitOn = ['1', 'true', 'yes', 'y', 'on'].includes(kw)
-  const includeRootContent =
-    rootExplicitOn ||
-    (!rootExplicitOff && Boolean(normalizedAlimtalkBody) && cwKeyCount > 0)
 
   const target = { to: recipientPhone }
-  if (cwKeyCount > 0) {
+  if (clippedCw && typeof clippedCw === 'object' && Object.keys(clippedCw).length > 0) {
     target.changeWord = clippedCw
   }
 
@@ -519,26 +504,13 @@ export const sendAlimtalk = async ({
     },
   }
 
-  if (includeRootContent && normalizedAlimtalkBody) {
-    body.content = normalizedAlimtalkBody
-  }
-
   const contentForCompare = normalizedAlimtalkBody
   const effectiveChangeWord = clippedCw
 
   console.log('========== 환경 설정 ==========')
   console.log('WORD_STYLE:', process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE)
   console.log('TEMPLATE_CODE:', templateCodeResolved)
-  console.log(
-    'KAKAO_ROOT_CONTENT:',
-    includeRootContent
-      ? rootExplicitOn
-        ? '포함(env 강제 on)'
-        : '포함(기본·changeWord 있음)'
-      : rootExplicitOff
-        ? '미포함(env 강제 off)'
-        : '미포함(changeWord 없음 또는 본문 없음)'
-  )
+  console.log('[알림톡] /v1/kakao 페이로드에는 루트 content 미포함(뿌리오 스키마). templateCode + changeWord 만 전달.')
 
   if (effectiveChangeWord) {
     Object.entries(effectiveChangeWord).forEach(([key, value]) => {
@@ -550,20 +522,17 @@ export const sendAlimtalk = async ({
     console.log('[알림톡 진단] changeWord 없음(치환 변수 미사용 또는 plain 경로 가능)')
   }
 
-  console.log('========== content 비교(참고·요청에 넣는지는 KAKAO_ROOT_CONTENT) ==========')
+  console.log(
+    '========== 템플릿 텍스트 참고 로그(JSON 요청 불포함·등록본과 줄바꿈 일치 여부 확인용) =========='
+  )
   console.log(String(contentForCompare || '').replace(/\s/g, '_'))
-  if (!includeRootContent) {
-    console.log('[참고] 루트 content 미포함 → templateCode + changeWord 중심 전달.')
-  }
 
-  console.log('===== 알림톡 요청 최종 content(루트, 전송 여부는 KAKAO_ROOT_CONTENT 참고) =====')
-  console.log(includeRootContent ? normalizedAlimtalkBody : '(루트 미포함)')
-  console.log('===== 알림톡 요청 최종 changeWord =====')
+  console.log('===== changeWord (실제 카카오 요청에 포함) =====')
   console.log(effectiveChangeWord ?? '(없음)')
 
   console.log('========== 알림톡 요청 payload ==========')
   console.log('template_code:', templateCodeResolved)
-  console.log('content(최상위):', includeRootContent ? normalizedAlimtalkBody : undefined)
+  console.log('루트 content:', '(없음·스키마상 금지)')
   console.log('changeWord:', effectiveChangeWord)
   console.log('to:', recipientPhone, '| raw:', resolvedTo)
   console.log('senderProfile:', senderProfile)
