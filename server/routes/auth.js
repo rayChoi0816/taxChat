@@ -6,7 +6,7 @@ import {
   sendSms,
   sendAlimtalk,
   buildVerificationMessage,
-  buildSignupNotificationMessage,
+  buildSignupAdminAlimtalkRequest,
 } from '../services/sms.js'
 import { getConfiguredTestPhoneDigits, getTestModeFromDB } from '../services/testModeService.js'
 
@@ -50,10 +50,18 @@ const notifyAdminSignup = (payload) => {
       }
     }
 
-    const text = buildSignupNotificationMessage(payload)
+    const textPayload = buildSignupAdminAlimtalkRequest(payload)
+
     console.log(`[회원가입 알림] 수신처 ${phones.length}건 발송 시도`)
     for (const to of phones) {
-      sendAlimtalk({ to, text, subject: '[택스챗] 신규 회원가입' })
+      sendAlimtalk({
+        to,
+        text: textPayload.text,
+        subject: '[택스챗] 신규 회원가입',
+        changeWord: textPayload.changeWord,
+        ppurioIsResend: textPayload.ppurioIsResend,
+        lmsFallbackBody: textPayload.plainText,
+      })
         .then((r) =>
           console.log(`[회원가입 알림] 요청수신=${to} 결과채널=${r.channel}`)
         )

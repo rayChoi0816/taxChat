@@ -1,4 +1,5 @@
 import pool from './database.js'
+import { ensurePgReviewTestMemberTypes } from './seedPgReviewMember.js'
 
 // 데이터베이스 초기화 스크립트
 const initDatabase = async () => {
@@ -378,6 +379,12 @@ const initDatabase = async () => {
         END IF;
       END $$;
     `)
+
+    try {
+      await ensurePgReviewTestMemberTypes()
+    } catch (e) {
+      console.warn('PG 심사 테스트 회원 유형 시드 건너뜀:', e.message)
+    }
 
     console.log('데이터베이스 테이블 초기화 완료')
   } catch (error) {

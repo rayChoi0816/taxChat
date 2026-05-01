@@ -515,11 +515,17 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 })
 
-// 회원 삭제 (출력만 제외)
+// 회원 삭제 (출력만 제외) — 관리자는 전 회원 / 일반 회원은 본인만
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const id = await resolveMemberId(req.params.id)
     if (!id) return res.status(400).json({ error: '유효하지 않은 회원 ID 입니다' })
+
+    const isAdmin = req.user?.isAdmin === true || req.user?.role === 'admin'
+    const selfId = req.user?.id != null ? Number(req.user.id) : NaN
+    if (!isAdmin && (Number.isNaN(selfId) || selfId !== Number(id))) {
+      return res.status(403).json({ error: '본인 회원만 탈퇴할 수 있습니다' })
+    }
 
     await pool.query(
       'UPDATE members SET deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1',

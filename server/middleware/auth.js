@@ -1,17 +1,26 @@
 import jwt from 'jsonwebtoken'
 
 export const authenticateToken = (req, res, next) => {
-  // 개발 모드에서 인증 우회 (환경 변수로 제어, 기본값은 true)
   const nodeEnv = process.env.NODE_ENV || 'development'
-  const skipAuth = process.env.SKIP_AUTH !== 'false' // 기본값은 true (skip auth)
-  
-  if (nodeEnv === 'development' && skipAuth) {
-    req.user = { id: 1, phoneNumber: 'admin' }
-    return next()
-  }
+  const skipAuth = process.env.SKIP_AUTH !== 'false'
 
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
+
+  // 개발·SKIP_AUTH: 토큰이 있으면 먼저 검증해 본인(id)·관리자(isAdmin) 구분에 쓰고,
+  // 없거나 깨진 경우에만 기본 관리자 컨텍스트로 통과(기존 관리자 화면 호환).
+  if (nodeEnv === 'development' && skipAuth) {
+    if (token) {
+      try {
+        req.user = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+        return next()
+      } catch {
+        // ignore — 아래 기본 관리자
+      }
+    }
+    req.user = { id: 1, phoneNumber: 'admin', isAdmin: true, role: 'admin' }
+    return next()
+  }
 
   if (!token) {
     return res.status(401).json({ error: '인증 토큰이 필요합니다' })

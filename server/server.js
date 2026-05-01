@@ -19,6 +19,7 @@ import settingsRoutes from './routes/settings.js'
 import debugRoutes from './routes/debug.js'
 import adminRoutes from './routes/admin.js'
 import { ensureSystemSettingsDefaults } from './services/testModeService.js'
+import { ensurePgReviewTestMemberTypes } from './config/seedPgReviewMember.js'
 
 dotenv.config()
 
@@ -153,6 +154,12 @@ const bootServer = async () => {
     console.log('system_settings 기본값 확인 완료')
   } catch (err) {
     console.warn('system_settings 기본값 확인 실패:', err.message)
+  }
+
+  try {
+    await ensurePgReviewTestMemberTypes()
+  } catch (err) {
+    console.warn('PG 심사 테스트 회원 유형 시드 실패:', err.message)
   }
 
   app.listen(PORT, () => {

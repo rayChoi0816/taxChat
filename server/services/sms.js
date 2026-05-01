@@ -338,8 +338,17 @@ export const sendLms = async ({ to, subject, text }) => {
  *
  * 알림톡 미설정/실패 시 자동으로 LMS 로 대체 발송하여 메시지 누락을 방지.
  */
-export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
+export const sendAlimtalk = async ({
+  to,
+  text,
+  subject,
+  changeWord,
+  ppurioIsResend = 'Y',
+  lmsFallbackBody,
+}) => {
   const resolvedTo = await getSendPhoneNumber(to)
+  const lmsText =
+    typeof lmsFallbackBody === 'string' && lmsFallbackBody.length > 0 ? lmsFallbackBody : text
 
   // 1) 알림톡 설정 자체가 비어있다면 곧장 LMS/개발 로그로 처리
   if (!isAlimtalkConfigured()) {
@@ -348,7 +357,7 @@ export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
       return { ok: true, channel: 'DEV', dev: true }
     }
     console.log('[알림톡] 환경변수 미설정 → LMS 로 발송')
-    const r = await sendLms({ to: resolvedTo, subject, text })
+    const r = await sendLms({ to: resolvedTo, subject, text: lmsText })
     return { ok: true, channel: 'LMS', data: r.data }
   }
 
@@ -386,12 +395,12 @@ export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
     refKey,
     targetCount: 1,
     targets: [target],
-    isResend: 'Y',
+    isResend: ppurioIsResend === 'N' ? 'N' : 'Y',
     resend: {
       messageType: 'LMS',
       from: process.env.PPURIO_FROM,
       subject: (subject || '[taxChat] 알림').slice(0, 30),
-      content: text,
+      content: lmsText,
     },
   }
 
@@ -419,7 +428,7 @@ export const sendAlimtalk = async ({ to, text, subject, changeWord }) => {
     console.error('알림톡 발송 실패 → LMS 대체 시도:', info.message)
     // 알림톡이 어떤 사유로든 실패하면 LMS 로라도 메시지가 가도록 한다.
     try {
-      const r = await sendLms({ to: resolvedTo, subject, text })
+      const r = await sendLms({ to: resolvedTo, subject, text: lmsText })
       return { ok: true, channel: 'LMS', data: r.data, alimtalkError: info.message }
     } catch (lmsErr) {
       const e = new Error('카카오 알림톡 및 LMS 발송 모두 실패했습니다')
@@ -467,6 +476,62 @@ export const buildSignupNotificationMessage = ({
 }
 
 /**
+ * 신규가입 관리자 알림톡용: 템플릿 변수 + changeWord (기본) 또는 문자열만(plain 모드).
+ * - 기본값은 카카오에 #{고객ID} 형태로 변수 등록되어 있다는 전제입니다.
+ * - 카카오에 등록한 문구와 다르면 PPURIO_SIGNUP_ALIMTALK_TEMPLATE 에 전체 본문을 넣거나
+ *   PPURIO_SIGNUP_ALIMTALK_MODE=plain 으로 이전 동작으로 되돌릴 수 있습니다.
+ */
+export const buildSignupAdminAlimtalkRequest = (payload) => {
+  const plainText = buildSignupNotificationMessage(payload)
+
+  if (String(process.env.PPURIO_SIGNUP_ALIMTALK_MODE || '').toLowerCase() === 'plain') {
+    return {
+      text: plainText,
+      changeWord: undefined,
+      plainText,
+      ppurioIsResend: 'Y',
+    }
+  }
+
+  const formattedPhone = payload.phone
+    ? String(payload.phone).replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')
+    : '-'
+  const ts = payload.signupAt ? new Date(payload.signupAt) : new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const formatted = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
+
+  const changeWord = {
+    고객ID: String(payload.customerId ?? '-'),
+    회원유형: String(payload.memberType ?? '-'),
+    고객명: String(payload.name ?? '-'),
+    휴대폰: formattedPhone,
+    가입일시: formatted,
+  }
+
+  const defaultTemplate = [
+    '[택스챗] 신규 회원가입 알림',
+    '',
+    '▶ 고객ID : #{고객ID}',
+    '▶ 회원유형 : #{회원유형}',
+    '▶ 고객명 : #{고객명}',
+    '▶ 휴대폰 : #{휴대폰}',
+    '▶ 가입일시 : #{가입일시}',
+    '',
+    '관리자 페이지에서 상세 정보를 확인하세요.',
+  ].join('\n')
+
+  const envTpl = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
+  const templateContent = envTpl || defaultTemplate
+
+  return {
+    text: templateContent,
+    changeWord,
+    plainText,
+    ppurioIsResend: 'N',
+  }
+}
+
+/**
  * 뿌리오 단문(SMS) 또는 장문(LMS) 자동 선택 (90byte 초과 시 LMS)
  */
 export const sendSmsOrLms = async ({ to, text, subject }) => {
@@ -485,5 +550,6 @@ export default {
   sendAlimtalk,
   buildVerificationMessage,
   buildSignupNotificationMessage,
+  buildSignupAdminAlimtalkRequest,
   getServerPublicIp,
 }

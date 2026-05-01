@@ -116,10 +116,25 @@ const MyPage = () => {
         }
         break
       case 'withdrawal':
-        if (window.confirm('정말 회원탈퇴를 하시겠습니까?')) {
-          alert('회원탈퇴 처리되었습니다.')
-          logout()
-          navigate('/login')
+        if (window.confirm('정말 회원탈퇴를 하시겠습니까? 서비스 이용이 제한됩니다.')) {
+          const memberId = user?.id
+          if (!memberId) {
+            alert('회원 정보를 확인할 수 없습니다. 다시 로그인해 주세요.')
+            break
+          }
+          ;(async () => {
+            try {
+              const res = await memberAPI.deleteMember(memberId)
+              if (res?.success !== false) {
+                alert('회원탈퇴가 완료되었습니다.')
+                logout()
+                navigate('/login')
+              }
+            } catch (err) {
+              console.error(err)
+              alert(err.message || '탈퇴 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+            }
+          })()
         }
         break
       default:
