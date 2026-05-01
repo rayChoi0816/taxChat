@@ -33,6 +33,50 @@ const isPpurioConfigured = () => {
   )
 }
 
+/** 뿌리오 발신 프로필(명세 필드 senderProfile). 별칭: PPURIO_KAKAO_SENDER_PROFILE */
+const getPpurioKakaoSenderProfile = () =>
+  String(
+    process.env.PPURIO_KAKAO_SENDER_KEY ||
+      process.env.PPURIO_KAKAO_SENDER_PROFILE ||
+      ''
+  ).trim()
+
+/** 알림톡 템플릿 코드. 별칭: PPURIO_KAKAO_TEMPLATE */
+const getPpurioKakaoTemplateCode = () =>
+  String(
+    process.env.PPURIO_KAKAO_TEMPLATE_CODE ||
+      process.env.PPURIO_KAKAO_TEMPLATE ||
+      ''
+  ).trim()
+
+/**
+ * 카카오 미호출 시 어떤 env 가 비었는지 로그 (배포 환경에서 두 변수만 빼먹은 경우 진단용)
+ */
+function logAlimtalkSkippedReason() {
+  if (!isPpurioConfigured()) {
+    const miss = []
+    if (!String(process.env.PPURIO_ACCOUNT || '').trim()) miss.push('PPURIO_ACCOUNT')
+    if (!String(process.env.PPURIO_API_KEY || '').trim()) miss.push('PPURIO_API_KEY')
+    if (!String(process.env.PPURIO_FROM || '').trim()) miss.push('PPURIO_FROM')
+    console.warn('[알림톡 진단] 문자 연동 필수 env 누락:', miss.join(', ') || '알 수 없음')
+    return
+  }
+  const miss = []
+  if (!getPpurioKakaoSenderProfile()) {
+    miss.push(
+      'PPURIO_KAKAO_SENDER_KEY(또는 PPURIO_KAKAO_SENDER_PROFILE): 발신 프로필'
+    )
+  }
+  if (!getPpurioKakaoTemplateCode()) {
+    miss.push('PPURIO_KAKAO_TEMPLATE_CODE(또는 PPURIO_KAKAO_TEMPLATE): 알림톡 템플릿 코드')
+  }
+  console.warn(
+    '[알림톡 진단] 위 값이 프로세스 env 에 없어 /v1/kakao 를 호출하지 않고 LMS 만 발송합니다.',
+    '로컬 .env 만 채우고 Render·도커 등 실행 환경에는 미설정인 경우가 흔합니다.',
+    `\n→ 누락: ${miss.join(' | ')}`
+  )
+}
+
 /**
  * 지금 이 서버가 바깥으로 나갈 때 쓰는 공인 IP 를 돌려줍니다.
  * (뿌리오가 "invalid ip" 를 돌려줄 때, 어떤 IP 를 등록해야 하는지 알려주려고 사용합니다)
@@ -264,8 +308,8 @@ export const buildVerificationMessage = (code) => {
 //   - isResend/resend: 알림톡 실패시 SMS/LMS 로 대체 발송할 본문
 //
 // 추가로 필요한 환경변수:
-//   PPURIO_KAKAO_SENDER_KEY   : 뿌리오에 등록한 카카오 채널 발신프로필 키
-//   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드
+//   PPURIO_KAKAO_SENDER_KEY   : 뿌리오 카카오 발신 프로필(별칭 PPURIO_KAKAO_SENDER_PROFILE)
+//   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드(별칭 PPURIO_KAKAO_TEMPLATE)
 //
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
 // #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
@@ -299,13 +343,12 @@ function normalizeAndClipChangeWord(cw) {
   return out
 }
 
-const isAlimtalkConfigured = () => {
-  return Boolean(
+const isAlimtalkConfigured = () =>
+  Boolean(
     isPpurioConfigured() &&
-    process.env.PPURIO_KAKAO_SENDER_KEY &&
-    process.env.PPURIO_KAKAO_TEMPLATE_CODE
+      getPpurioKakaoSenderProfile() &&
+      getPpurioKakaoTemplateCode()
   )
-}
 
 /**
  * LMS(장문 SMS) 발송 - 90byte 초과 시 자동으로 LMS 로 분기.
@@ -389,6 +432,7 @@ export const sendAlimtalk = async ({
       console.log(`[개발 알림톡] to=${resolvedTo} | text=${normalizedAlimtalkBody}`)
       return { ok: true, channel: 'DEV', dev: true }
     }
+    logAlimtalkSkippedReason()
     console.log('[알림톡] 환경변수 미설정 → LMS 로 발송')
     const r = await sendLms({ to: recipientPhone, subject, text: lmsText })
     return { ok: true, channel: 'LMS', data: r.data }
@@ -424,11 +468,14 @@ export const sendAlimtalk = async ({
     target.changeWord = clippedCw
   }
 
+  const senderProfile = getPpurioKakaoSenderProfile()
+  const templateCodeResolved = getPpurioKakaoTemplateCode()
+
   const body = {
     account: process.env.PPURIO_ACCOUNT,
     messageType: 'ALT',
-    senderProfile: process.env.PPURIO_KAKAO_SENDER_KEY,
-    templateCode: process.env.PPURIO_KAKAO_TEMPLATE_CODE,
+    senderProfile,
+    templateCode: templateCodeResolved,
     duplicateFlag: 'N',
     refKey,
     targetCount: 1,
@@ -451,7 +498,7 @@ export const sendAlimtalk = async ({
 
   console.log('========== 환경 설정 ==========')
   console.log('WORD_STYLE:', process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE)
-  console.log('TEMPLATE_CODE:', process.env.PPURIO_KAKAO_TEMPLATE_CODE)
+  console.log('TEMPLATE_CODE:', templateCodeResolved)
   console.log(
     'KAKAO_ROOT_CONTENT:',
     includeRootContent ? '포함(PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT)' : '미포함(기본·뿌리오 표준)'
@@ -474,11 +521,11 @@ export const sendAlimtalk = async ({
   }
 
   console.log('========== 알림톡 요청 payload ==========')
-  console.log('template_code:', process.env.PPURIO_KAKAO_TEMPLATE_CODE)
+  console.log('template_code:', templateCodeResolved)
   console.log('content(최상위):', includeRootContent ? normalizedAlimtalkBody : undefined)
   console.log('changeWord:', effectiveChangeWord)
   console.log('to:', recipientPhone, '| raw:', resolvedTo)
-  console.log('senderProfile:', process.env.PPURIO_KAKAO_SENDER_KEY)
+  console.log('senderProfile:', senderProfile)
   console.log('refKey:', refKey)
   console.log('isResend:', body.isResend)
   try {
