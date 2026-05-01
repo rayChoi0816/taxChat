@@ -15,6 +15,9 @@ const PRIMARY_MEMBER_TYPE = '비사업자'
 const CUSTOMER_ID_NB = 'PG_REVIEW_01000000000'
 const CUSTOMER_ID_IB = 'PG_TEST_01000000000_IB'
 const CUSTOMER_ID_CORP = 'PG_TEST_01000000000_CORP'
+/** 앱 내 일부 표기와 동일하게 띄어쓰기 없는 회원유형 테스트 행 */
+const CUSTOMER_ID_IB_NS = 'PG_TEST_01000000000_IB_NS'
+const CUSTOMER_ID_CORP_NS = 'PG_TEST_01000000000_CORP_NS'
 
 async function main() {
   const passwordHash = await bcrypt.hash(PASSWORD, 10)
@@ -93,12 +96,35 @@ async function main() {
       ]
     )
 
+    await client.query(
+      cols +
+        `($1, '개인사업자', $2, true, $3, null, null, $4, $3, $5, null, null, null, null, null)`,
+      [
+        memberId,
+        CUSTOMER_ID_IB_NS,
+        DISPLAY_NAME,
+        `(테스트)${DISPLAY_NAME} 개인사업(무공백유형)`,
+        '1234567891',
+      ]
+    )
+    await client.query(
+      cols +
+        `($1, '법인사업자', $2, true, null, null, null, $3, $4, $5, null, null, null, null, null)`,
+      [
+        memberId,
+        CUSTOMER_ID_CORP_NS,
+        `(테스트)오월법인(무공백유형)`,
+        DISPLAY_NAME,
+        '1108156789013',
+      ]
+    )
+
     console.log(
       '완료 — 로그인:',
       PHONE,
       '/ 비밀번호',
       PASSWORD,
-      '/ 회원유형: 비사업자·개인 사업자·법인 사업자'
+      '/ 회원유형: 비사업자·개인 사업자·법인 사업자·개인사업자·법인사업자'
     )
   } finally {
     client.release()

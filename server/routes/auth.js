@@ -8,6 +8,7 @@ import {
   buildVerificationMessage,
   buildSignupNotificationMessage,
 } from '../services/sms.js'
+import { getConfiguredTestPhoneDigits, getTestModeFromDB } from '../services/testModeService.js'
 
 // 회원가입 알림(카카오 알림톡)을 받을 관리자 번호.
 // 콤마(,) 로 여러 번호 등록 가능. 비어 있으면 알림 발송 생략.
@@ -20,25 +21,47 @@ const getAdminNotifyPhones = () => {
 
 // 회원가입 직후 비동기로 관리자에게 알림톡 발송.
 // 실패해도 회원가입 응답에는 영향을 주지 않는다(알림은 보조 기능).
+// - 운영: ADMIN_NOTIFY_PHONE 목록으로 발송 (여러 건 가능).
+// - 테스트 모드(DB/관리자 설정): 목록과 관계없이 테스트 수신 번호로 1건만 발송
+//   (ADMIN_NOTIFY 가 비어 있어도 테스트 번호로 발송되도록 처리).
 const notifyAdminSignup = (payload) => {
-  const phones = getAdminNotifyPhones()
-  if (phones.length === 0) {
-    console.warn(
-      '[회원가입 알림] 수신 번호 미설정: .env 에 ADMIN_NOTIFY_PHONE(숫자만, 콤마 구분)을 넣어야 알림톡/LMS가 발송됩니다.'
-    )
-    return
-  }
-  const text = buildSignupNotificationMessage(payload)
-  console.log(`[회원가입 알림] 수신처 ${phones.length}건 발송 시도`)
-  for (const to of phones) {
-    sendAlimtalk({ to, text, subject: '[택스챗] 신규 회원가입' })
-      .then((r) =>
-        console.log(`[회원가입 알림] to=${to} channel=${r.channel}`)
-      )
-      .catch((err) =>
-        console.error('[회원가입 알림 실패]', err.message, err.detail || '')
-      )
-  }
+  void (async () => {
+    let phones = getAdminNotifyPhones()
+    try {
+      const isTestMode = await getTestModeFromDB()
+      if (isTestMode) {
+        const testPhone = await getConfiguredTestPhoneDigits()
+        phones = [testPhone]
+        console.log(`[회원가입 알림] 테스트 모드: ${testPhone} 로 1건 발송`)
+      } else if (phones.length === 0) {
+        console.warn(
+          '[회원가입 알림] 수신 번호 미설정: .env 에 ADMIN_NOTIFY_PHONE(숫자만, 콤마 구분)을 넣어야 알림톡/LMS가 발송됩니다.'
+        )
+        return
+      }
+    } catch (err) {
+      console.error('[회원가입 알림] 테스트 모드/번호 조회 실패:', err.message || err)
+      phones = getAdminNotifyPhones()
+      if (phones.length === 0) {
+        console.warn(
+          '[회원가입 알림] 수신 번호 미설정으로 발송을 건넜습니다. ADMIN_NOTIFY_PHONE 또는 테스트 모드를 확인하세요.'
+        )
+        return
+      }
+    }
+
+    const text = buildSignupNotificationMessage(payload)
+    console.log(`[회원가입 알림] 수신처 ${phones.length}건 발송 시도`)
+    for (const to of phones) {
+      sendAlimtalk({ to, text, subject: '[택스챗] 신규 회원가입' })
+        .then((r) =>
+          console.log(`[회원가입 알림] 요청수신=${to} 결과채널=${r.channel}`)
+        )
+        .catch((err) =>
+          console.error('[회원가입 알림 실패]', err.message, err.detail || '')
+        )
+    }
+  })()
 }
 
 const router = express.Router()
@@ -50,7 +73,9 @@ const generateCustomerId = async (memberType, signupDate = new Date()) => {
     const typeCodeMap = {
       '비사업자': '01',
       '개인 사업자': '02',
-      '법인 사업자': '03'
+      '법인 사업자': '03',
+      '개인사업자': '02',
+      '법인사업자': '03',
     }
     
     const typeCode = typeCodeMap[memberType] || '01'

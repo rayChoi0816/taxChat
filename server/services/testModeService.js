@@ -53,7 +53,7 @@ export async function getTestModeFromDB() {
   return String(r.rows[0].value).toLowerCase() === 'true'
 }
 
-async function getConfiguredTestPhoneDigits() {
+export async function getConfiguredTestPhoneDigits() {
   const r = await pool.query(`SELECT value FROM system_settings WHERE key = $1`, [KEY_TEST_PHONE])
   if (r.rows.length === 0 || !String(r.rows[0].value ?? '').trim()) {
     const fromEnv = normalizeDigits(process.env.TEST_PHONE)
