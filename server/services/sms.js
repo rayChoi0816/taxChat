@@ -416,6 +416,9 @@ export const sendLms = async ({ to, subject, text }) => {
  * @param {string} params.text      - 알림톡 본문 (템플릿과 동일해야 함, 변수치환 후 최종 문구)
  * @param {string} [params.subject] - SMS/LMS 대체발송 시 제목
  * @param {Object} [params.changeWord] - 템플릿 변수 치환 (예: 카카오 #{키} 이름과 동일한 키, 또는 뿌리오 var1~var8)
+ * 루트 {@code content} 포함 규칙:
+ * - {@code PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT=1|true…} 이면 강제 포함, {@code 0|false|off} 이면 강제 제외.
+ * - 그 외: changeWord 가 있으면 기본 포함(회원가입 알림 등). 없으면 미포함(디버그 LMS 문구 테스트 등).
  * @returns {Promise<{ok:boolean, channel:'ALT'|'LMS'|'DEV', data?:any}>}
  *
  * 알림톡 미설정/실패 시 자동으로 LMS 로 대체 발송하여 메시지 누락을 방지.
@@ -467,16 +470,25 @@ export const sendAlimtalk = async ({
     .toString(36)
     .slice(2, 8)}`.slice(0, 30)
 
-  // 3) 뿌리오 v1 /v1/kakao — 공식 필드 표에 **최상위 content 없음**. "추가 필드는 허용되지 않습니다" 로
-  //    루트에 content 를 넣으면 카카오 발송이 스킵·실패하고 isResend 로 LMS 만 가는 사례가 있다.
-  //    변수는 templateCode + targets[].changeWord 로 전달. (구버전/특수 계정만 루트 content 필요 시 env 로 켬)
-  const includeRootContent = ['1', 'true', 'yes', 'y'].includes(
-    String(process.env.PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT || '').trim().toLowerCase()
-  )
+  // 3) 뿌리오 v1 /v1/kakao
+  //    - 템플릿 검증 시 루트 content 를 카카오 등록본과 동일하게 보내는 경우가 많다.
+  //    - 기본: changeWord 가 있으면 루트 content 도 함께 전송(LMS 테스트 엔드포인트 등 changeWord 없으면 미포함).
+  //      끄려면 PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT=0|false|off
+  //    - 강제 켜기: PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT=1|true|on
+  const clippedCw = normalizeAndClipChangeWord(changeWord)
+  const cwKeyCount =
+    clippedCw && typeof clippedCw === 'object' ? Object.keys(clippedCw).length : 0
+  const kw = String(process.env.PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT || '')
+    .trim()
+    .toLowerCase()
+  const rootExplicitOff = ['0', 'false', 'no', 'n', 'off'].includes(kw)
+  const rootExplicitOn = ['1', 'true', 'yes', 'y', 'on'].includes(kw)
+  const includeRootContent =
+    rootExplicitOn ||
+    (!rootExplicitOff && Boolean(normalizedAlimtalkBody) && cwKeyCount > 0)
 
   const target = { to: recipientPhone }
-  const clippedCw = normalizeAndClipChangeWord(changeWord)
-  if (clippedCw && Object.keys(clippedCw).length > 0) {
+  if (cwKeyCount > 0) {
     target.changeWord = clippedCw
   }
 
@@ -519,7 +531,13 @@ export const sendAlimtalk = async ({
   console.log('TEMPLATE_CODE:', templateCodeResolved)
   console.log(
     'KAKAO_ROOT_CONTENT:',
-    includeRootContent ? '포함(PPURIO_KAKAO_INCLUDE_TEMPLATE_CONTENT)' : '미포함(기본·뿌리오 표준)'
+    includeRootContent
+      ? rootExplicitOn
+        ? '포함(env 강제 on)'
+        : '포함(기본·changeWord 있음)'
+      : rootExplicitOff
+        ? '미포함(env 강제 off)'
+        : '미포함(changeWord 없음 또는 본문 없음)'
   )
 
   if (effectiveChangeWord) {
@@ -535,8 +553,13 @@ export const sendAlimtalk = async ({
   console.log('========== content 비교(참고·요청에 넣는지는 KAKAO_ROOT_CONTENT) ==========')
   console.log(String(contentForCompare || '').replace(/\s/g, '_'))
   if (!includeRootContent) {
-    console.log('[참고] 위 본문은 로그용입니다. JSON 요청에는 넣지 않음 → templateCode + changeWord 만 전달.')
+    console.log('[참고] 루트 content 미포함 → templateCode + changeWord 중심 전달.')
   }
+
+  console.log('===== 알림톡 요청 최종 content(루트, 전송 여부는 KAKAO_ROOT_CONTENT 참고) =====')
+  console.log(includeRootContent ? normalizedAlimtalkBody : '(루트 미포함)')
+  console.log('===== 알림톡 요청 최종 changeWord =====')
+  console.log(effectiveChangeWord ?? '(없음)')
 
   console.log('========== 알림톡 요청 payload ==========')
   console.log('template_code:', templateCodeResolved)
@@ -684,17 +707,18 @@ export const SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT =
   '\n' +
   '택스쳇 관리자페이지로 이동\n'
 
-/** 뿌리오 API용([*n*] + changeWord.var1…) — 카카오 승인문과 동일 레이아웃 */
-export const SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT =
-  '\n' +
-  '택스챗 신규 회원이 가입되었습니다.\n' +
-  '\n' +
-  '사업자 유형: [*1*]\n' +
-  '회원명: [*2*]\n' +
-  '연락처: [*3*]\n' +
-  '가입일시: [*4*]\n' +
-  '\n' +
-  '택스쳇 관리자페이지로 이동\n'
+/**
+ * 뿌리오 API용([*n*] + changeWord.var1…)
+ * 콘솔 등록 템플릿과 줄바꿈·공백까지 맞춤: 선행 빈 줄·본문 후 빈 줄 없음. 마지막 줄만 "택스쳇"(등록 오탈자) 유지.
+ */
+export const SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT = `
+택스챗 신규 회원이 가입되었습니다.
+사업자 유형: [*1*]
+회원명: [*2*]
+연락처: [*3*]
+가입일시: [*4*]
+택스쳇 관리자페이지로 이동
+`.trim()
 
 /** @deprecated SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT 권장 */
 export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
@@ -767,6 +791,7 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
     signupAt,
   })
 
+  /** 순서 고정: var1~var4 (= 사업자유형 → 이름 → 연락처 → 가입일시) */
   const numberedChangeWord = normalizeAndClipChangeWord({
     var1: memberType,
     var2: memberName,
@@ -789,8 +814,10 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
     console.warn('[회원가입 알림톡] payload.phone 이 짧거나 비어 있을 수 있습니다.')
   }
 
-  console.log('[회원가입 알림톡] content(앞 120자):', String(content).replace(/\r/g, '').slice(0, 120))
-  console.log('[회원가입 알림톡] changeWord:', changeWord)
+  console.log('===== 최종 content =====')
+  console.log(content)
+  console.log('===== changeWord =====')
+  console.log(changeWord)
   console.log('[회원가입 알림톡] 회원명(payload.name→memberName):', memberName)
   console.log('[회원가입 알림톡] 회원 연락처(raw):', payload.phone ?? '(payload 없음)')
   console.log('[회원가입 알림톡] 회원 연락처(치환용 phone):', phone)
