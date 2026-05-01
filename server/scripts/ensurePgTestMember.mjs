@@ -3,21 +3,23 @@
  * 실행: cd server && node scripts/ensurePgTestMember.mjs
  *
  * 휴대폰 01000000000 / 비밀번호 test1234! (bcrypt 저장)
+ * 회원유형: 비사업자, 개인 사업자, 법인 사업자 (무공백 유형 미사용)
  */
 import bcrypt from 'bcryptjs'
 import pool from '../config/database.js'
 
 const PHONE = '01000000000'
 const PASSWORD = 'test1234!'
-const DISPLAY_NAME = 'PG심사테스트'
-/** members 한 행 요약용 기본 유형 */
 const PRIMARY_MEMBER_TYPE = '비사업자'
+/** members 행 표시 이름(비사업자 기준) */
+const NAME_MEMBER_ROW = 'PG심사 비사업자 테스트 계정'
 const CUSTOMER_ID_NB = 'PG_REVIEW_01000000000'
 const CUSTOMER_ID_IB = 'PG_TEST_01000000000_IB'
 const CUSTOMER_ID_CORP = 'PG_TEST_01000000000_CORP'
-/** 앱 내 일부 표기와 동일하게 띄어쓰기 없는 회원유형 테스트 행 */
-const CUSTOMER_ID_IB_NS = 'PG_TEST_01000000000_IB_NS'
-const CUSTOMER_ID_CORP_NS = 'PG_TEST_01000000000_CORP_NS'
+
+const NAME_NB = 'PG심사 비사업자 테스트 계정'
+const NAME_INDIVIDUAL = 'PG심사 개인사업자 테스트 계정'
+const NAME_CORP_DISPLAY = 'PG심사 법인사업자 테스트 계정'
 
 async function main() {
   const passwordHash = await bcrypt.hash(PASSWORD, 10)
@@ -36,7 +38,7 @@ async function main() {
           signup_method, has_info_input, password_hash, deleted
         ) VALUES ($1, $2, $3, $4, '관리자가 등록', true, $5, false)
         RETURNING id`,
-        [CUSTOMER_ID_NB, PHONE, PRIMARY_MEMBER_TYPE, DISPLAY_NAME, passwordHash]
+        [CUSTOMER_ID_NB, PHONE, PRIMARY_MEMBER_TYPE, NAME_MEMBER_ROW, passwordHash]
       )
       memberId = ins.rows[0].id
       console.log('신규 삽입:', { memberId })
@@ -53,7 +55,7 @@ async function main() {
            has_info_input = true,
            updated_at = CURRENT_TIMESTAMP
          WHERE id = $5`,
-        [passwordHash, PRIMARY_MEMBER_TYPE, DISPLAY_NAME, CUSTOMER_ID_NB, memberId]
+        [passwordHash, PRIMARY_MEMBER_TYPE, NAME_MEMBER_ROW, CUSTOMER_ID_NB, memberId]
       )
       console.log('기존 행 갱신:', { memberId })
     }
@@ -71,7 +73,7 @@ async function main() {
     await client.query(
       cols +
         `($1, '비사업자', $2, true, $3, null, null, null, null, null, null, null, null, null, null)`,
-      [memberId, CUSTOMER_ID_NB, DISPLAY_NAME]
+      [memberId, CUSTOMER_ID_NB, NAME_NB]
     )
     await client.query(
       cols +
@@ -79,8 +81,8 @@ async function main() {
       [
         memberId,
         CUSTOMER_ID_IB,
-        DISPLAY_NAME,
-        `(테스트)${DISPLAY_NAME} 개인사업`,
+        NAME_INDIVIDUAL,
+        'PG심사 개인사업자 테스트 상호',
         '1234567890',
       ]
     )
@@ -90,32 +92,9 @@ async function main() {
       [
         memberId,
         CUSTOMER_ID_CORP,
-        `(테스트)오월법인 주식회사`,
-        DISPLAY_NAME,
+        NAME_CORP_DISPLAY,
+        'PG심사 법인 대표 테스트',
         '1108156789012',
-      ]
-    )
-
-    await client.query(
-      cols +
-        `($1, '개인사업자', $2, true, $3, null, null, $4, $3, $5, null, null, null, null, null)`,
-      [
-        memberId,
-        CUSTOMER_ID_IB_NS,
-        DISPLAY_NAME,
-        `(테스트)${DISPLAY_NAME} 개인사업(무공백유형)`,
-        '1234567891',
-      ]
-    )
-    await client.query(
-      cols +
-        `($1, '법인사업자', $2, true, null, null, null, $3, $4, $5, null, null, null, null, null)`,
-      [
-        memberId,
-        CUSTOMER_ID_CORP_NS,
-        `(테스트)오월법인(무공백유형)`,
-        DISPLAY_NAME,
-        '1108156789013',
       ]
     )
 
@@ -124,7 +103,7 @@ async function main() {
       PHONE,
       '/ 비밀번호',
       PASSWORD,
-      '/ 회원유형: 비사업자·개인 사업자·법인 사업자·개인사업자·법인사업자'
+      '/ 회원유형: 비사업자·개인 사업자·법인 사업자'
     )
   } finally {
     client.release()

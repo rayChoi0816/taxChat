@@ -1,28 +1,36 @@
 import pool from './database.js'
 
+const NAME_NB = 'PG심사 비사업자 테스트 계정'
+const NAME_INDIVIDUAL = 'PG심사 개인사업자 테스트 계정'
+const NAME_CORP_DISPLAY = 'PG심사 법인사업자 테스트 계정'
+
 /**
- * PG 심사용 번호(01000000000) 회원이 있으면 member_types 가 부족할 때 자동으로 채웁니다.
- * 스크립트 수동 실행 없이도 개인/법인·무공백 유형이 들어가도록 합니다.
+ * PG 심사용 번호(01000000000) 회원이 있으면 member_types 를 맞춥니다.
+ * - 무공백 유형(개인사업자/법인사업자) 행 삭제
+ * - 비사업자·개인 사업자·법인 사업자 표시명 업데이트(UPSERT)
  */
 export async function ensurePgReviewTestMemberTypes() {
-  const DISPLAY_NAME = 'PG심사테스트'
   const r = await pool.query(
     `SELECT id FROM members WHERE phone_number = '01000000000' AND deleted = false LIMIT 1`
   )
   if (r.rows.length === 0) return
 
   const memberId = r.rows[0].id
+
+  await pool.query(
+    `DELETE FROM member_types WHERE member_id = $1 AND member_type IN ('개인사업자', '법인사업자')`,
+    [memberId]
+  )
+
   const CUSTOMER_ID_NB = 'PG_REVIEW_01000000000'
   const CUSTOMER_ID_IB = 'PG_TEST_01000000000_IB'
   const CUSTOMER_ID_CORP = 'PG_TEST_01000000000_CORP'
-  const CUSTOMER_ID_IB_NS = 'PG_TEST_01000000000_IB_NS'
-  const CUSTOMER_ID_CORP_NS = 'PG_TEST_01000000000_CORP_NS'
 
   const rows = [
     {
       member_type: '비사업자',
       customer_id: CUSTOMER_ID_NB,
-      name: DISPLAY_NAME,
+      name: NAME_NB,
       business_name: null,
       representative_name: null,
       business_number: null,
@@ -30,34 +38,18 @@ export async function ensurePgReviewTestMemberTypes() {
     {
       member_type: '개인 사업자',
       customer_id: CUSTOMER_ID_IB,
-      name: DISPLAY_NAME,
-      business_name: `(테스트)${DISPLAY_NAME} 개인사업`,
-      representative_name: DISPLAY_NAME,
+      name: NAME_INDIVIDUAL,
+      business_name: 'PG심사 개인사업자 테스트 상호',
+      representative_name: NAME_INDIVIDUAL,
       business_number: '1234567890',
     },
     {
       member_type: '법인 사업자',
       customer_id: CUSTOMER_ID_CORP,
       name: null,
-      business_name: `(테스트)오월법인 주식회사`,
-      representative_name: DISPLAY_NAME,
+      business_name: NAME_CORP_DISPLAY,
+      representative_name: 'PG심사 법인 대표 테스트',
       business_number: '1108156789012',
-    },
-    {
-      member_type: '개인사업자',
-      customer_id: CUSTOMER_ID_IB_NS,
-      name: DISPLAY_NAME,
-      business_name: `(테스트)${DISPLAY_NAME} 개인사업(무공백유형)`,
-      representative_name: DISPLAY_NAME,
-      business_number: '1234567891',
-    },
-    {
-      member_type: '법인사업자',
-      customer_id: CUSTOMER_ID_CORP_NS,
-      name: null,
-      business_name: `(테스트)오월법인(무공백유형)`,
-      representative_name: DISPLAY_NAME,
-      business_number: '1108156789013',
     },
   ]
 
@@ -69,7 +61,14 @@ export async function ensurePgReviewTestMemberTypes() {
          business_name, representative_name, business_number,
          industry, business_type, base_address, detail_address, start_date
        ) VALUES ($1, $2, $3, true, $4, null, null, $5, $6, $7, null, null, null, null, null)
-       ON CONFLICT (member_id, member_type) DO NOTHING`,
+       ON CONFLICT (member_id, member_type)
+       DO UPDATE SET
+         customer_id = EXCLUDED.customer_id,
+         is_active = true,
+         name = EXCLUDED.name,
+         business_name = EXCLUDED.business_name,
+         representative_name = EXCLUDED.representative_name,
+         business_number = EXCLUDED.business_number`,
       [
         memberId,
         row.member_type,
@@ -81,4 +80,9 @@ export async function ensurePgReviewTestMemberTypes() {
       ]
     )
   }
+
+  await pool.query(
+    `UPDATE members SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    [NAME_NB, memberId]
+  )
 }

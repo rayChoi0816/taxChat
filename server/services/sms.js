@@ -441,12 +441,8 @@ export const sendAlimtalk = async ({
 }
 
 /**
- * 회원가입 알림 본문을 만드는 헬퍼.
- * - 알림톡 템플릿(사전 승인) 본문과 동일해야 한다.
- * - 템플릿 변수: #{고객ID} #{회원유형} #{고객명} #{휴대폰} #{가입일시}
- *
- * 템플릿이 다른 경우, 운영자는 PPURIO_KAKAO_TEMPLATE_CODE 에 맞는
- * 본문 형식을 동일하게 작성해 등록해야 한다. (alimtalk 정책)
+ * 회원가입 알림 본문 (LMS/미설정 폴백용).
+ * - 카카오 승인 템플릿과 별개로, 문자 대체 발송 시 관리 가독성을 위해 고객ID 등을 포함합니다.
  */
 export const buildSignupNotificationMessage = ({
   customerId,
@@ -465,21 +461,23 @@ export const buildSignupNotificationMessage = ({
   return [
     '[택스챗] 신규 회원가입 알림',
     '',
-    `▶ 고객ID : ${customerId || '-'}`,
-    `▶ 회원유형 : ${memberType || '-'}`,
-    `▶ 고객명 : ${name || '-'}`,
-    `▶ 휴대폰 : ${formattedPhone}`,
-    `▶ 가입일시 : ${formatted}`,
+    `고객ID: ${customerId || '-'}`,
+    `사업자 유형: ${memberType || '-'}`,
+    `회원명: ${name || '-'}`,
+    `연락처: ${formattedPhone}`,
+    `가입일시: ${formatted}`,
     '',
     '관리자 페이지에서 상세 정보를 확인하세요.',
   ].join('\n')
 }
 
 /**
- * 신규가입 관리자 알림톡용: 템플릿 변수 + changeWord (기본) 또는 문자열만(plain 모드).
- * - 기본값은 카카오에 #{고객ID} 형태로 변수 등록되어 있다는 전제입니다.
- * - 카카오에 등록한 문구와 다르면 PPURIO_SIGNUP_ALIMTALK_TEMPLATE 에 전체 본문을 넣거나
- *   PPURIO_SIGNUP_ALIMTALK_MODE=plain 으로 이전 동작으로 되돌릴 수 있습니다.
+ * 신규가입 카카오 알림톡: 승인 템플릿(변수) + changeWord 또는 plain(LMS 우선 모드).
+ * - 카카오 승인 본문(기본값):
+ *   사업자 유형: #{memberType}
+ *   회원명: #{memberName}
+ *   연락처: #{phone}
+ *   가입일시: #{signupAt}
  */
 export const buildSignupAdminAlimtalkRequest = (payload) => {
   const plainText = buildSignupNotificationMessage(payload)
@@ -498,26 +496,20 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
     : '-'
   const ts = payload.signupAt ? new Date(payload.signupAt) : new Date()
   const pad = (n) => String(n).padStart(2, '0')
-  const formatted = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
+  const formattedSignupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 
   const changeWord = {
-    고객ID: String(payload.customerId ?? '-'),
-    회원유형: String(payload.memberType ?? '-'),
-    고객명: String(payload.name ?? '-'),
-    휴대폰: formattedPhone,
-    가입일시: formatted,
+    memberType: String(payload.memberType ?? '-'),
+    memberName: String(payload.name ?? '-'),
+    phone: formattedPhone,
+    signupAt: formattedSignupAt,
   }
 
   const defaultTemplate = [
-    '[택스챗] 신규 회원가입 알림',
-    '',
-    '▶ 고객ID : #{고객ID}',
-    '▶ 회원유형 : #{회원유형}',
-    '▶ 고객명 : #{고객명}',
-    '▶ 휴대폰 : #{휴대폰}',
-    '▶ 가입일시 : #{가입일시}',
-    '',
-    '관리자 페이지에서 상세 정보를 확인하세요.',
+    '사업자 유형: #{memberType}',
+    '회원명: #{memberName}',
+    '연락처: #{phone}',
+    '가입일시: #{signupAt}',
   ].join('\n')
 
   const envTpl = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
