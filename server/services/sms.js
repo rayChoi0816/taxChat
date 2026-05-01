@@ -479,8 +479,9 @@ export const buildSignupNotificationMessage = ({
   ].join('\n')
 }
 
-/** 카카오 승인 템플릿 예시(변수 이름 #{memberType} … 와 반드시 일치 — 본문은 승인문 그대로 유지). */
-export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT =
+/** 카카오 비즈니스 승인본(#{변수}) 유지용 — 소스 오브 트루스 */
+export const SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT =
+  '\n' +
   '택스챗 신규 회원이 가입되었습니다.\n' +
   '\n' +
   '사업자 유형: #{memberType}\n' +
@@ -490,18 +491,31 @@ export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT =
   '\n' +
   '택스쳇 관리자페이지로 이동\n'
 
+/** 뿌리오 API용([*n*] + changeWord.var1…) — 카카오 승인문과 동일 레이아웃 */
+export const SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT =
+  '\n' +
+  '택스챗 신규 회원이 가입되었습니다.\n' +
+  '\n' +
+  '사업자 유형: [*1*]\n' +
+  '회원명: [*2*]\n' +
+  '연락처: [*3*]\n' +
+  '가입일시: [*4*]\n' +
+  '\n' +
+  '택스쳇 관리자페이지로 이동\n'
+
+/** @deprecated SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT 권장 */
+export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
+
 /**
  * 신규가입 카카오 알림톡 (관리자 수신)
  *
- * 실제 호출 payload (routes/auth.js → notifyAdminSignup):
- *   memberType, name, phone, signupAt, customerId
- * changeWord 키는 카카오 템플릿 #{이름} 과 **동일**해야 하므로:
- *   memberName ← payload.name (코드상 이름 필드)
+ * - 카카오 쪽은 #{memberType} 승인을 유지하고, 레포에는 **원본 문자열** 과 **numbered 전송용 문자열** 을 함께 둠.
+ * - `PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=numbered` 이면 뿌리오에 [*1*]~[*4*] + var1~var4 로 전송.
  *
- * 환경변수:
- * - PPURIO_SIGNUP_ALIMTALK_MODE=plain  → 치환 없이 LMS 중심
- * - PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=numbered → 뿌리오 var1~var4 + [*1*]~[*4*] (문서 기준 대체)
- * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE    → 본문 덮어쓰기(승인문과 반드시 동일해야 함)
+ * payload (routes/auth.js): memberType, name → memberName, phone, signupAt (+ customerId는 LMS 폴백)
+ *
+ * - PPURIO_SIGNUP_ALIMTALK_MODE=plain → 치환 없이 LMS 위주
+ * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE → (선택) hash 분기만 덮어쓰기(#{ } 본문, changeWord가 hash 키와 일치해야 함)
  */
 export const buildSignupAdminAlimtalkRequest = (payload) => {
   const plainText = buildSignupNotificationMessage(payload)
@@ -515,12 +529,14 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
     }
   }
 
-  const memberType = payload.memberType != null && String(payload.memberType).trim() !== ''
-    ? String(payload.memberType)
-    : '-'
-  const memberName = payload.name != null && String(payload.name).trim() !== ''
-    ? String(payload.name)
-    : '-'
+  const memberType =
+    payload.memberType != null && String(payload.memberType).trim() !== ''
+      ? String(payload.memberType)
+      : '-'
+  const memberName =
+    payload.name != null && String(payload.name).trim() !== ''
+      ? String(payload.name)
+      : '-'
   const rawPhone = payload.phone != null ? String(payload.phone).replace(/[^\d]/g, '') : ''
   const phone =
     rawPhone.length >= 10
@@ -533,54 +549,49 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   const pad = (n) => String(n).padStart(2, '0')
   const signupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 
-  const wordStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').toLowerCase()
-
-  let templateContent
-  /** @type {Record<string, string>} */
-  let changeWord
-
-  if (wordStyle === 'numbered') {
-    changeWord = {
-      var1: memberType,
-      var2: memberName,
-      var3: phone,
-      var4: signupAt,
-    }
-    templateContent =
-      String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
-      [
-        '사업자 유형: [*1*]',
-        '회원명: [*2*]',
-        '연락처: [*3*]',
-        '가입일시: [*4*]',
-      ].join('\n')
-  } else {
-    changeWord = {
-      memberType,
-      memberName,
-      phone,
-      signupAt,
-    }
-    templateContent =
-      String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim() ||
-      SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT
+  const hashChangeWord = {
+    memberType,
+    memberName,
+    phone,
+    signupAt,
   }
 
+  const numberedChangeWord = {
+    var1: memberType,
+    var2: memberName,
+    var3: phone,
+    var4: signupAt,
+  }
+
+  const envStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').trim().toLowerCase()
+  const isNumbered = envStyle === 'numbered'
+
+  const envOriginal = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
+  const originalContent = envOriginal || SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
+  const numberedContent = SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT
+
+  const content = isNumbered ? numberedContent : originalContent
+  const changeWord = isNumbered ? numberedChangeWord : hashChangeWord
+
   if (!payload.name || String(payload.name).trim() === '') {
-    console.warn('[회원가입 알림톡] payload.name 비어 있음 → changeWord.memberName 은 "-" 로 대체됩니다.')
+    console.warn('[회원가입 알림톡] payload.name 비어 있음 → memberName 은 "-" 로 대체됩니다.')
   }
   if (!payload.phone || String(payload.phone).replace(/[^\d]/g, '').length < 10) {
     console.warn('[회원가입 알림톡] payload.phone 이 짧거나 비어 있을 수 있습니다.')
   }
 
+  console.log(
+    `[회원가입 알림톡] wordStyle=${isNumbered ? 'numbered([*1*]+var1)' : 'hash(#{ }+memberType…)'} ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || ''}"`
+  )
+  console.log('[회원가입 알림톡] content(앞 120자):', String(content).replace(/\r/g, '').slice(0, 120))
   console.log('[회원가입 알림톡] changeWord:', changeWord)
   console.log('[회원가입 알림톡] 회원명(payload.name→memberName):', memberName)
   console.log('[회원가입 알림톡] 회원 연락처(raw):', payload.phone ?? '(payload 없음)')
-  console.log('[회원가입 알림톡] 회원 연락처(변수 phone):', phone)
+  console.log('[회원가입 알림톡] 회원 연락처(치환용 phone):', phone)
   console.log('[회원가입 알림톡] 사업자 유형(payload.memberType):', memberType)
 
   return {
-    text: templateContent,
+    text: content,
     changeWord,
     plainText,
     ppurioIsResend: 'Y',
@@ -608,4 +619,7 @@ export default {
   buildSignupNotificationMessage,
   buildSignupAdminAlimtalkRequest,
   getServerPublicIp,
+  SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT,
+  SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT,
+  SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT,
 }
