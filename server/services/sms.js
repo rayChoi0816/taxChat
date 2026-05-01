@@ -33,13 +33,25 @@ const isPpurioConfigured = () => {
   )
 }
 
-/** 뿌리오 발신 프로필(명세 필드 senderProfile). 별칭: PPURIO_KAKAO_SENDER_PROFILE */
-const getPpurioKakaoSenderProfile = () =>
+/**
+ * 뿌리오 /v1/kakao 는 senderProfile 이 반드시 '@' 로 시작해야 함 (code 2000).
+ * env 에 @ 없이 채널명만 넣은 경우 자동 보정.
+ */
+const readPpurioKakaoSenderProfileEnv = () =>
   String(
     process.env.PPURIO_KAKAO_SENDER_KEY ||
       process.env.PPURIO_KAKAO_SENDER_PROFILE ||
       ''
   ).trim()
+
+const normalizePpurioKakaoSenderProfile = (trimmedRaw) => {
+  if (!trimmedRaw) return ''
+  return trimmedRaw.startsWith('@') ? trimmedRaw : `@${trimmedRaw}`
+}
+
+/** API 에 실어 보낼 발신 프로필(@접두 포함). 별칭 env: PPURIO_KAKAO_SENDER_PROFILE */
+const getPpurioKakaoSenderProfile = () =>
+  normalizePpurioKakaoSenderProfile(readPpurioKakaoSenderProfileEnv())
 
 /** 알림톡 템플릿 코드. 별칭: PPURIO_KAKAO_TEMPLATE */
 const getPpurioKakaoTemplateCode = () =>
@@ -308,7 +320,7 @@ export const buildVerificationMessage = (code) => {
 //   - isResend/resend: 알림톡 실패시 SMS/LMS 로 대체 발송할 본문
 //
 // 추가로 필요한 환경변수:
-//   PPURIO_KAKAO_SENDER_KEY   : 뿌리오 카카오 발신 프로필(별칭 PPURIO_KAKAO_SENDER_PROFILE)
+//   PPURIO_KAKAO_SENDER_KEY   : 카카오 발신 프로필(@채널검색아이디). @ 생략 시 코드에서 @ 접두 보정
 //   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드(별칭 PPURIO_KAKAO_TEMPLATE)
 //
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
@@ -468,7 +480,13 @@ export const sendAlimtalk = async ({
     target.changeWord = clippedCw
   }
 
-  const senderProfile = getPpurioKakaoSenderProfile()
+  const trimmedSenderEnv = readPpurioKakaoSenderProfileEnv()
+  const senderProfile = normalizePpurioKakaoSenderProfile(trimmedSenderEnv)
+  if (trimmedSenderEnv && !trimmedSenderEnv.startsWith('@')) {
+    console.log(
+      `[알림톡] senderProfile env 에 '@' 가 없어 뿌리오 요구 형식으로 보정했습니다 → ${senderProfile}`
+    )
+  }
   const templateCodeResolved = getPpurioKakaoTemplateCode()
 
   const body = {
