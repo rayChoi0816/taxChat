@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import {
   sendSms,
+  sendLms,
   sendAlimtalk,
   buildVerificationMessage,
   buildSignupAdminAlimtalkRequest,
@@ -27,12 +28,16 @@ const getAdminNotifyPhones = () => {
 const notifyAdminSignup = (payload) => {
   void (async () => {
     let phones = getAdminNotifyPhones()
+    let testModeActive = false
     try {
       const isTestMode = await getTestModeFromDB()
+      testModeActive = isTestMode
       if (isTestMode) {
         const testPhone = await getConfiguredTestPhoneDigits()
         phones = [testPhone]
-        console.log(`[회원가입 알림] 테스트 모드: ${testPhone} 로 1건 발송`)
+        console.log(
+          `[회원가입 알림] 테스트 모드: 관리자 알림만 ${testPhone} 로 라우팅(뿌리오 실호출·모의발송 아님). 카카오는 앱 「알림톡」함·채널 상태를 확인하세요.`
+        )
       } else if (phones.length === 0) {
         console.warn(
           '[회원가입 알림] 수신 번호 미설정: .env 에 ADMIN_NOTIFY_PHONE(숫자만, 콤마 구분)을 넣어야 알림톡/LMS가 발송됩니다.'
@@ -52,19 +57,48 @@ const notifyAdminSignup = (payload) => {
 
     const textPayload = buildSignupAdminAlimtalkRequest(payload)
 
+    const parallelLmsInTest =
+      testModeActive &&
+      ['1', 'true', 'yes', 'y', 'on'].includes(
+        String(process.env.ADMIN_SIGNUP_PARALLEL_LMS_IN_TESTMODE || '')
+          .trim()
+          .toLowerCase()
+      )
+
+    if (testModeActive && !parallelLmsInTest) {
+      console.log(
+        '[회원가입 알림] 알림톡이 code=1000 으로 성공하면 문자(LMS 대체)는 가지 않는 것이 정상입니다. 테스트 중 문자도 받으려면 환경변수 ADMIN_SIGNUP_PARALLEL_LMS_IN_TESTMODE=true 를 켜세요.'
+      )
+    }
+
     console.log(`[회원가입 알림] 수신처 ${phones.length}건 발송 시도`)
+    const subjectSignup = '[택스챗] 신규 회원가입'
     for (const to of phones) {
       sendAlimtalk({
         to,
         text: textPayload.text,
-        subject: '[택스챗] 신규 회원가입',
+        subject: subjectSignup,
         changeWord: textPayload.changeWord,
         ppurioIsResend: textPayload.ppurioIsResend,
         lmsFallbackBody: textPayload.plainText,
       })
-        .then((r) =>
+        .then(async (r) => {
           console.log(`[회원가입 알림] 요청수신=${to} 결과채널=${r.channel}`)
-        )
+          if (parallelLmsInTest && r.channel === 'ALT' && textPayload.plainText) {
+            try {
+              await sendLms({
+                to,
+                subject: subjectSignup.slice(0, 30),
+                text: textPayload.plainText,
+              })
+              console.log(
+                '[회원가입 알림] 테스트 모드 LMS 병행 발송 완료(ADMIN_SIGNUP_PARALLEL_LMS_IN_TESTMODE)'
+              )
+            } catch (err) {
+              console.warn('[회원가입 알림] 테스트 모드 LMS 병행 실패:', err.message || err)
+            }
+          }
+        })
         .catch((err) =>
           console.error('[회원가입 알림 실패]', err.message, err.detail || '')
         )

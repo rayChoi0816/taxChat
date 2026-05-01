@@ -64,7 +64,10 @@ export async function getConfiguredTestPhoneDigits() {
 }
 
 /**
- * 카카오 알림톡(및 LMS 대체 경로) 수신번호 결정.
+ * 카카오 알림톡 등 실제 발송용 수신 번호 결정.
+ * 테스트 모드 ON 이면 `system_settings.TEST_PHONE`(또는 env TEST_PHONE)으로만 치환할 뿐,
+ * 뿌리오/카카오 API 호출 자체를 막지 않습니다(mock 아님).
+ *
  * @param {string} originalPhone 원본 번호 (하이픈 허용)
  * @returns {Promise<string>} 숫자만
  */
@@ -74,7 +77,9 @@ export async function getSendPhoneNumber(originalPhone) {
   const testPhone = await getConfiguredTestPhoneDigits()
 
   if (isTestMode) {
-    console.log(`[TEST MODE] ${testPhone}로 발송 (원번호 ${digitsOriginal || '-'})`)
+    console.log(
+      `[TEST MODE] 실제 발송 라우팅 수신번호=${testPhone} (원번호 ${digitsOriginal || '-'}) · 뿌리오까지 동일하게 요청됨`
+    )
     return testPhone
   }
   console.log(`[PRODUCTION] ${digitsOriginal || '-'}로 발송`)
