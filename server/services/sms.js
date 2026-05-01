@@ -404,17 +404,41 @@ export const sendAlimtalk = async ({
     },
   }
 
-  console.log(
-    `[알림톡 요청] to=${resolvedTo} senderProfile=${(process.env.PPURIO_KAKAO_SENDER_KEY || '').slice(0, 6)}*** ` +
-      `template=${process.env.PPURIO_KAKAO_TEMPLATE_CODE}`
-  )
-  if (changeWord && Object.keys(changeWord).length > 0) {
-    const preview = String(text || '').replace(/\r/g, '').slice(0, 220)
-    console.log(
-      `[알림톡 치환] changeWord 키: ${Object.keys(changeWord).join(', ')} | 본문 앞부분: ${preview}${
-        (text || '').length > 220 ? '…' : ''
-      }`
-    )
+  const content = text
+  const effectiveChangeWord =
+    changeWord && typeof changeWord === 'object' && Object.keys(changeWord).length > 0
+      ? changeWord
+      : undefined
+
+  console.log('========== 환경 설정 ==========')
+  console.log('WORD_STYLE:', process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE)
+  console.log('TEMPLATE_CODE:', process.env.PPURIO_KAKAO_TEMPLATE_CODE)
+
+  if (effectiveChangeWord) {
+    Object.entries(effectiveChangeWord).forEach(([key, value]) => {
+      if (!value) {
+        console.warn(`⚠️ changeWord 값 없음: ${key}`)
+      }
+    })
+  } else {
+    console.log('[알림톡 진단] changeWord 없음(치환 변수 미사용 또는 plain 경로 가능)')
+  }
+
+  console.log('========== content 비교 ==========')
+  console.log(String(content || '').replace(/\s/g, '_'))
+
+  console.log('========== 알림톡 요청 payload ==========')
+  console.log('template_code:', process.env.PPURIO_KAKAO_TEMPLATE_CODE)
+  console.log('content:', content)
+  console.log('changeWord:', effectiveChangeWord)
+  console.log('to:', resolvedTo)
+  console.log('senderProfile:', process.env.PPURIO_KAKAO_SENDER_KEY)
+  console.log('refKey:', refKey)
+  console.log('isResend:', body.isResend)
+  try {
+    console.log('full_body:', JSON.stringify(body, null, 2))
+  } catch (_) {
+    console.log('full_body: (직렬화 실패)')
   }
 
   try {
@@ -425,9 +449,50 @@ export const sendAlimtalk = async ({
       },
       timeout: 10_000,
     })
-    console.log('[알림톡 응답]', res.data)
+
+    console.log('========== 알림톡 성공 응답 (HTTP) ==========')
+    console.log('status:', res.status)
+    console.log('data:', JSON.stringify(res.data, null, 2))
+
+    const bizCode = res.data?.code != null ? String(res.data.code) : ''
+    const bizDesc = res.data?.description != null ? String(res.data.description) : ''
+    if (bizCode === '1000') {
+      console.log('[뿌리오 알림톡] 응답 코드 해석: SUCCESS (통상 code=1000)')
+    } else {
+      console.warn(
+        `[뿌리오 알림톡] HTTP 200 이어도 본문 code로 실패 가능 | code="${bizCode}" description="${bizDesc}"`
+      )
+      const hints = []
+      if (/template|매칭|match|내용|불일치/i.test(bizDesc)) {
+        hints.push('TEMPLATE 또는 content 불일치·TEMPLATE_CODE 불일치 의심')
+      }
+      if (/parm|파라미터|invalid|변수|change/i.test(bizDesc)) {
+        hints.push('INVALID_PARAMETER · changeWord·본문 변수 의심')
+      }
+      console.warn(
+        '[뿌리오 알림톡] 진단 힌트:',
+        hints.length > 0 ? hints.join(' | ') : '뿌리오 연동 에러 코드표·대시보드 확인'
+      )
+    }
+
     return { ok: true, channel: 'ALT', data: res.data }
   } catch (err) {
+    console.log('========== 알림톡 실패 ==========')
+    if (err.response) {
+      console.log('status:', err.response.status)
+      console.log('data:', JSON.stringify(err.response.data, null, 2))
+      const eco = err.response.data
+      const ed = eco && typeof eco.description === 'string' ? eco.description : ''
+      if (/template/i.test(ed) || /코드/i.test(ed)) {
+        console.warn('[진단] TEMPLATE 불일치·템플릿 코드 오류 가능성 (description 위 참고)')
+      }
+      if (/parm|파라미터|invalid|변수|change/i.test(ed)) {
+        console.warn('[진단] INVALID_PARAMETER · changeWord·변수 규격 가능성')
+      }
+    } else {
+      console.log('error:', err.message)
+    }
+
     if (err.response?.status === 401) {
       cachedToken = null
       tokenExpiresAt = 0
