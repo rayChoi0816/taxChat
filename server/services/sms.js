@@ -1604,9 +1604,10 @@ export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGI
 /**
  * 신규가입 카카오 알림톡 (관리자 수신)
  *
- * `changeWord` 는 카카오 템플릿 변수와 동일한 키(`memberType`, `memberName`, `phone`, `signupAt`)로 전달합니다.
- * **`PPURIO_SIGNUP_ALIMTALK_WORD_STYLE`** 은 여전히 등록 본문이 `[*n*]` 패턴일지 `#{변수}` 패턴일지에 따라
- * 선택할 **content 문자열**(numbered vs 원문) 분기만 담당합니다.
+ * 뿌리오 카카오 API 는 `changeWord` 키로 `var1`, `var2`, … 형만 허용합니다(커스텀 키 시 400).
+ * 카카오 콘솔 표기 `#{memberType}` 등과 순서 매핑: var1→사업자 유형 · var2→회원명 · var3→연락처 · var4→가입일시.
+ * **`PPURIO_SIGNUP_ALIMTALK_WORD_STYLE`**(`numbered`/`hash`/… 포함 `named`)는 **본문 문자열**(content) 선택 분기만 담당하며,
+ * API `changeWord` 는 항상 아래 순서의 `var1`~`var4` 로 통일합니다.
  *
  * payload (routes/auth.js): memberType, name→memberName, phone, signupAt (+ customerId는 LMS 폴백)
  *
@@ -1662,15 +1663,16 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   const pickedRaw = isNumbered ? numberedContentRaw : originalContentRaw
   const content = normalizeAlimtalkContentBody(pickedRaw)
 
+  /** 순서 고정: var1~var4 (= 사업자유형 · 회원명 · 연락처 · 가입일시). 뿌리오 규격만 허용. */
   const changeWord = normalizeAndClipChangeWord({
-    memberType,
-    memberName,
-    phone,
-    signupAt,
+    var1: memberType,
+    var2: memberName,
+    var3: phone,
+    var4: signupAt,
   })
 
   console.log(
-    `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered([*]+var)' : 'hash(#{memberType}+키일치 필수)'} ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
+    `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered([*]+var)' : 'hash(#{변수}-본문)'} · changeWord=var1~var4 고정 ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
       process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '(기본 numbered)'
     }"`
   )
