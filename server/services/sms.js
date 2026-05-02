@@ -1604,9 +1604,9 @@ export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGI
 /**
  * 신규가입 카카오 알림톡 (관리자 수신)
  *
- * **기본 전송 모드는 뿌리오 규격 `[*n*]` + `var1…var4`(numbered)** 입니다. 카카오 콘솔에서는 #{변수}로
- * 보이더라도 API 연동은 대개 번호 변수가 맞습니다. `#{memberType}+memberType키` 형만 쓰는 계정이면
- * `PPURIO_SIGNUP_ALIMTALK_WORD_STYLE=hash` 로 명시합니다.
+ * `changeWord` 는 카카오 템플릿 변수와 동일한 키(`memberType`, `memberName`, `phone`, `signupAt`)로 전달합니다.
+ * **`PPURIO_SIGNUP_ALIMTALK_WORD_STYLE`** 은 여전히 등록 본문이 `[*n*]` 패턴일지 `#{변수}` 패턴일지에 따라
+ * 선택할 **content 문자열**(numbered vs 원문) 분기만 담당합니다.
  *
  * payload (routes/auth.js): memberType, name→memberName, phone, signupAt (+ customerId는 LMS 폴백)
  *
@@ -1662,22 +1662,12 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   const pickedRaw = isNumbered ? numberedContentRaw : originalContentRaw
   const content = normalizeAlimtalkContentBody(pickedRaw)
 
-  const hashChangeWord = normalizeAndClipChangeWord({
+  const changeWord = normalizeAndClipChangeWord({
     memberType,
     memberName,
     phone,
     signupAt,
   })
-
-  /** 순서 고정: var1~var4 (= 사업자유형 → 이름 → 연락처 → 가입일시) */
-  const numberedChangeWord = normalizeAndClipChangeWord({
-    var1: memberType,
-    var2: memberName,
-    var3: phone,
-    var4: signupAt,
-  })
-
-  const changeWord = isNumbered ? numberedChangeWord : hashChangeWord
 
   console.log(
     `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered([*]+var)' : 'hash(#{memberType}+키일치 필수)'} ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
