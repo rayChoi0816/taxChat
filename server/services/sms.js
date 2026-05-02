@@ -467,8 +467,7 @@ async function pollPpurioMessageKeyDelivery(authBearer, vars) {
 }
 
 /**
- * 최종 LMS 폴백 정책. PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY 우선, 없으면 PPURIO_ALIMTALK_AFTER_1000_LMS,
- * 둘 다 없으면 not_verified_fallback(URL 미설정·미확정 시 문자).
+ * LMS(SMS) 폴백 정책. 기본 delivery_fail_only = 전달 **확정 실패** 시에만 문자(미확정은 비용 절감을 위해 발송 안 함).
  */
 function readDeliveryFallbackPolicy() {
   const p = String(process.env.PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY || '')
@@ -487,54 +486,98 @@ function readDeliveryFallbackPolicy() {
   ]
   if (p && !valid.includes(p))
     console.warn(
-      `[알림톡] PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY="${p}" 인식 불가 → not_verified_fallback. 허용: none | always | delivery_fail_only | not_verified_fallback`
+      `[알림톡] PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY="${p}" 인식 불가 → delivery_fail_only. 허용: none | always | delivery_fail_only`
     )
 
   if (p === 'none' || p === 'disabled') return 'none'
   if (p === 'always' || p === 'force_lms') return 'always'
-  if (p === 'delivery_fail_only') return 'delivery_fail_only'
+
   if (
     p === 'not_verified_fallback' ||
     p === 'delivery_not_confirmed_fallback'
-  )
-    return 'not_verified_fallback'
+  ) {
+    console.warn(
+      '[알림톡 비용정책] not_verified_fallback 는 폐기→ delivery_fail_only 와 동일(미확정 시 LMS 금지)'
+    )
+    return 'delivery_fail_only'
+  }
+  if (p === 'delivery_fail_only') return 'delivery_fail_only'
 
   const leg = String(process.env.PPURIO_ALIMTALK_AFTER_1000_LMS ?? '')
     .trim()
     .toLowerCase()
   if (leg === 'always' || leg === 'mirror') return 'always'
   if (leg === 'never') return 'none'
-  if (leg === 'if_delivery_not_confirmed') return 'not_verified_fallback'
-  return 'not_verified_fallback'
+  if (leg === 'if_delivery_not_confirmed')
+    console.warn(
+      '[알림톡 비용정책] AFTER_1000_LMS=if_delivery_not_confirmed → delivery_fail_only(미확정 시 문자 없음)'
+    )
+  return 'delivery_fail_only'
 }
 
-function shouldTriggerDeliveryBasedLmsFallback(policy, interpreted) {
-  if (policy === 'always') return true
-  /** 조회 결과 전달 「확정 실패」는 정책 none 이어도 LMS (최종 실패 보완). */
-  if (interpreted.delivered === false) return true
-  if (policy === 'none') return false
-  if (policy === 'delivery_fail_only') return false
-  return interpreted.delivered !== true
+/** @returns {{ deliveryState: 'true'|'false'|'undefined', smsTriggered: boolean, fallbackDecisionReason: string }} */
+function evaluateSmsFallbackAfterDelivery(policy, interpreted) {
+  const deliveryState =
+    interpreted.delivered === true
+      ? 'true'
+      : interpreted.delivered === false
+        ? 'false'
+        : 'undefined'
+
+  if (policy === 'always') {
+    return {
+      deliveryState,
+      smsTriggered: true,
+      fallbackDecisionReason:
+        interpreted.delivered === false
+          ? 'deliveryState_false_AND_policy_always'
+          : `policy_always_SMS_despite_deliveryState=${deliveryState}_COST_MODE`,
+    }
+  }
+  if (policy === 'none') {
+    return {
+      deliveryState,
+      smsTriggered: false,
+      fallbackDecisionReason:
+        interpreted.delivered === false
+          ? 'deliveryState_false_BUT_policy_none_no_SMS'
+          : `policy_none_no_SMS_deliveryState=${deliveryState}`,
+    }
+  }
+  const failOnly = interpreted.delivered === false
+  return {
+    deliveryState,
+    smsTriggered: failOnly,
+    fallbackDecisionReason: failOnly
+      ? 'deliveryState_false_CONFIRMED_FAIL_SMS_FALLBACK'
+      : deliveryState === 'true'
+        ? 'deliveryState_true_NO_SMS'
+        : 'deliveryState_undefined_POLL_EXHAUSTED_NO_SMS',
+  }
 }
 
-function logDeliveryDecisionRow({
-  messageKeyVal,
-  policy,
-  interpreted,
-  pollOutcome,
-  willFallback,
-  fallbackReason,
-}) {
-  console.log('[PPURIO_ALIMTALK_DELIVERY] ----- messageKey 상태·전달 판정 -----')
+function logDeliveryDecisionRow(opts) {
+  const {
+    messageKeyVal,
+    policy,
+    interpreted,
+    pollOutcome,
+    deliveryState,
+    smsTriggered,
+    fallbackDecisionReason,
+  } = opts
+  console.log('[PPURIO_ALIMTALK_DELIVERY] ----- 전달 상태·SMS 폴백 -----')
   console.log(
     `[PPURIO_ALIMTALK_DELIVERY] messageKey=${messageKeyVal ?? '(none)'} fallbackPolicy=${policy} pollSummary=${pollOutcome.summary}`
   )
   console.log(
-    `[PPURIO_ALIMTALK_DELIVERY] verification=${interpreted.verification ?? '?'} certainty=${interpreted.certainty ?? '?'} deliveredDecision=${interpreted.delivered === undefined ? 'UNKNOWN' : interpreted.delivered}`
+    `[PPURIO_ALIMTALK_DELIVERY] verification=${interpreted.verification ?? '?'} certainty=${interpreted.certainty ?? '?'}`
   )
+  console.log(`[PPURIO_ALIMTALK_DELIVERY] deliveryState=${deliveryState}`)
   console.log(
-    `[PPURIO_ALIMTALK_DELIVERY] LMS_fallback_TRIGGER=${willFallback ? 'YES' : 'NO'} reason=${fallbackReason}`
+    `[PPURIO_ALIMTALK_DELIVERY] fallbackDecisionReason=${fallbackDecisionReason}`
   )
+  console.log(`[PPURIO_ALIMTALK_DELIVERY] smsTriggered=${smsTriggered ? 'YES' : 'NO'}`)
   console.log('[PPURIO_ALIMTALK_DELIVERY] pollAttempts=', pollOutcome.pollSeries?.length ?? 0)
 }
 
@@ -855,9 +898,9 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_MESSAGEKEY_PROBE_PENDING_CODES            처리중 코드(재폴링 유지)
 //   PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES / _FAILURE_CODES  전달 성공·실패 응답 code
 //   PPURIO_MESSAGEKEY_PROBE_*_BODY_REGEX             성공/실패 본문 정규식 보조
-// 전달 결과 기준 LMS 폴백(기본: 전달 미확정면 문자로 보완·silent drop 완충):
-//   PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY  none | always | delivery_fail_only | not_verified_fallback (기본)
-//   또는 호환: PPURIO_ALIMTALK_AFTER_1000_LMS mirror|always → always, never→none, if_delivery_not_confirmed→not_verified
+// 전달 결과 기준 LMS 폴백(기본 delivery_fail_only: delivered===false 확정 시에만 SMS, 미확정은 비용 절감을 위해 미발송):
+//   PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY  none | always | delivery_fail_only (기본, 권장) | not_verified_fallback(폐기·fail_only 동일 처리)
+//   또는 호환: PPURIO_ALIMTALK_AFTER_1000_LMS mirror|always → always, never→none, if_delivery_not_confirmed→delivery_fail_only(미확정 시 문자 없음)
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
 // #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1181,35 +1224,24 @@ export const sendAlimtalk = async ({
       )
 
       const policy = readDeliveryFallbackPolicy()
-      const wantMirror = shouldTriggerDeliveryBasedLmsFallback(policy, interpreted)
-
-      let fallbackReason = 'no_fallback'
-      if (wantMirror) {
-        if (policy === 'always') fallbackReason = 'policy_always'
-        else if (interpreted.delivered === false) fallbackReason = 'delivery_verified_FAIL'
-        else if (policy === 'not_verified_fallback') {
-          fallbackReason =
-            interpreted.delivered === undefined
-              ? `delivery_NOT_CONFIRMED:${interpreted.verification ?? '?'}`
-              : 'unexpected_not_verified_policy'
-        } else if (policy === 'delivery_fail_only')
-          fallbackReason = 'explicit_fail_only_should_not_here'
-      }
+      const {
+        deliveryState,
+        smsTriggered,
+        fallbackDecisionReason,
+      } = evaluateSmsFallbackAfterDelivery(policy, interpreted)
 
       logDeliveryDecisionRow({
         messageKeyVal: mkResolved ?? '(none)',
         policy,
         interpreted,
         pollOutcome,
-        willFallback: wantMirror,
-        fallbackReason:
-          fallbackReason !== 'unexpected_not_verified_policy'
-            ? fallbackReason
-            : `policy_${policy}`,
+        deliveryState,
+        smsTriggered,
+        fallbackDecisionReason,
       })
 
       let supplementaryLmsResult = null
-      if (wantMirror) {
+      if (smsTriggered) {
         try {
           supplementaryLmsResult = await sendLms({
             to: recipientPhone,
@@ -1217,7 +1249,7 @@ export const sendAlimtalk = async ({
             text: lmsText,
           })
           console.warn(
-            `[알림톡] 전달 결과 기준 LMS 발송 실행(PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY 또는 호환 변수). 카카오+문자 요금 동시 발생 가능`
+            `[알림톡] SMS 폴백 실행(delivered 확정 실패 또는 policy_always). 카카오+문자 요금 동시 발생 가능 — policy=${policy} reason=${fallbackDecisionReason}`
           )
           logPpurioAlimtalkTrace(
             'DELIVERY_FALLBACK_LMS',
@@ -1227,14 +1259,16 @@ export const sendAlimtalk = async ({
             mkResolved ?? '(none)',
             {
               policy,
-              fallbackReason,
+              deliveryState,
+              fallbackDecisionReason,
+              smsTriggered: true,
               lmsOk: supplementaryLmsResult?.ok ?? true,
               lmsData: supplementaryLmsResult?.data ?? null,
             }
           )
         } catch (mirErr) {
           console.error(
-            '[알림톡] 전달 미확정/실패에 따른 LMS 폴백 발송 실패:',
+            '[알림톡] 전달 확정 실패에 따른 LMS 폴백 발송 실패:',
             mirErr.message || mirErr
           )
           logPpurioAlimtalkTrace(
@@ -1243,13 +1277,19 @@ export const sendAlimtalk = async ({
             senderProfile,
             templateCodeResolved,
             mkResolved ?? '(none)',
-            { policy, error: mirErr.message }
+            {
+              policy,
+              deliveryState,
+              fallbackDecisionReason,
+              smsTriggered: true,
+              error: mirErr.message,
+            }
           )
         }
       }
 
       const settledChannel =
-        wantMirror && supplementaryLmsResult?.ok === true && !supplementaryLmsResult?.dev
+        smsTriggered && supplementaryLmsResult?.ok === true && !supplementaryLmsResult?.dev
           ? 'LMS'
           : 'ALT'
 
@@ -1261,10 +1301,13 @@ export const sendAlimtalk = async ({
         deliveryPoll: pollOutcome,
         deliveredInterpretation: interpreted,
         deliveryFallbackPolicy: policy,
+        deliveryState,
+        fallbackDecisionReason,
+        smsTriggered,
         supplementaryLmsAfterDeliveryCheck: supplementaryLmsResult,
         lmsFallbackPayload: supplementaryLmsResult?.data,
         deliveryFallbackTriggered: Boolean(
-          wantMirror && supplementaryLmsResult?.ok && !supplementaryLmsResult?.dev
+          smsTriggered && supplementaryLmsResult?.ok && !supplementaryLmsResult?.dev
         ),
       }
     }
