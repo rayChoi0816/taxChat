@@ -89,6 +89,163 @@ function logAlimtalkSkippedReason() {
   )
 }
 
+function ppurioSafeJsonStringify(obj) {
+  try {
+    return JSON.stringify(obj, null, 2)
+  } catch (_) {
+    return String(obj)
+  }
+}
+
+/** 뿌리오 원문 객체에서 messageKey 변형 후보 통합 추출 */
+function pickPpurioMessageKey(raw) {
+  if (raw == null || typeof raw !== 'object') return undefined
+  return (
+    raw.messageKey ??
+    raw.MessageKey ??
+    raw.message_key ??
+    raw.msgKey ??
+    raw.mid ??
+    raw.messageId ??
+    raw.message_id
+  )
+}
+
+/**
+ * account / senderProfile / templateCode / messageKey / 원문 바디 필수 진단 출력
+ * */
+function logPpurioAlimtalkTrace(stage, account, senderProfile, templateCode, messageKeyHint, rawBody) {
+  const mk =
+    messageKeyHint !== undefined &&
+    messageKeyHint !== null &&
+    String(messageKeyHint).trim() !== ''
+      ? String(messageKeyHint).trim()
+      : '(none)'
+  const acc = account ?? '(missing)'
+  const sp = senderProfile ?? '(missing)'
+  const tpl = templateCode ?? '(missing)'
+  console.log(
+    `[PPURIO_ALIMTALK_TRACE:${stage}] account=${acc} senderProfile=${sp} templateCode=${tpl} messageKey=${mk}`
+  )
+  console.log(
+    `[PPURIO_ALIMTALK_RESPONSE_BODY:${stage}] ${typeof rawBody === 'string' ? rawBody : ppurioSafeJsonStringify(rawBody)}`
+  )
+}
+
+/** 콤마·세미콜론·파이프로 구분된 env 목록 */
+function splitEnvList(s) {
+  return String(s || '')
+    .split(/[,|;]/g)
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+}
+
+function parseOptionalJsonEnv(name) {
+  const raw = String(process.env[name] || '').trim()
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    console.warn(`[알림톡 검증] ${name} 파싱 실패(JSON 아님) → 해당 규칙은 건너뜁니다.`)
+    return null
+  }
+}
+
+/**
+ * /v1/kakao 호출 전 로컬 검증 (뿌리오에는 공개 「프로필·템플릿 귀속 조회」 가 없음).
+ * 교차 검사: 선택 env `PPURIO_ALIMTALK_ALLOWED_*`, JSON 맵 두 종류 참고 코멘트.
+ */
+function validatePpurioAlimtalkBeforeSend({
+  account,
+  senderProfile,
+  templateCode,
+  recipientPhone,
+  refKey,
+}) {
+  const errors = []
+  const envAccount = String(process.env.PPURIO_ACCOUNT || '').trim()
+
+  if (!account) errors.push('account 비어 있음')
+  else if (envAccount && account !== envAccount) {
+    errors.push(`account 불일치(요청 body.account=${account} vs 환경 PPURIO_ACCOUNT=${envAccount})`)
+  }
+
+  if (!senderProfile) errors.push('senderProfile 비어 있음')
+  else if (!senderProfile.startsWith('@')) {
+    errors.push('senderProfile 은 반드시 @ 로 시작해야 함')
+  }
+
+  if (!templateCode) errors.push('templateCode 비어 있음')
+
+  const digitsOnly = String(recipientPhone ?? '').replace(/\D/g, '')
+  if (!/^\d{10,11}$/.test(digitsOnly)) {
+    errors.push(`수신번호 형식 오류(raw=${recipientPhone ?? ''}) — 숫자 10~11자리 필요`)
+  }
+
+  if (!refKey) errors.push('refKey 비어 있음')
+
+  const allowProf = splitEnvList(process.env.PPURIO_ALIMTALK_ALLOWED_SENDER_PROFILES)
+  if (allowProf.length && !allowProf.includes(senderProfile)) {
+    errors.push(
+      `senderProfile 이 허용목록 없음(env PPURIO_ALIMTALK_ALLOWED_SENDER_PROFILES)·다른 뿌리오 계정용 프로필일 수 있음`
+    )
+  }
+
+  const allowTpl = splitEnvList(process.env.PPURIO_ALIMTALK_ALLOWED_TEMPLATE_CODES)
+  if (allowTpl.length && !allowTpl.includes(templateCode)) {
+    errors.push(`templateCode 가 허용목록 없음(env PPURIO_ALIMTALK_ALLOWED_TEMPLATE_CODES)`)
+  }
+
+  // 예: "{ \"ppur_xxx\":\"tax5wol\" }" — 템플릿 코드가 속한 계정 ID
+  const tplOwners = parseOptionalJsonEnv('PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP')
+  if (tplOwners != null && typeof tplOwners === 'object' && !Array.isArray(tplOwners)) {
+    const owner = tplOwners[templateCode]
+    if (
+      owner != null &&
+      String(owner).trim() !== '' &&
+      String(owner).trim() !== account
+    ) {
+      errors.push(
+        `템플릿 귀속 계정 불일치: PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP 에서 코드 ${templateCode} → 기대 ${String(owner).trim()} 실제 account=${account}`
+      )
+    }
+  }
+
+  // 예: "{ \"tax5wol\": \"@발신프로필\" }" 또는 [\"@p1\",\"@p2\"]
+  const accSendMap = parseOptionalJsonEnv('PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP')
+  if (accSendMap != null && typeof accSendMap === 'object' && !Array.isArray(accSendMap)) {
+    const expected = accSendMap[account]
+    if (expected != null) {
+      const list = Array.isArray(expected) ? expected : [expected]
+      const norms = list
+        .map((s) =>
+          normalizePpurioKakaoSenderProfile(String(s ?? '').trim())
+        )
+        .filter(Boolean)
+      const ok = norms.some((x) => x === senderProfile)
+      if (!ok) {
+        errors.push(
+          `발신 프로필·계정 매핑 불일치: PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP 에서 account=${account} 는 허용 [${norms.join(', ')}], 요청=${senderProfile}`
+        )
+      }
+    }
+  }
+
+  return { errors }
+}
+
+function summarizeAxiosRejectForPpurio(err) {
+  if (!err.response) {
+    return { status: '(no_http_response)', headers: {}, data: { message: err.message } }
+  }
+  return {
+    status: err.response.status,
+    statusText: err.response.statusText ?? '',
+    headers: err.response.headers ?? {},
+    data: err.response.data,
+  }
+}
+
 /**
  * 지금 이 서버가 바깥으로 나갈 때 쓰는 공인 IP 를 돌려줍니다.
  * (뿌리오가 "invalid ip" 를 돌려줄 때, 어떤 IP 를 등록해야 하는지 알려주려고 사용합니다)
@@ -324,6 +481,11 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_KAKAO_SENDER_KEY   : 카카오 발신 프로필(@채널검색아이디). @ 생략 시 코드에서 @ 접두 보정
 //   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드(별칭 PPURIO_KAKAO_TEMPLATE)
 //
+// 교차 검증(선택, 뿌리오 공식 「프로필·템플릿 조회 API」 부재 시 서버 규칙):
+//   PPURIO_ALIMTALK_ALLOWED_SENDER_PROFILES  콤마·세미콜론·파이프로 구분 허용 @발신프로필
+//   PPURIO_ALIMTALK_ALLOWED_TEMPLATE_CODES   허용 templateCode 목록
+//   PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP     JSON {"템플릿코드":"뿌리오계정ID"}
+//   PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP       JSON {"계정ID":"@프로필"} 또는 허용 배열
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
 // #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -485,9 +647,10 @@ export const sendAlimtalk = async ({
     )
   }
   const templateCodeResolved = getPpurioKakaoTemplateCode()
+  const ppurAccountResolved = String(process.env.PPURIO_ACCOUNT ?? '').trim()
 
   const body = {
-    account: process.env.PPURIO_ACCOUNT,
+    account: ppurAccountResolved,
     messageType: 'ALT',
     senderProfile,
     templateCode: templateCodeResolved,
@@ -502,6 +665,35 @@ export const sendAlimtalk = async ({
       subject: (subject || '[taxChat] 알림').slice(0, 30),
       content: lmsText,
     },
+  }
+
+  const preflight = validatePpurioAlimtalkBeforeSend({
+    account: ppurAccountResolved,
+    senderProfile,
+    templateCode: templateCodeResolved,
+    recipientPhone,
+    refKey,
+  })
+  if (preflight.errors.length > 0) {
+    logPpurioAlimtalkTrace(
+      'PRE_VALIDATE_FAIL',
+      ppurAccountResolved,
+      senderProfile,
+      templateCodeResolved,
+      '(미발송)',
+      {
+        code: '(local)',
+        description: preflight.errors.join(' | '),
+        ppurioHints: [
+          '뿌리오 콘솔 다른 계정(운영·테스트) 로그인 시 발송내역 표시 불일치 가능',
+          '선택 교차 검증: PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP, PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP, PPURIO_ALIMTALK_ALLOWED_*',
+        ],
+      }
+    )
+    const reject = new Error(`알림톡 사전 검증 실패: ${preflight.errors.join(' · ')}`)
+    reject.isPpurioAlimtalkPreflightReject = true
+    reject.preflightErrors = preflight.errors
+    throw reject
   }
 
   const contentForCompare = normalizedAlimtalkBody
@@ -553,15 +745,26 @@ export const sendAlimtalk = async ({
       timeout: 10_000,
     })
 
-    console.log('========== 알림톡 성공 응답 (HTTP) ==========')
-    console.log('status:', res.status)
-    console.log('data:', JSON.stringify(res.data, null, 2))
+    const rd = res.data
 
-    const bizCode = res.data?.code != null ? String(res.data.code) : ''
-    const bizDesc = res.data?.description != null ? String(res.data.description) : ''
+    logPpurioAlimtalkTrace(
+      rd?.code === '1000' ? 'HTTP200_OK_1000' : 'HTTP200_BIZ_REJECT',
+      ppurAccountResolved,
+      senderProfile,
+      templateCodeResolved,
+      pickPpurioMessageKey(rd),
+      rd
+    )
+
+    console.log(
+      `[알림톡 HTTP] status=${res.status} code=${rd?.code ?? '?'} description=${rd?.description ?? '?'}`
+    )
+
+    const bizCode = rd?.code != null ? String(rd.code) : ''
+    const bizDesc = rd?.description != null ? String(rd.description) : ''
     if (bizCode === '1000') {
       console.log('[뿌리오 알림톡] 응답 코드 해석: SUCCESS (통상 code=1000)')
-      return { ok: true, channel: 'ALT', data: res.data }
+      return { ok: true, channel: 'ALT', data: rd }
     }
 
     console.error(
@@ -597,20 +800,58 @@ export const sendAlimtalk = async ({
       throw e
     }
   } catch (err) {
+    if (err?.isPpurioAlimtalkPreflightReject) {
+      console.error('[알림톡] 사전 검증으로 뿌리오 /v1/kakao 미호출 → LMS 시도:', err.message)
+      try {
+        const r = await sendLms({ to: recipientPhone, subject, text: lmsText })
+        return {
+          ok: true,
+          channel: 'LMS',
+          data: r.data,
+          alimtalkError: err.message,
+          preflightFailed: true,
+        }
+      } catch (lmsErr) {
+        const e = new Error('알림톡 사전 검증 실패 후 LMS 도 실패했습니다')
+        e.detail = lmsErr.detail
+        e.serverIp = lmsErr.serverIp
+        e.ppurioMessage = lmsErr.ppurioMessage
+        throw e
+      }
+    }
+
     console.log('========== 알림톡 실패 ==========')
+    const failedBlob = summarizeAxiosRejectForPpurio(err)
+    logPpurioAlimtalkTrace(
+      'REQUEST_OR_HTTP_FAIL',
+      ppurAccountResolved,
+      senderProfile,
+      templateCodeResolved,
+      pickPpurioMessageKey(failedBlob.data),
+      failedBlob
+    )
+
     if (err.response) {
-      console.log('status:', err.response.status)
-      console.log('data:', JSON.stringify(err.response.data, null, 2))
       const eco = err.response.data
-      const ed = eco && typeof eco.description === 'string' ? eco.description : ''
+      const extra = eco && typeof eco === 'object' ? eco : { value: eco }
+      console.error(
+        '[알림톡] 뿌리오 응답 body 전체 재출력:',
+        ppurioSafeJsonStringify(extra)
+      )
+      const ed =
+        eco && typeof eco.description === 'string'
+          ? eco.description
+          : eco && typeof eco.message === 'string'
+            ? eco.message
+            : ''
       if (/template/i.test(ed) || /코드/i.test(ed)) {
         console.warn('[진단] TEMPLATE 불일치·템플릿 코드 오류 가능성 (description 위 참고)')
       }
-      if (/parm|파라미터|invalid|변수|change/i.test(ed)) {
-        console.warn('[진단] INVALID_PARAMETER · changeWord·변수 규격 가능성')
+      if (/parm|파라미터|invalid|변수|change|additional/i.test(ed)) {
+        console.warn('[진단] INVALID_PARAMETER 또는 스키마(additionalProperties) 가능성')
       }
     } else {
-      console.log('error:', err.message)
+      console.log('error(non-http):', err.message)
     }
 
     if (err.response?.status === 401) {
