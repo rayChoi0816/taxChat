@@ -325,31 +325,63 @@ async function probePpurioMessageKeyStatus(authBearer, vars) {
   }
 }
 
-/** probe 응답을 서버 규칙으로 해석(성공 코드 목록 없으면 delivered=unknown). */
+/** probe 응답을 규칙으로 해석. delivered: true 확정 성공 · false 확정 실패 · undefined 검증 불가. */
 function interpretDeliveryProbe(parseResult) {
-  if (parseResult?.outcome === 'skipped')
-    return { delivered: undefined, certainty: 'none', hint: parseResult.reason }
+  if (parseResult?.outcome === 'skipped') {
+    return {
+      delivered: undefined,
+      verification: 'skipped',
+      certainty: 'none',
+      hint: parseResult.reason,
+    }
+  }
   if (
     parseResult?.outcome === 'config_error' ||
     parseResult?.outcome === 'http_fail'
   ) {
     return {
-      delivered: false,
+      delivered: undefined,
+      verification:
+        parseResult.outcome === 'config_error'
+          ? 'probe_config_error'
+          : 'probe_http_error',
       certainty: 'low',
-      hint: parseResult.reason || parseResult.errorMessage || 'probe_http_fail',
+      hint: parseResult.reason || parseResult.errorMessage || 'probe request failed',
     }
   }
 
   const data = parseResult?.data
   const okCodesList = splitEnvList(process.env.PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES)
   const failCodesList = splitEnvList(process.env.PPURIO_MESSAGEKEY_PROBE_FAILURE_CODES)
+  const pendingCodesList = splitEnvList(process.env.PPURIO_MESSAGEKEY_PROBE_PENDING_CODES)
 
   if (data && typeof data === 'object') {
     const c = String(data.code ?? data.resultCode ?? data.status ?? '').trim()
-    if (okCodesList.length && c && okCodesList.includes(c))
-      return { delivered: true, certainty: 'high', probeCode: c }
-    if (failCodesList.length && c && failCodesList.includes(c))
-      return { delivered: false, certainty: 'high', probeCode: c }
+    if (okCodesList.length && c && okCodesList.includes(c)) {
+      return {
+        delivered: true,
+        verification: 'delivered_ok',
+        certainty: 'high',
+        probeCode: c,
+      }
+    }
+    if (failCodesList.length && c && failCodesList.includes(c)) {
+      return {
+        delivered: false,
+        verification: 'delivered_fail',
+        certainty: 'high',
+        probeCode: c,
+      }
+    }
+    if (pendingCodesList.length && c && pendingCodesList.includes(c)) {
+      return {
+        delivered: undefined,
+        verification: 'pending_retry',
+        certainty: 'low',
+        probeCode: c,
+        hint: 'PPURIO_MESSAGEKEY_PROBE_PENDING_CODES',
+      }
+    }
   }
 
   const okRe = String(process.env.PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX ?? '').trim()
@@ -357,23 +389,155 @@ function interpretDeliveryProbe(parseResult) {
     try {
       const re = new RegExp(okRe, 'i')
       const hay = ppurioSafeJsonStringify(data)
-      if (re.test(hay))
-        return { delivered: true, certainty: 'medium', hint: 'matched PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX' }
+      if (re.test(hay)) {
+        return {
+          delivered: true,
+          verification: 'regex_ok',
+          certainty: 'medium',
+          hint: 'SUCCESS_BODY_REGEX',
+        }
+      }
     } catch {
       console.warn('[알림톡 검증] PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX 가 올바른 정규식이 아님')
     }
   }
 
+  const failRe = String(process.env.PPURIO_MESSAGEKEY_PROBE_FAILURE_BODY_REGEX ?? '').trim()
+  if (failRe.length > 2) {
+    try {
+      const re = new RegExp(failRe, 'i')
+      const hay = ppurioSafeJsonStringify(data)
+      if (re.test(hay)) {
+        return {
+          delivered: false,
+          verification: 'regex_fail',
+          certainty: 'medium',
+          hint: 'FAILURE_BODY_REGEX',
+        }
+      }
+    } catch {
+      console.warn('[알림톡 검증] PPURIO_MESSAGEKEY_PROBE_FAILURE_BODY_REGEX 가 올바른 정규식이 아님')
+    }
+  }
+
   return {
     delivered: undefined,
+    verification: 'unknown_response',
     certainty: 'unknown',
-    hint: 'PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES/실패 목록 또는 정규식으로 해석 규칙을 넣거나, LMS 미러링으로 보완',
+    hint: 'PROBE_DELIVERED_CODES / FAILURE / PENDING 또는 BODY 정규식 설정 필요',
+  }
+}
+
+async function pollPpurioMessageKeyDelivery(authBearer, vars) {
+  const attempts = Math.min(
+    30,
+    Math.max(1, Number(process.env.PPURIO_MESSAGEKEY_PROBE_MAX_ATTEMPTS ?? 6))
+  )
+  const intervalMs = Math.max(0, Number(process.env.PPURIO_MESSAGEKEY_PROBE_INTERVAL_MS ?? 800))
+
+  /** @type {Array<{attempt: number, probe: any, interpreted: Record<string, any>}>} */
+  const series = []
+
+  let probeRaw = await probePpurioMessageKeyStatus(authBearer, vars)
+  let interpreted = interpretDeliveryProbe(probeRaw)
+  series.push({ attempt: 1, probe: probeRaw, interpreted })
+
+  for (let n = 2; n <= attempts; n++) {
+    if (probeRaw.outcome === 'skipped' || probeRaw.outcome === 'config_error') break
+    if (interpreted.delivered === true || interpreted.delivered === false) break
+    await delay(intervalMs)
+    probeRaw = await probePpurioMessageKeyStatus(authBearer, vars)
+    interpreted = interpretDeliveryProbe(probeRaw)
+    series.push({ attempt: n, probe: probeRaw, interpreted })
+  }
+
+  const summary =
+    interpreted.delivered === true
+      ? 'DELIVERY_VERIFIED_OK'
+      : interpreted.delivered === false
+        ? 'DELIVERY_VERIFIED_FAIL'
+        : 'DELIVERY_NOT_VERIFIED'
+
+  return {
+    summary,
+    lastProbe: probeRaw,
+    lastInterpreted: interpreted,
+    pollSeries: series,
   }
 }
 
 /**
- * 카카오 silent drop 진단 로그(account·sender 귀속, 템플릿 귀속).
+ * 최종 LMS 폴백 정책. PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY 우선, 없으면 PPURIO_ALIMTALK_AFTER_1000_LMS,
+ * 둘 다 없으면 not_verified_fallback(URL 미설정·미확정 시 문자).
  */
+function readDeliveryFallbackPolicy() {
+  const p = String(process.env.PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY || '')
+    .trim()
+    .toLowerCase()
+
+  const valid = [
+    '',
+    'none',
+    'disabled',
+    'always',
+    'force_lms',
+    'delivery_fail_only',
+    'not_verified_fallback',
+    'delivery_not_confirmed_fallback',
+  ]
+  if (p && !valid.includes(p))
+    console.warn(
+      `[알림톡] PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY="${p}" 인식 불가 → not_verified_fallback. 허용: none | always | delivery_fail_only | not_verified_fallback`
+    )
+
+  if (p === 'none' || p === 'disabled') return 'none'
+  if (p === 'always' || p === 'force_lms') return 'always'
+  if (p === 'delivery_fail_only') return 'delivery_fail_only'
+  if (
+    p === 'not_verified_fallback' ||
+    p === 'delivery_not_confirmed_fallback'
+  )
+    return 'not_verified_fallback'
+
+  const leg = String(process.env.PPURIO_ALIMTALK_AFTER_1000_LMS ?? '')
+    .trim()
+    .toLowerCase()
+  if (leg === 'always' || leg === 'mirror') return 'always'
+  if (leg === 'never') return 'none'
+  if (leg === 'if_delivery_not_confirmed') return 'not_verified_fallback'
+  return 'not_verified_fallback'
+}
+
+function shouldTriggerDeliveryBasedLmsFallback(policy, interpreted) {
+  if (policy === 'always') return true
+  /** 조회 결과 전달 「확정 실패」는 정책 none 이어도 LMS (최종 실패 보완). */
+  if (interpreted.delivered === false) return true
+  if (policy === 'none') return false
+  if (policy === 'delivery_fail_only') return false
+  return interpreted.delivered !== true
+}
+
+function logDeliveryDecisionRow({
+  messageKeyVal,
+  policy,
+  interpreted,
+  pollOutcome,
+  willFallback,
+  fallbackReason,
+}) {
+  console.log('[PPURIO_ALIMTALK_DELIVERY] ----- messageKey 상태·전달 판정 -----')
+  console.log(
+    `[PPURIO_ALIMTALK_DELIVERY] messageKey=${messageKeyVal ?? '(none)'} fallbackPolicy=${policy} pollSummary=${pollOutcome.summary}`
+  )
+  console.log(
+    `[PPURIO_ALIMTALK_DELIVERY] verification=${interpreted.verification ?? '?'} certainty=${interpreted.certainty ?? '?'} deliveredDecision=${interpreted.delivered === undefined ? 'UNKNOWN' : interpreted.delivered}`
+  )
+  console.log(
+    `[PPURIO_ALIMTALK_DELIVERY] LMS_fallback_TRIGGER=${willFallback ? 'YES' : 'NO'} reason=${fallbackReason}`
+  )
+  console.log('[PPURIO_ALIMTALK_DELIVERY] pollAttempts=', pollOutcome.pollSeries?.length ?? 0)
+}
+
 function logPpurioKakaoBindingSummary(account, senderProfile, templateCode) {
   const tplOwners = parseOptionalJsonEnv('PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP')
   const accSendMap = parseOptionalJsonEnv('PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP')
@@ -440,25 +604,6 @@ function logPpurioKakaoBindingSummary(account, senderProfile, templateCode) {
       '[PPURIO_OWNERSHIP] PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP · PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP 미설정 — 계정 바인딩 자동판정 불가. 운영서버에는 JSON 맵 권장(PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1)'
     )
   }
-}
-
-function readAltOkSupplementaryLmsMode() {
-  const m = String(process.env.PPURIO_ALIMTALK_AFTER_1000_LMS ?? 'never').trim().toLowerCase()
-  const known = ['never', '', 'always', 'mirror', 'if_delivery_not_confirmed']
-  if (m && !known.includes(m)) {
-    console.warn(
-      `[알림톡] PPURIO_ALIMTALK_AFTER_1000_LMS="${m}" 인식 불가 → never 처리. 허용: never | always | if_delivery_not_confirmed`
-    )
-    return 'never'
-  }
-  if (m === 'mirror') return 'always'
-  return m || 'never'
-}
-
-function shouldMirrorLmsAfterAltOk(modeLower, deliveredProbe) {
-  if (modeLower === 'always') return true
-  if (modeLower === 'if_delivery_not_confirmed') return deliveredProbe !== true
-  return false
 }
 
 /**
@@ -702,15 +847,17 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP     JSON {"템플릿코드":"뿌리오계정ID"}
 //   PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP       JSON {"계정ID":"@프로필"} 또는 허용 배열
 //   PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1 : 위 두 맵 필수이며 키 존재 검사(배포 검증용)
-// 접수(code=1000) 이후 — 공개 v1 목록에 messageKey 결과 API 없음, 사업자 제공 URL 사용 시:
-//   PPURIO_MESSAGEKEY_STATUS_POST_URL        POST 엔드포인트 (뿌리오 별도 제공 시)
-//   PPURIO_MESSAGEKEY_STATUS_BODY_JSON_TEMPLATE  기본 '{"account":"__PPUR_ACCOUNT__","messageKey":"__MESSAGE_KEY__","refKey":"__REF_KEY__"}'
-//   PPURIO_MESSAGEKEY_PROBE_DELAY_MS         probe 전 대기(ms)
-//   PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES  probe 응답 code 나열(콤마) → 성공으로 간주
-//   PPURIO_MESSAGEKEY_PROBE_FAILURE_CODES    실패 code 나열
-//   PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX 성공 시 응답 body 매칭 정규식(선택)
-// silent drop 완충(알림톡 성공 후 문자 추가, 요금 이중):
-//   PPURIO_ALIMTALK_AFTER_1000_LMS  never(기본)|always|if_delivery_not_confirmed(probe가 확정 전달이 아니면 LMS)
+// 접수(code=1000) 이후 messageKey 전달 조회(공개 message.ppurio.com 명세표에 경로 없음 → 뿌리오 별도 URL 필요):
+//   PPURIO_MESSAGEKEY_STATUS_POST_URL               POST 조회 전체 URL
+//   PPURIO_MESSAGEKEY_STATUS_BODY_JSON_TEMPLATE       플레이스홀더 __PPUR_ACCOUNT__,__MESSAGE_KEY__,__REF_KEY__
+//   PPURIO_MESSAGEKEY_PROBE_DELAY_MS                  첫 조회 전 대기(ms). (기존) PPURIO_ALIMTALK_PROBE_DELAY_MS 동일 허용
+//   PPURIO_MESSAGEKEY_PROBE_MAX_ATTEMPTS / _INTERVAL_MS  폴링 횟수·간격
+//   PPURIO_MESSAGEKEY_PROBE_PENDING_CODES            처리중 코드(재폴링 유지)
+//   PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES / _FAILURE_CODES  전달 성공·실패 응답 code
+//   PPURIO_MESSAGEKEY_PROBE_*_BODY_REGEX             성공/실패 본문 정규식 보조
+// 전달 결과 기준 LMS 폴백(기본: 전달 미확정면 문자로 보완·silent drop 완충):
+//   PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY  none | always | delivery_fail_only | not_verified_fallback (기본)
+//   또는 호환: PPURIO_ALIMTALK_AFTER_1000_LMS mirror|always → always, never→none, if_delivery_not_confirmed→not_verified
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
 // #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -990,38 +1137,78 @@ export const sendAlimtalk = async ({
     const bizCode = rd?.code != null ? String(rd.code) : ''
     const bizDesc = rd?.description != null ? String(rd.description) : ''
     if (bizCode === '1000') {
-      console.log('[뿌리오 알림톡] 응답 코드 해석: SUCCESS (통상 code=1000)')
+      console.log(
+        '[뿌리오 알림톡] code=1000 = 뿌리오 접수 완료. 이어서 messageKey 기준 전달 조회 후 LMS 폴백 여부를 판단합니다.'
+      )
 
       const mkResolved = pickPpurioMessageKey(rd)
-      await delay(Number(process.env.PPURIO_ALIMTALK_PROBE_DELAY_MS ?? 0))
+      await delay(
+        Number(
+          process.env.PPURIO_MESSAGEKEY_PROBE_DELAY_MS ??
+            process.env.PPURIO_ALIMTALK_PROBE_DELAY_MS ??
+            0
+        )
+      )
 
       const probeVars = {
         PPUR_ACCOUNT: ppurAccountResolved,
         MESSAGE_KEY: mkResolved != null ? String(mkResolved) : '',
-        REF_KEY: refKey,
+        REF_KEY:
+          rd.refKey != null
+            ? String(rd.refKey)
+            : rd.refkey != null
+              ? String(rd.refkey)
+              : refKey,
       }
-      const probeRaw = await probePpurioMessageKeyStatus(token, probeVars)
-      const interpreted = interpretDeliveryProbe(probeRaw)
+
+      const pollOutcome = await pollPpurioMessageKeyDelivery(token, probeVars)
+      const interpreted = pollOutcome.lastInterpreted
+      const probeRaw = pollOutcome.lastProbe
 
       logPpurioAlimtalkTrace(
-        'MESSAGEKEY_DELIVERY_PROBE',
+        'MESSAGEKEY_DELIVERY_POLL',
         ppurAccountResolved,
         senderProfile,
         templateCodeResolved,
         mkResolved ?? '(none)',
-        { probeRaw, interpreted }
+        {
+          pollSummary: pollOutcome.summary,
+          pollAttempts: pollOutcome.pollSeries?.length ?? 0,
+          pollSeries: pollOutcome.pollSeries,
+          lastProbe: probeRaw,
+          interpreted,
+        }
       )
 
-      console.log(
-        `[PPURIO_OWNERSHIP] deliveryProbe outcome=${probeRaw.outcome} deliveredInterpreted=${
-          interpreted.delivered === undefined ? 'unknown' : interpreted.delivered
-        } certainty=${interpreted.certainty ?? '?'}`
-      )
+      const policy = readDeliveryFallbackPolicy()
+      const wantMirror = shouldTriggerDeliveryBasedLmsFallback(policy, interpreted)
 
-      const mode = readAltOkSupplementaryLmsMode()
+      let fallbackReason = 'no_fallback'
+      if (wantMirror) {
+        if (policy === 'always') fallbackReason = 'policy_always'
+        else if (interpreted.delivered === false) fallbackReason = 'delivery_verified_FAIL'
+        else if (policy === 'not_verified_fallback') {
+          fallbackReason =
+            interpreted.delivered === undefined
+              ? `delivery_NOT_CONFIRMED:${interpreted.verification ?? '?'}`
+              : 'unexpected_not_verified_policy'
+        } else if (policy === 'delivery_fail_only')
+          fallbackReason = 'explicit_fail_only_should_not_here'
+      }
+
+      logDeliveryDecisionRow({
+        messageKeyVal: mkResolved ?? '(none)',
+        policy,
+        interpreted,
+        pollOutcome,
+        willFallback: wantMirror,
+        fallbackReason:
+          fallbackReason !== 'unexpected_not_verified_policy'
+            ? fallbackReason
+            : `policy_${policy}`,
+      })
+
       let supplementaryLmsResult = null
-      const wantMirror = shouldMirrorLmsAfterAltOk(mode, interpreted.delivered)
-
       if (wantMirror) {
         try {
           supplementaryLmsResult = await sendLms({
@@ -1030,36 +1217,55 @@ export const sendAlimtalk = async ({
             text: lmsText,
           })
           console.warn(
-            `[알림톡] PPURIO_ALIMTALK_AFTER_1000_LMS="${mode}" → 알림톡 접수 후 LMS 추가 발송(silent drop 완충)·요금 중복 가능`
+            `[알림톡] 전달 결과 기준 LMS 발송 실행(PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY 또는 호환 변수). 카카오+문자 요금 동시 발생 가능`
           )
           logPpurioAlimtalkTrace(
-            'SUPPLEMENTAL_LMS_AFTER_ALT_OK',
+            'DELIVERY_FALLBACK_LMS',
             ppurAccountResolved,
             senderProfile,
             templateCodeResolved,
             mkResolved ?? '(none)',
-            { mode, lmsOk: true, lmsData: supplementaryLmsResult?.data ?? null }
+            {
+              policy,
+              fallbackReason,
+              lmsOk: supplementaryLmsResult?.ok ?? true,
+              lmsData: supplementaryLmsResult?.data ?? null,
+            }
           )
         } catch (mirErr) {
-          console.error('[알림톡] 알림톡 접수 성공 후 LMS 미러 실패:', mirErr.message || mirErr)
+          console.error(
+            '[알림톡] 전달 미확정/실패에 따른 LMS 폴백 발송 실패:',
+            mirErr.message || mirErr
+          )
           logPpurioAlimtalkTrace(
-            'SUPPLEMENTAL_LMS_AFTER_ALT_OK_FAILED',
+            'DELIVERY_FALLBACK_LMS_FAILED',
             ppurAccountResolved,
             senderProfile,
             templateCodeResolved,
             mkResolved ?? '(none)',
-            { mode, error: mirErr.message }
+            { policy, error: mirErr.message }
           )
         }
       }
 
+      const settledChannel =
+        wantMirror && supplementaryLmsResult?.ok === true && !supplementaryLmsResult?.dev
+          ? 'LMS'
+          : 'ALT'
+
       return {
         ok: true,
-        channel: 'ALT',
+        channel: settledChannel,
         data: rd,
-        deliveryProbe: probeRaw,
+        altAcceptResponse: rd,
+        deliveryPoll: pollOutcome,
         deliveredInterpretation: interpreted,
-        supplementaryLmsAfterAltOk: supplementaryLmsResult,
+        deliveryFallbackPolicy: policy,
+        supplementaryLmsAfterDeliveryCheck: supplementaryLmsResult,
+        lmsFallbackPayload: supplementaryLmsResult?.data,
+        deliveryFallbackTriggered: Boolean(
+          wantMirror && supplementaryLmsResult?.ok && !supplementaryLmsResult?.dev
+        ),
       }
     }
 
