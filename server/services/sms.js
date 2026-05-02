@@ -156,6 +156,23 @@ const envTruthy = (name) =>
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)))
 
+/** 로그용 JSON 문자열 자르기(과대 응답 방지). */
+function truncateForLog(raw, maxLen = 6144) {
+  let s = typeof raw === 'string' ? raw : ppurioSafeJsonStringify(raw)
+  if (s.length <= maxLen) return s
+  const head = Math.max(512, Math.floor(maxLen / 2) - 40)
+  const tail = Math.max(256, maxLen - head - 48)
+  return `${s.slice(0, head)}…[omit ${s.length - head - tail}]…${s.slice(-tail)}`
+}
+
+function summarizeProbeForDeliveryLog(lastProbe) {
+  if (!lastProbe || typeof lastProbe !== 'object') return '(none)'
+  const { outcome } = lastProbe
+  if (outcome === 'http_ok')
+    return truncateForLog({ outcome, httpStatus: lastProbe.status, data: lastProbe.data })
+  return truncateForLog(lastProbe)
+}
+
 /**
  * /v1/kakao 호출 전 로컬 검증 (뿌리오에는 공개 「프로필·템플릿 귀속 조회」 가 없음).
  * 교차 검사: 선택 env `PPURIO_ALIMTALK_ALLOWED_*`, JSON 맵 두 종류 참고 코멘트.
@@ -283,7 +300,61 @@ function replaceAlimtalkTemplatePlaceholders(s, vars) {
 }
 
 /**
- * 뿌리오 message.ppurio.com 공개 명세 목록에는 messageKey 상태 조회 API 가 없음(사업자별 별도 URL 지원 확인 시 사용).
+ * messageKey 전달 상태 POST 1회. 실패 시 poll 쪽에서 재시도 간격 두고 같은 함수를 다시 호출한다.
+ */
+async function postPpurioMessageKeyStatusOnce(authBearer, urlRaw, bodyObj, timeoutMs) {
+  try {
+    const res = await axios.post(urlRaw, bodyObj, {
+      headers: {
+        Authorization: `Bearer ${authBearer}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: timeoutMs,
+    })
+    return { outcome: 'http_ok', status: res.status, data: res.data ?? null }
+  } catch (e) {
+    const blob = summarizeAxiosRejectForPpurio(e)
+    return {
+      outcome: 'http_fail',
+      status: blob.status,
+      data: blob.data,
+      errorMessage: e.message,
+    }
+  }
+}
+
+/** vars: PPUR_ACCOUNT, MESSAGE_KEY, REF_KEY 또는 messageKey 문자열(Ref는 빈 문자열). */
+function normalizeMessageKeyPollVars(messageKeyOrVars) {
+  if (
+    messageKeyOrVars != null &&
+    typeof messageKeyOrVars === 'object' &&
+    !Array.isArray(messageKeyOrVars)
+  ) {
+    return messageKeyOrVars
+  }
+  const mk = String(messageKeyOrVars ?? '').trim()
+  return {
+    PPUR_ACCOUNT: String(process.env.PPURIO_ACCOUNT || '').trim(),
+    MESSAGE_KEY: mk,
+    REF_KEY: '',
+  }
+}
+
+function readMessageKeyProbeHttpRetries() {
+  const n = Number(process.env.PPURIO_MESSAGEKEY_STATUS_HTTP_RETRIES ?? 2)
+  if (!Number.isFinite(n)) return 2
+  return Math.max(0, Math.min(8, Math.floor(n)))
+}
+
+function readMessageKeyStatusTimeoutMs() {
+  const n = Number(process.env.PPURIO_MESSAGEKEY_STATUS_TIMEOUT_MS ?? 12_000)
+  if (!Number.isFinite(n)) return 12_000
+  return Math.max(1000, Math.min(120_000, Math.floor(n)))
+}
+
+/**
+ * PPURIO_MESSAGEKEY_STATUS_POST_URL 로 messageKey 상태 조회(POST).
+ * HTTP 오류 시 PPURIO_MESSAGEKEY_STATUS_HTTP_RETRIES 만큼 백오프 재시도 후 마지막 결과 반환.
  */
 async function probePpurioMessageKeyStatus(authBearer, vars) {
   const urlRaw = String(process.env.PPURIO_MESSAGEKEY_STATUS_POST_URL || '').trim()
@@ -305,24 +376,22 @@ async function probePpurioMessageKeyStatus(authBearer, vars) {
     }
   }
 
-  try {
-    const res = await axios.post(urlRaw, bodyObj, {
-      headers: {
-        Authorization: `Bearer ${authBearer}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 12_000,
-    })
-    return { outcome: 'http_ok', status: res.status, data: res.data ?? null }
-  } catch (e) {
-    const blob = summarizeAxiosRejectForPpurio(e)
-    return {
-      outcome: 'http_fail',
-      status: blob.status,
-      data: blob.data,
-      errorMessage: e.message,
-    }
+  const timeoutMs = readMessageKeyStatusTimeoutMs()
+  const maxRetries = readMessageKeyProbeHttpRetries()
+
+  let probeRaw = await postPpurioMessageKeyStatusOnce(authBearer, urlRaw, bodyObj, timeoutMs)
+  for (let r = 0; r < maxRetries && probeRaw.outcome === 'http_fail'; r++) {
+    const backoff = Math.min(3000, 150 * Math.pow(2, r))
+    await delay(backoff)
+    probeRaw = await postPpurioMessageKeyStatusOnce(authBearer, urlRaw, bodyObj, timeoutMs)
   }
+
+  if (probeRaw.outcome === 'http_fail' && maxRetries > 0) {
+    probeRaw.retriesUsed = maxRetries
+    probeRaw.hint = `${maxRetries}회 HTTP 재시도 후에도 실패(delivered 미확정으로 폴링 계속)`
+  }
+
+  return probeRaw
 }
 
 /** probe 응답을 규칙으로 해석. delivered: true 확정 성공 · false 확정 실패 · undefined 검증 불가. */
@@ -424,16 +493,31 @@ function interpretDeliveryProbe(parseResult) {
     delivered: undefined,
     verification: 'unknown_response',
     certainty: 'unknown',
-    hint: 'PROBE_DELIVERED_CODES / FAILURE / PENDING 또는 BODY 정규식 설정 필요',
+    hint:
+      okCodesList.length || failCodesList.length || pendingCodesList.length
+        ? '응답 code 가 DELIVERED / FAILURE / PENDING 목록에 없음 · 뿌리오 응답 필드 확인 또는 BODY_REGEX 보조 설정'
+        : 'PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES / FAILURE_CODES / PENDING_CODES 또는 BODY 정규식을 설정해야 전달 성공·실패를 확정할 수 있음',
   }
 }
 
-async function pollPpurioMessageKeyDelivery(authBearer, vars) {
+/**
+ * messageKey 기반 전달 확정까지 폴링.
+ * @param {string} authBearer 뿌리오 Bearer
+ * @param {string | Record<'PPUR_ACCOUNT'|'MESSAGE_KEY'|'REF_KEY', string>} messageKeyOrVars 문자열이면 MESSAGE_KEY 로만 간주(Ref는 비우고 PPURIO_ACCOUNT 환경값 사용).
+ * @returns {Promise<{ summary: string, lastProbe: any, lastInterpreted: any, pollSeries: any[], probeUrlConfigured: boolean, maxAttemptsConfigured: number }>}
+ */
+async function pollPpurioMessageKeyDelivery(authBearer, messageKeyOrVars) {
+  const vars = normalizeMessageKeyPollVars(messageKeyOrVars)
+  const probeUrlConfigured = Boolean(
+    String(process.env.PPURIO_MESSAGEKEY_STATUS_POST_URL || '').trim()
+  )
+
   const attempts = Math.min(
     30,
     Math.max(1, Number(process.env.PPURIO_MESSAGEKEY_PROBE_MAX_ATTEMPTS ?? 6))
   )
   const intervalMs = Math.max(0, Number(process.env.PPURIO_MESSAGEKEY_PROBE_INTERVAL_MS ?? 800))
+  const verboseAttempts = envTruthy('PPURIO_MESSAGEKEY_PROBE_LOG_EACH_ATTEMPT')
 
   /** @type {Array<{attempt: number, probe: any, interpreted: Record<string, any>}>} */
   const series = []
@@ -441,6 +525,11 @@ async function pollPpurioMessageKeyDelivery(authBearer, vars) {
   let probeRaw = await probePpurioMessageKeyStatus(authBearer, vars)
   let interpreted = interpretDeliveryProbe(probeRaw)
   series.push({ attempt: 1, probe: probeRaw, interpreted })
+  if (verboseAttempts) {
+    console.log(
+      `[MESSAGEKEY_POLL] attempt=1 interpreted=${truncateForLog(interpreted, 2048)} lastProbe=${summarizeProbeForDeliveryLog(probeRaw)}`
+    )
+  }
 
   for (let n = 2; n <= attempts; n++) {
     if (probeRaw.outcome === 'skipped' || probeRaw.outcome === 'config_error') break
@@ -449,6 +538,11 @@ async function pollPpurioMessageKeyDelivery(authBearer, vars) {
     probeRaw = await probePpurioMessageKeyStatus(authBearer, vars)
     interpreted = interpretDeliveryProbe(probeRaw)
     series.push({ attempt: n, probe: probeRaw, interpreted })
+    if (verboseAttempts) {
+      console.log(
+        `[MESSAGEKEY_POLL] attempt=${n} interpreted=${truncateForLog(interpreted, 2048)} lastProbe=${summarizeProbeForDeliveryLog(probeRaw)}`
+      )
+    }
   }
 
   const summary =
@@ -458,13 +552,21 @@ async function pollPpurioMessageKeyDelivery(authBearer, vars) {
         ? 'DELIVERY_VERIFIED_FAIL'
         : 'DELIVERY_NOT_VERIFIED'
 
+  console.log(
+    `[MESSAGEKEY_POLL_SUMMARY] messageKey=${vars.MESSAGE_KEY || '(none)'} probeUrlConfigured=${probeUrlConfigured} pollAttempts=${series.length}/${attempts} summary=${summary} delivered=${interpreted.delivered === undefined ? 'undefined' : interpreted.delivered}`
+  )
+
   return {
     summary,
     lastProbe: probeRaw,
     lastInterpreted: interpreted,
     pollSeries: series,
+    probeUrlConfigured,
+    maxAttemptsConfigured: attempts,
   }
 }
+
+export { pollPpurioMessageKeyDelivery }
 
 /**
  * LMS(SMS) 폴백 정책. 기본 delivery_fail_only = 전달 **확정 실패** 시에만 문자(미확정은 비용 절감을 위해 발송 안 함).
@@ -544,15 +646,24 @@ function evaluateSmsFallbackAfterDelivery(policy, interpreted) {
           : `policy_none_no_SMS_deliveryState=${deliveryState}`,
     }
   }
+  const smsOnUndefined = envTruthy('PPURIO_ALIMTALK_SMS_ON_DELIVERY_UNDEFINED')
   const failOnly = interpreted.delivered === false
+  const undefSms = smsOnUndefined && interpreted.delivered === undefined
+  if (undefSms) {
+    console.warn(
+      '[알림톡 비용] PPURIO_ALIMTALK_SMS_ON_DELIVERY_UNDEFINED=1 → 전달 미확정(undefined) 상태에서 LMS 발송(과금). 기본값은 미발송이며 폴링·코드 매핑을 먼저 점검하세요.'
+    )
+  }
   return {
     deliveryState,
-    smsTriggered: failOnly,
+    smsTriggered: failOnly || undefSms,
     fallbackDecisionReason: failOnly
       ? 'deliveryState_false_CONFIRMED_FAIL_SMS_FALLBACK'
-      : deliveryState === 'true'
-        ? 'deliveryState_true_NO_SMS'
-        : 'deliveryState_undefined_POLL_EXHAUSTED_NO_SMS',
+      : undefSms
+        ? 'deliveryState_UNDEFINED_env_PPURIO_ALIMTALK_SMS_ON_DELIVERY_UNDEFINED'
+        : deliveryState === 'true'
+          ? 'deliveryState_true_NO_SMS'
+          : 'deliveryState_undefined_POLL_EXHAUSTED_NO_SMS',
   }
 }
 
@@ -577,7 +688,13 @@ function logDeliveryDecisionRow(opts) {
   console.log(
     `[PPURIO_ALIMTALK_DELIVERY] fallbackDecisionReason=${fallbackDecisionReason}`
   )
-  console.log(`[PPURIO_ALIMTALK_DELIVERY] smsTriggered=${smsTriggered ? 'YES' : 'NO'}`)
+  console.log(
+    `[PPURIO_ALIMTALK_DELIVERY] probeUrlConfigured=${pollOutcome.probeUrlConfigured === true}`
+  )
+  console.log(`[PPURIO_ALIMTALK_DELIVERY] smsFallbackTriggered=${smsTriggered ? 'YES' : 'NO'}`)
+  console.log(
+    `[PPURIO_ALIMTALK_DELIVERY] lastProbeRaw=${summarizeProbeForDeliveryLog(pollOutcome.lastProbe)}`
+  )
   console.log('[PPURIO_ALIMTALK_DELIVERY] pollAttempts=', pollOutcome.pollSeries?.length ?? 0)
 }
 
@@ -890,16 +1007,20 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP     JSON {"템플릿코드":"뿌리오계정ID"}
 //   PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP       JSON {"계정ID":"@프로필"} 또는 허용 배열
 //   PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1 : 위 두 맵 필수이며 키 존재 검사(배포 검증용)
-// 접수(code=1000) 이후 messageKey 전달 조회(공개 message.ppurio.com 명세표에 경로 없음 → 뿌리오 별도 URL 필요):
-//   PPURIO_MESSAGEKEY_STATUS_POST_URL               POST 조회 전체 URL
+// 접수(code=1000) 이후 messageKey 전달 조회(B안: 뿌리오 제공 status POST URL):
+//   PPURIO_MESSAGEKEY_STATUS_POST_URL               POST 조회 전체 URL (필수·미설정 시 폴링 생략, delivered 미확정)
 //   PPURIO_MESSAGEKEY_STATUS_BODY_JSON_TEMPLATE       플레이스홀더 __PPUR_ACCOUNT__,__MESSAGE_KEY__,__REF_KEY__
+//   PPURIO_MESSAGEKEY_STATUS_TIMEOUT_MS               단일 요청 타임아웃(ms). 기본 12000
+//   PPURIO_MESSAGEKEY_STATUS_HTTP_RETRIES             HTTP 실패 시 동일 회차 내 재시도 횟수. 기본 2 (총 최대 3회 POST)
 //   PPURIO_MESSAGEKEY_PROBE_DELAY_MS                  첫 조회 전 대기(ms). (기존) PPURIO_ALIMTALK_PROBE_DELAY_MS 동일 허용
-//   PPURIO_MESSAGEKEY_PROBE_MAX_ATTEMPTS / _INTERVAL_MS  폴링 횟수·간격
+//   PPURIO_MESSAGEKEY_PROBE_MAX_ATTEMPTS / _INTERVAL_MS  폴링 횟수(기본 6)·간격(기본 800ms); 성공/실패 확정 시 즉시 종료
+//   PPURIO_MESSAGEKEY_PROBE_LOG_EACH_ATTEMPT=1       매 폴링 회차별 interpreted/raw 로그
 //   PPURIO_MESSAGEKEY_PROBE_PENDING_CODES            처리중 코드(재폴링 유지)
-//   PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES / _FAILURE_CODES  전달 성공·실패 응답 code
+//   PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES / _FAILURE_CODES  전달 성공·실패 응답 code (둘 다 규격에 맞게 설정해야 확정 가능)
 //   PPURIO_MESSAGEKEY_PROBE_*_BODY_REGEX             성공/실패 본문 정규식 보조
-// 전달 결과 기준 LMS 폴백(기본 delivery_fail_only: delivered===false 확정 시에만 SMS, 미확정은 비용 절감을 위해 미발송):
+// 전달 결과 기준 LMS 폴백(기본 delivery_fail_only: delivered===false 확정 시에만 SMS):
 //   PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY  none | always | delivery_fail_only (기본, 권장) | not_verified_fallback(폐기·fail_only 동일 처리)
+//   PPURIO_ALIMTALK_SMS_ON_DELIVERY_UNDEFINED=1  (선택) 미확정(undefined)·미매핑 응답 시에도 LMS 발송·과금. 운영 점검용
 //   또는 호환: PPURIO_ALIMTALK_AFTER_1000_LMS mirror|always → always, never→none, if_delivery_not_confirmed→delivery_fail_only(미확정 시 문자 없음)
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
 // #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
@@ -1217,6 +1338,8 @@ export const sendAlimtalk = async ({
         {
           pollSummary: pollOutcome.summary,
           pollAttempts: pollOutcome.pollSeries?.length ?? 0,
+          pollAttemptsConfigured: pollOutcome.maxAttemptsConfigured,
+          probeUrlConfigured: pollOutcome.probeUrlConfigured,
           pollSeries: pollOutcome.pollSeries,
           lastProbe: probeRaw,
           interpreted,
@@ -1603,6 +1726,7 @@ export default {
   sendLms,
   sendSmsOrLms,
   sendAlimtalk,
+  pollPpurioMessageKeyDelivery,
   buildVerificationMessage,
   buildSignupNotificationMessage,
   buildSignupAdminAlimtalkRequest,
