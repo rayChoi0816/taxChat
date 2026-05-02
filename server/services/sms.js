@@ -151,6 +151,11 @@ function parseOptionalJsonEnv(name) {
   }
 }
 
+const envTruthy = (name) =>
+  ['1', 'true', 'yes', 'y', 'on'].includes(String(process.env[name] || '').trim().toLowerCase())
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)))
+
 /**
  * /v1/kakao 호출 전 로컬 검증 (뿌리오에는 공개 「프로필·템플릿 귀속 조회」 가 없음).
  * 교차 검사: 선택 env `PPURIO_ALIMTALK_ALLOWED_*`, JSON 맵 두 종류 참고 코멘트.
@@ -231,6 +236,29 @@ function validatePpurioAlimtalkBeforeSend({
     }
   }
 
+  if (envTruthy('PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS')) {
+    const tplOwners = parseOptionalJsonEnv('PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP')
+    const accSendMap = parseOptionalJsonEnv('PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP')
+    if (!tplOwners || typeof tplOwners !== 'object' || Array.isArray(tplOwners)) {
+      errors.push(
+        'PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1 인데 PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP 가 없거나 JSON 객체가 아님'
+      )
+    } else if (!(templateCode in tplOwners)) {
+      errors.push(
+        `PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP 에 현재 templateCode "${templateCode}" 키가 없음`
+      )
+    }
+    if (!accSendMap || typeof accSendMap !== 'object' || Array.isArray(accSendMap)) {
+      errors.push(
+        'PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1 인데 PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP 가 없거나 JSON 객체가 아님'
+      )
+    } else if (!(account in accSendMap)) {
+      errors.push(
+        `PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP 에 현재 account "${account}" 키가 없음`
+      )
+    }
+  }
+
   return { errors }
 }
 
@@ -244,6 +272,193 @@ function summarizeAxiosRejectForPpurio(err) {
     headers: err.response.headers ?? {},
     data: err.response.data,
   }
+}
+
+function replaceAlimtalkTemplatePlaceholders(s, vars) {
+  let out = String(s ?? '')
+  for (const [k, val] of Object.entries(vars)) {
+    out = out.split(`__${k}__`).join(val)
+  }
+  return out
+}
+
+/**
+ * 뿌리오 message.ppurio.com 공개 명세 목록에는 messageKey 상태 조회 API 가 없음(사업자별 별도 URL 지원 확인 시 사용).
+ */
+async function probePpurioMessageKeyStatus(authBearer, vars) {
+  const urlRaw = String(process.env.PPURIO_MESSAGEKEY_STATUS_POST_URL || '').trim()
+  if (!urlRaw) {
+    return { outcome: 'skipped', reason: 'PPURIO_MESSAGEKEY_STATUS_POST_URL 미설정' }
+  }
+
+  let bodyObj
+  const tplRaw =
+    String(process.env.PPURIO_MESSAGEKEY_STATUS_BODY_JSON_TEMPLATE || '').trim() ||
+    '{"account":"__PPUR_ACCOUNT__","messageKey":"__MESSAGE_KEY__","refKey":"__REF_KEY__"}'
+  try {
+    const jsonStr = replaceAlimtalkTemplatePlaceholders(tplRaw, vars)
+    bodyObj = JSON.parse(jsonStr)
+  } catch (e) {
+    return {
+      outcome: 'config_error',
+      reason: `PPURIO_MESSAGEKEY_STATUS_BODY_JSON_TEMPLATE 파싱 실패: ${e.message}`,
+    }
+  }
+
+  try {
+    const res = await axios.post(urlRaw, bodyObj, {
+      headers: {
+        Authorization: `Bearer ${authBearer}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 12_000,
+    })
+    return { outcome: 'http_ok', status: res.status, data: res.data ?? null }
+  } catch (e) {
+    const blob = summarizeAxiosRejectForPpurio(e)
+    return {
+      outcome: 'http_fail',
+      status: blob.status,
+      data: blob.data,
+      errorMessage: e.message,
+    }
+  }
+}
+
+/** probe 응답을 서버 규칙으로 해석(성공 코드 목록 없으면 delivered=unknown). */
+function interpretDeliveryProbe(parseResult) {
+  if (parseResult?.outcome === 'skipped')
+    return { delivered: undefined, certainty: 'none', hint: parseResult.reason }
+  if (
+    parseResult?.outcome === 'config_error' ||
+    parseResult?.outcome === 'http_fail'
+  ) {
+    return {
+      delivered: false,
+      certainty: 'low',
+      hint: parseResult.reason || parseResult.errorMessage || 'probe_http_fail',
+    }
+  }
+
+  const data = parseResult?.data
+  const okCodesList = splitEnvList(process.env.PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES)
+  const failCodesList = splitEnvList(process.env.PPURIO_MESSAGEKEY_PROBE_FAILURE_CODES)
+
+  if (data && typeof data === 'object') {
+    const c = String(data.code ?? data.resultCode ?? data.status ?? '').trim()
+    if (okCodesList.length && c && okCodesList.includes(c))
+      return { delivered: true, certainty: 'high', probeCode: c }
+    if (failCodesList.length && c && failCodesList.includes(c))
+      return { delivered: false, certainty: 'high', probeCode: c }
+  }
+
+  const okRe = String(process.env.PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX ?? '').trim()
+  if (okRe.length > 2) {
+    try {
+      const re = new RegExp(okRe, 'i')
+      const hay = ppurioSafeJsonStringify(data)
+      if (re.test(hay))
+        return { delivered: true, certainty: 'medium', hint: 'matched PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX' }
+    } catch {
+      console.warn('[알림톡 검증] PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX 가 올바른 정규식이 아님')
+    }
+  }
+
+  return {
+    delivered: undefined,
+    certainty: 'unknown',
+    hint: 'PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES/실패 목록 또는 정규식으로 해석 규칙을 넣거나, LMS 미러링으로 보완',
+  }
+}
+
+/**
+ * 카카오 silent drop 진단 로그(account·sender 귀속, 템플릿 귀속).
+ */
+function logPpurioKakaoBindingSummary(account, senderProfile, templateCode) {
+  const tplOwners = parseOptionalJsonEnv('PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP')
+  const accSendMap = parseOptionalJsonEnv('PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP')
+
+  let tplLine = '(맵 미설정·검증 생략)'
+  if (
+    tplOwners != null &&
+    typeof tplOwners === 'object' &&
+    !Array.isArray(tplOwners) &&
+    Object.keys(tplOwners).length > 0
+  ) {
+    const expectedOwner = tplOwners[templateCode]
+    if (expectedOwner == null)
+      tplLine = `TEXT_NOT_IN_MAP templateCode="${templateCode}"`
+    else {
+      const ex = String(expectedOwner).trim()
+      tplLine =
+        ex === account
+          ? `OK 템플릿 코드 "${templateCode}" → 기대 계정 일치 (${ex})`
+          : `⚠ 불일치 템플릿 "${templateCode}" 는 뿌리오에서 계정 "${ex}" 귀속인데 요청 account="${account}" (계정 다른 콘솔에서는 발송 미표시·카카오 drop 가능)`
+    }
+  }
+
+  let sndLine = '(맵 미설정·검증 생략)'
+  if (
+    accSendMap != null &&
+    typeof accSendMap === 'object' &&
+    !Array.isArray(accSendMap) &&
+    Object.keys(accSendMap).length > 0
+  ) {
+    const rawEx = accSendMap[account]
+    if (rawEx == null) sndLine = `ACCOUNT_NOT_IN_MAP 계정="${account}"`
+    else {
+      const list = Array.isArray(rawEx) ? rawEx : [rawEx]
+      const norms = list
+        .map((s) => normalizePpurioKakaoSenderProfile(String(s ?? '').trim()))
+        .filter(Boolean)
+      const ok = norms.includes(senderProfile)
+      sndLine = ok
+        ? `OK account="${account}" 발신 허용 ${norms.join(' | ')} 중 일치 (${senderProfile})`
+        : `⚠ 불일치 account="${account}" 은 카카오 발신 허용 [${norms.join(', ')}] 인데 현재=${senderProfile} (타 계정 채널이면 카카오가 조용히 폐기할 수 있음)`
+    }
+  }
+
+  console.log(`[PPURIO_OWNERSHIP] templateOwnership: ${tplLine}`)
+  console.log(`[PPURIO_OWNERSHIP] senderProfileBinding: ${sndLine}`)
+  console.warn(
+    '[카카오 silent-drop 안내] code=1000 은 「뿌리오 접수」일 뿐이며 카카오·잔액·프로필 불일치로 최종 폐기될 수 있음(공식 개발문서 참고).'
+  )
+
+  const enforce = envTruthy('PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS')
+  const hasTplRules =
+    tplOwners != null &&
+    typeof tplOwners === 'object' &&
+    !Array.isArray(tplOwners) &&
+    Object.keys(tplOwners).length > 0
+  const hasSndRules =
+    accSendMap != null &&
+    typeof accSendMap === 'object' &&
+    !Array.isArray(accSendMap) &&
+    Object.keys(accSendMap).length > 0
+  if (!enforce && !hasTplRules && !hasSndRules) {
+    console.warn(
+      '[PPURIO_OWNERSHIP] PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP · PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP 미설정 — 계정 바인딩 자동판정 불가. 운영서버에는 JSON 맵 권장(PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1)'
+    )
+  }
+}
+
+function readAltOkSupplementaryLmsMode() {
+  const m = String(process.env.PPURIO_ALIMTALK_AFTER_1000_LMS ?? 'never').trim().toLowerCase()
+  const known = ['never', '', 'always', 'mirror', 'if_delivery_not_confirmed']
+  if (m && !known.includes(m)) {
+    console.warn(
+      `[알림톡] PPURIO_ALIMTALK_AFTER_1000_LMS="${m}" 인식 불가 → never 처리. 허용: never | always | if_delivery_not_confirmed`
+    )
+    return 'never'
+  }
+  if (m === 'mirror') return 'always'
+  return m || 'never'
+}
+
+function shouldMirrorLmsAfterAltOk(modeLower, deliveredProbe) {
+  if (modeLower === 'always') return true
+  if (modeLower === 'if_delivery_not_confirmed') return deliveredProbe !== true
+  return false
 }
 
 /**
@@ -486,6 +701,16 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_ALIMTALK_ALLOWED_TEMPLATE_CODES   허용 templateCode 목록
 //   PPURIO_ALIMTALK_TEMPLATE_ACCOUNT_MAP     JSON {"템플릿코드":"뿌리오계정ID"}
 //   PPURIO_ALIMTALK_ACCOUNT_SENDER_MAP       JSON {"계정ID":"@프로필"} 또는 허용 배열
+//   PPURIO_ALIMTALK_ENFORCE_OWNERSHIP_MAPS=1 : 위 두 맵 필수이며 키 존재 검사(배포 검증용)
+// 접수(code=1000) 이후 — 공개 v1 목록에 messageKey 결과 API 없음, 사업자 제공 URL 사용 시:
+//   PPURIO_MESSAGEKEY_STATUS_POST_URL        POST 엔드포인트 (뿌리오 별도 제공 시)
+//   PPURIO_MESSAGEKEY_STATUS_BODY_JSON_TEMPLATE  기본 '{"account":"__PPUR_ACCOUNT__","messageKey":"__MESSAGE_KEY__","refKey":"__REF_KEY__"}'
+//   PPURIO_MESSAGEKEY_PROBE_DELAY_MS         probe 전 대기(ms)
+//   PPURIO_MESSAGEKEY_PROBE_DELIVERED_CODES  probe 응답 code 나열(콤마) → 성공으로 간주
+//   PPURIO_MESSAGEKEY_PROBE_FAILURE_CODES    실패 code 나열
+//   PPURIO_MESSAGEKEY_PROBE_SUCCESS_BODY_REGEX 성공 시 응답 body 매칭 정규식(선택)
+// silent drop 완충(알림톡 성공 후 문자 추가, 요금 이중):
+//   PPURIO_ALIMTALK_AFTER_1000_LMS  never(기본)|always|if_delivery_not_confirmed(probe가 확정 전달이 아니면 LMS)
 // 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
 // #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -696,6 +921,8 @@ export const sendAlimtalk = async ({
     throw reject
   }
 
+  logPpurioKakaoBindingSummary(ppurAccountResolved, senderProfile, templateCodeResolved)
+
   const contentForCompare = normalizedAlimtalkBody
   const effectiveChangeWord = clippedCw
 
@@ -764,7 +991,76 @@ export const sendAlimtalk = async ({
     const bizDesc = rd?.description != null ? String(rd.description) : ''
     if (bizCode === '1000') {
       console.log('[뿌리오 알림톡] 응답 코드 해석: SUCCESS (통상 code=1000)')
-      return { ok: true, channel: 'ALT', data: rd }
+
+      const mkResolved = pickPpurioMessageKey(rd)
+      await delay(Number(process.env.PPURIO_ALIMTALK_PROBE_DELAY_MS ?? 0))
+
+      const probeVars = {
+        PPUR_ACCOUNT: ppurAccountResolved,
+        MESSAGE_KEY: mkResolved != null ? String(mkResolved) : '',
+        REF_KEY: refKey,
+      }
+      const probeRaw = await probePpurioMessageKeyStatus(token, probeVars)
+      const interpreted = interpretDeliveryProbe(probeRaw)
+
+      logPpurioAlimtalkTrace(
+        'MESSAGEKEY_DELIVERY_PROBE',
+        ppurAccountResolved,
+        senderProfile,
+        templateCodeResolved,
+        mkResolved ?? '(none)',
+        { probeRaw, interpreted }
+      )
+
+      console.log(
+        `[PPURIO_OWNERSHIP] deliveryProbe outcome=${probeRaw.outcome} deliveredInterpreted=${
+          interpreted.delivered === undefined ? 'unknown' : interpreted.delivered
+        } certainty=${interpreted.certainty ?? '?'}`
+      )
+
+      const mode = readAltOkSupplementaryLmsMode()
+      let supplementaryLmsResult = null
+      const wantMirror = shouldMirrorLmsAfterAltOk(mode, interpreted.delivered)
+
+      if (wantMirror) {
+        try {
+          supplementaryLmsResult = await sendLms({
+            to: recipientPhone,
+            subject,
+            text: lmsText,
+          })
+          console.warn(
+            `[알림톡] PPURIO_ALIMTALK_AFTER_1000_LMS="${mode}" → 알림톡 접수 후 LMS 추가 발송(silent drop 완충)·요금 중복 가능`
+          )
+          logPpurioAlimtalkTrace(
+            'SUPPLEMENTAL_LMS_AFTER_ALT_OK',
+            ppurAccountResolved,
+            senderProfile,
+            templateCodeResolved,
+            mkResolved ?? '(none)',
+            { mode, lmsOk: true, lmsData: supplementaryLmsResult?.data ?? null }
+          )
+        } catch (mirErr) {
+          console.error('[알림톡] 알림톡 접수 성공 후 LMS 미러 실패:', mirErr.message || mirErr)
+          logPpurioAlimtalkTrace(
+            'SUPPLEMENTAL_LMS_AFTER_ALT_OK_FAILED',
+            ppurAccountResolved,
+            senderProfile,
+            templateCodeResolved,
+            mkResolved ?? '(none)',
+            { mode, error: mirErr.message }
+          )
+        }
+      }
+
+      return {
+        ok: true,
+        channel: 'ALT',
+        data: rd,
+        deliveryProbe: probeRaw,
+        deliveredInterpretation: interpreted,
+        supplementaryLmsAfterAltOk: supplementaryLmsResult,
+      }
     }
 
     console.error(
