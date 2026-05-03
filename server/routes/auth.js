@@ -408,6 +408,120 @@ const handleVerifySmsCode = async (req, res) => {
   }
 }
 
+/**
+ * 비밀번호 재설정용 인증번호 발송 — 해당 번호로 가입된 회원이 있어야 함.
+ */
+const handleSendSmsCodeForPasswordReset = async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body?.phone ?? req.body?.phoneNumber)
+    if (!phone || !isValidKoreanPhone(phone)) {
+      return res.status(400).json({ error: '유효한 휴대폰 번호를 입력해 주세요' })
+    }
+
+    const member = await pool.query(
+      'SELECT id FROM members WHERE phone_number = $1 AND deleted = false',
+      [phone]
+    )
+    if (member.rows.length === 0) {
+      return res.status(404).json({ error: '등록된 휴대폰 번호가 아닙니다. 회원가입을 진행해 주세요' })
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000))
+    const expiresAt = new Date(Date.now() + SMS_CODE_TTL_MS)
+
+    const inserted = await pool.query(
+      `INSERT INTO sms_verifications (phone_number, code, expires_at)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [phone, code, expiresAt]
+    )
+    const insertedId = inserted.rows[0]?.id
+
+    try {
+      await sendSms({ to: phone, text: buildVerificationMessage(code) })
+    } catch (smsErr) {
+      if (insertedId) {
+        await pool.query('DELETE FROM sms_verifications WHERE id = $1', [insertedId]).catch(() => {})
+      }
+      console.error('[비밀번호 재설정] SMS 발송 실패:', smsErr.message, smsErr.detail || '')
+      const detailText =
+        smsErr.ppurioMessage ||
+        (typeof smsErr.detail === 'string'
+          ? smsErr.detail
+          : smsErr.detail
+            ? JSON.stringify(smsErr.detail)
+            : smsErr.message)
+      const payload = { success: false, error: 'SMS_SEND_FAILED', detail: detailText }
+      if (smsErr.serverIp) payload.serverIp = smsErr.serverIp
+      return res.status(502).json(payload)
+    }
+
+    const payload = {
+      success: true,
+      expiresAt: expiresAt.toISOString(),
+      ttlSeconds: Math.floor(SMS_CODE_TTL_MS / 1000),
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      payload.devCode = code
+    }
+    res.json(payload)
+  } catch (error) {
+    console.error('[비밀번호 재설정] SMS 요청 오류:', error)
+    res.status(500).json({ error: 'SMS 인증 요청 처리 중 오류가 발생했습니다' })
+  }
+}
+
+/**
+ * 비밀번호 재설정 완료 — 최근 SMS 인증 완료(동일 회원 번호·시간 창내) 검증 후 hash 갱신
+ */
+router.post('/password-reset/complete', async (req, res) => {
+  try {
+    const { phoneNumber, password } = req.body || {}
+    const phone = normalizePhone(phoneNumber)
+    if (!phone || !isValidKoreanPhone(phone)) {
+      return res.status(400).json({ error: '유효한 휴대폰 번호를 입력해 주세요' })
+    }
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: '비밀번호는 6~20자의 영문 또는 숫자 또는 특수문자로 입력해 주세요' })
+    }
+
+    const memberRs = await pool.query(
+      'SELECT id FROM members WHERE phone_number = $1 AND deleted = false',
+      [phone]
+    )
+    if (memberRs.rows.length === 0) {
+      return res.status(404).json({ error: '등록된 휴대폰 번호가 아닙니다' })
+    }
+
+    const verified = await pool.query(
+      `SELECT id FROM sms_verifications
+       WHERE phone_number = $1
+         AND verified = true
+         AND verified_at > NOW() - ($2 || ' minutes')::interval
+       ORDER BY verified_at DESC
+       LIMIT 1`,
+      [phone, String(SMS_VERIFY_WINDOW_MINUTES)]
+    )
+    if (verified.rows.length === 0) {
+      return res.status(400).json({ error: 'SMS 인증이 완료되지 않았거나 시간이 만료되었습니다. 인증번호를 다시 진행해 주세요' })
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10)
+    await pool.query(
+      'UPDATE members SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [passwordHash, memberRs.rows[0].id]
+    )
+    await pool.query('DELETE FROM sms_verifications WHERE phone_number = $1', [phone])
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('비밀번호 재설정 오류:', error)
+    res.status(500).json({ error: '비밀번호 재설정 처리 중 오류가 발생했습니다' })
+  }
+})
+
+router.post('/password-reset/send', handleSendSmsCodeForPasswordReset)
+
 // 기본 엔드포인트 (요구사항에서 명시한 경로)
 router.post('/send', handleSendSmsCode)
 router.post('/verify', handleVerifySmsCode)

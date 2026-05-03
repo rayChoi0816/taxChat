@@ -11,7 +11,7 @@ import {
 } from '../engine/taxPreview/capitalGainsQuestionConfig.js'
 import { useCapitalGainsFlow } from '../engine/taxPreview/TaxFlowEngine.jsx'
 
-const TOTAL_STEPS = 9
+const TOTAL_STEPS = 8
 
 export function formatKRWLabel(n) {
   if (n == null || !Number.isFinite(n)) return ''
@@ -31,24 +31,22 @@ function validateStep(stepIndex, data, ctx) {
   const { expensePhase, purchaseStr, saleStr, expenseStr } = ctx
   switch (stepIndex) {
     case 0:
-      return data.confirmedStart === true
-    case 1:
       return Boolean(data.assetType)
-    case 2:
+    case 1:
       return Boolean(data.houseCount)
-    case 3:
+    case 2:
       return Boolean(data.holdingPeriod)
-    case 4:
+    case 3:
       return data.isResident === true || data.isResident === false
-    case 5:
+    case 4:
       return digitsToInt(purchaseStr) > 0
-    case 6:
+    case 5:
       return digitsToInt(saleStr) > 0
-    case 7:
+    case 6:
       if (expensePhase === 'choose')
         return data.expensesUnknown === true
       return digitsToInt(expenseStr) >= 0
-    case 8:
+    case 7:
       return false
     default:
       return false
@@ -64,17 +62,17 @@ export default function CapitalGainsFlowPage() {
   const [expensePhase, setExpensePhase] = useState('choose')
 
   useEffect(() => {
-    if (stepIndex !== 5) return
+    if (stepIndex !== 4) return
     if (data.purchasePrice != null) setPurchaseStr(formatKRWLabel(data.purchasePrice))
   }, [stepIndex, data.purchasePrice])
 
   useEffect(() => {
-    if (stepIndex !== 6) return
+    if (stepIndex !== 5) return
     if (data.salePrice != null) setSaleStr(formatKRWLabel(data.salePrice))
   }, [stepIndex, data.salePrice])
 
   useEffect(() => {
-    if (stepIndex !== 7) return
+    if (stepIndex !== 6) return
     if (data.expensesUnknown === true) {
       setExpensePhase('choose')
       return
@@ -113,9 +111,9 @@ export default function CapitalGainsFlowPage() {
   }
 
   const persistNumericSteps = () => {
-    if (stepIndex === 5) patch({ purchasePrice: digitsToInt(purchaseStr) })
-    if (stepIndex === 6) patch({ salePrice: digitsToInt(saleStr) })
-    if (stepIndex === 7 && expensePhase === 'input') {
+    if (stepIndex === 4) patch({ purchasePrice: digitsToInt(purchaseStr) })
+    if (stepIndex === 5) patch({ salePrice: digitsToInt(saleStr) })
+    if (stepIndex === 6 && expensePhase === 'input') {
       patch({
         expensesUnknown: false,
         expenses: digitsToInt(expenseStr),
@@ -133,7 +131,7 @@ export default function CapitalGainsFlowPage() {
       navigate('/tax-preview')
       return
     }
-    if (stepIndex === 7 && expensePhase === 'input') {
+    if (stepIndex === 6 && expensePhase === 'input') {
       setExpensePhase('choose')
       patch({ expensesUnknown: undefined, expenses: undefined })
       setExpenseStr('')
@@ -142,31 +140,21 @@ export default function CapitalGainsFlowPage() {
     setStepIndex(stepIndex - 1)
   }
 
-  const markExpenseUnknownAndGo = () => {
-    patch({ expensesUnknown: true, expenses: null })
-    setStepIndex(8)
-  }
-
   const startExpenseDirect = () => {
     setExpensePhase('input')
     setExpenseStr('')
     patch({ expensesUnknown: false, expenses: undefined })
   }
 
+  const quickPreset = [
+    ['1억', 100_000_000],
+    ['5억', 500_000_000],
+    ['10억', 1_000_000_000],
+  ]
+
   const renderStepBody = () => {
     switch (stepIndex) {
       case 0:
-        return (
-          <div className="tax-option-grid">
-            <OptionButton
-              selected={data.confirmedStart === true}
-              onClick={() => patch({ confirmedStart: true })}
-            >
-              네, 계산해볼게요
-            </OptionButton>
-          </div>
-        )
-      case 1:
         return (
           <div className="tax-option-grid">
             {ASSET_OPTIONS.map((opt) => (
@@ -180,7 +168,7 @@ export default function CapitalGainsFlowPage() {
             ))}
           </div>
         )
-      case 2:
+      case 1:
         return (
           <div className="tax-option-grid">
             {HOUSE_OPTIONS.map((opt) => (
@@ -194,7 +182,7 @@ export default function CapitalGainsFlowPage() {
             ))}
           </div>
         )
-      case 3:
+      case 2:
         return (
           <div className="tax-option-grid">
             {HOLDING_OPTIONS.map((opt) => (
@@ -208,7 +196,7 @@ export default function CapitalGainsFlowPage() {
             ))}
           </div>
         )
-      case 4:
+      case 3:
         return (
           <div className="tax-option-grid">
             <OptionButton
@@ -225,12 +213,7 @@ export default function CapitalGainsFlowPage() {
             </OptionButton>
           </div>
         )
-      case 5: {
-        const quick = [
-          ['1억', 100_000_000],
-          ['5억', 500_000_000],
-          ['10억', 1_000_000_000],
-        ]
+      case 4:
         return (
           <>
             <input
@@ -242,7 +225,7 @@ export default function CapitalGainsFlowPage() {
               onChange={(e) => onChangeDigits(e.target.value, setPurchaseStr)}
             />
             <div className="tax-quick-row">
-              {quick.map(([lab, amt]) => (
+              {quickPreset.map(([lab, amt]) => (
                 <button
                   key={lab}
                   type="button"
@@ -259,19 +242,36 @@ export default function CapitalGainsFlowPage() {
             </div>
           </>
         )
-      }
-      case 6:
+      case 5:
         return (
-          <input
-            className="tax-num-field"
-            inputMode="numeric"
-            placeholder="예: 800,000,000"
-            aria-label="판매 가격"
-            value={saleStr}
-            onChange={(e) => onChangeDigits(e.target.value, setSaleStr)}
-          />
+          <>
+            <input
+              className="tax-num-field"
+              inputMode="numeric"
+              placeholder="예: 800,000,000"
+              aria-label="판매 가격"
+              value={saleStr}
+              onChange={(e) => onChangeDigits(e.target.value, setSaleStr)}
+            />
+            <div className="tax-quick-row">
+              {quickPreset.map(([lab, amt]) => (
+                <button
+                  key={`sale-${lab}`}
+                  type="button"
+                  className="tax-quick-chip"
+                  onClick={() => {
+                    const next = amt
+                    setSaleStr(formatKRWLabel(next))
+                    patch({ salePrice: next })
+                  }}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+          </>
         )
-      case 7:
+      case 6:
         if (expensePhase === 'choose') {
           return (
             <div className="tax-option-grid">
@@ -299,7 +299,7 @@ export default function CapitalGainsFlowPage() {
             onChange={(e) => onChangeDigits(e.target.value, setExpenseStr)}
           />
         )
-      case 8:
+      case 7:
         return (
           <p className="tax-loading-msg">
             거의 다 됐어요! 예상 세금을 계산 중입니다…
@@ -311,7 +311,6 @@ export default function CapitalGainsFlowPage() {
   }
 
   const titles = [
-    '판매한 부동산이 있으신가요?',
     '어떤 부동산을 파셨나요?',
     '현재 집이 몇 채 있으세요?',
     '얼마나 보유하셨나요?',
@@ -323,8 +322,8 @@ export default function CapitalGainsFlowPage() {
   ]
 
   const handlePrimaryFooter = () => {
-    if (stepIndex === 7 && expensePhase === 'choose' && data.expensesUnknown === true) {
-      setStepIndex(8)
+    if (stepIndex === 6 && expensePhase === 'choose' && data.expensesUnknown === true) {
+      setStepIndex(7)
       return
     }
     goNext()
@@ -335,7 +334,7 @@ export default function CapitalGainsFlowPage() {
 
   const footerDisabled =
     stepIndex === TOTAL_STEPS - 1 ||
-    (stepIndex === 7 && expensePhase === 'choose' ? !data.expensesUnknown : !canNext)
+    (stepIndex === 6 && expensePhase === 'choose' ? !data.expensesUnknown : !canNext)
 
   return (
     <div className="tax-preview-page">

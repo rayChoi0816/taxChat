@@ -14,6 +14,7 @@ const Login = () => {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -75,7 +76,7 @@ const Login = () => {
   }
 
   const handleResetPassword = () => {
-    alert('비밀번호 재설정 기능은 준비 중입니다.')
+    navigate('/password-reset')
   }
 
   const handleKakaoChannel = () => {
@@ -122,15 +123,25 @@ const Login = () => {
                       autoComplete="tel"
                     />
 
-                    <input
-                      type="password"
-                      className="login-input"
-                      placeholder="비밀번호 입력"
-                      value={password}
-                      onChange={handlePasswordChange}
-                      onKeyDown={handleKeyDown}
-                      autoComplete="current-password"
-                    />
+                    <div className="login-password-wrap">
+                      <input
+                        type={showPwd ? 'text' : 'password'}
+                        className="login-input login-input-password-padding"
+                        placeholder="비밀번호 입력"
+                        value={password}
+                        onChange={handlePasswordChange}
+                        onKeyDown={handleKeyDown}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="login-password-toggle"
+                        aria-label={showPwd ? '비밀번호 숨기기' : '비밀번호 보기'}
+                        onClick={() => setShowPwd((v) => !v)}
+                      >
+                        {showPwd ? '숨김' : '보기'}
+                      </button>
+                    </div>
 
                     <button
                       className={`login-button ${isLoginEnabled ? 'enabled' : 'disabled'}`}

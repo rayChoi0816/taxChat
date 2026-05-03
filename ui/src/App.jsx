@@ -29,6 +29,7 @@ import AddMemberType from './pages/AddMemberType'
 import MemberTypeForm from './pages/MemberTypeForm'
 import Login from './pages/Login'
 import AuthVerify from './pages/AuthVerify'
+import ResetPassword from './pages/ResetPassword'
 import TermsOfService from './pages/TermsOfService'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminLogin from './pages/AdminLogin'
@@ -279,8 +280,8 @@ function Home() {
             <section className="action-buttons">
               <button className="action-button primary tax-preview" onClick={handleTaxPreviewClick}>
                 <div className="button-content">
-                  <h3>세금 미리 보기</h3>
-                  <p>양도 등 세금을 한 번 점검해 보세요. (간이 참고)</p>
+                  <h3>예상 세금 미리보기</h3>
+                  <p>예상 세금과 절세 가능성까지 한 번에 확인하세요</p>
                 </div>
               </button>
               <button className="action-button primary" onClick={handlePaymentClick}>
@@ -369,6 +370,7 @@ function App() {
     <BrowserRouter>
       <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/password-reset" element={<ResetPassword />} />
           <Route 
             path="/" 
             element={<Home />} 

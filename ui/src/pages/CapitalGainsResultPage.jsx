@@ -15,7 +15,6 @@ function isCapitalGainsComplete(data) {
       typeof data.expenses === 'number' &&
       Number.isFinite(data.expenses))
   return !!(
-    data.confirmedStart &&
     data.assetType &&
     data.houseCount &&
     data.holdingPeriod &&
@@ -62,24 +61,35 @@ export default function CapitalGainsResultPage() {
 
   if (!complete) {
     return (
-      <div className="tax-preview-page">
+      <div className="tax-preview-page tax-result-page-shell">
         <p className="tax-loading-msg">불러오는 중입니다…</p>
       </div>
     )
   }
 
+  const goHome = () => navigate('/')
+
   return (
-    <div className="tax-preview-page">
-      <header className="tax-preview-header">
-        <button type="button" className="tax-preview-back" aria-label="뒤로" onClick={() => navigate('/')}>
+    <div className="tax-preview-page tax-result-page-shell">
+      <header className="tax-result-header-fixed">
+        <button
+          type="button"
+          className="tax-result-header-btn tax-preview-back"
+          aria-label="뒤로가기"
+          onClick={() => navigate(-1)}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
+          <span className="tax-result-header-btn-label">뒤로가기</span>
         </button>
-        <h1 className="tax-preview-title">계산 결과</h1>
+        <h1 className="tax-preview-title tax-result-header-title">계산 결과</h1>
+        <button type="button" className="tax-result-header-btn tax-result-home-btn" aria-label="홈" onClick={goHome}>
+          <span className="tax-result-header-btn-label">홈</span>
+        </button>
       </header>
 
-      <section className="tax-preview-body">
+      <section className="tax-result-scroll-body">
         <div className="tax-question-card">
           <div className="tax-result-hero">
             <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
@@ -152,8 +162,7 @@ export default function CapitalGainsResultPage() {
 
           <button
             type="button"
-            className="tax-flow-nav-btn secondary"
-            style={{ marginTop: '1rem', width: '100%' }}
+            className="tax-flow-nav-btn secondary tax-result-footer-btn"
             onClick={restart}
           >
             새로 계산하기

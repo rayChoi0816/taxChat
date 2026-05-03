@@ -12,7 +12,7 @@ const STORAGE_KEY = 'taxChat_capitalGains_preview_v1'
 const defaultCapitalGainsData = () => ({
   taxType: 'capital_gains',
   isAdjustZone: false,
-  confirmedStart: false,
+  confirmedStart: true,
   assetType: undefined,
   houseCount: undefined,
   holdingPeriod: undefined,

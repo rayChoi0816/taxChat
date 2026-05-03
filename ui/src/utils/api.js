@@ -73,6 +73,23 @@ export const authAPI = {
     })
   },
 
+  /** 가입 회원에게만 문자 발송 (비밀번호 재설정) */
+  requestPasswordResetSms: (phoneNumber) => {
+    const phone = String(phoneNumber || '').replace(/[^\d]/g, '')
+    return fetchAPI('/auth/password-reset/send', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    })
+  },
+
+  completePasswordReset: (phoneNumber, password) => {
+    const digits = String(phoneNumber || '').replace(/[^\d]/g, '')
+    return fetchAPI('/auth/password-reset/complete', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber: digits, password }),
+    })
+  },
+
   adminLogin: (password) => fetchAPI('/auth/admin-login', {
     method: 'POST',
     body: JSON.stringify({ password }),

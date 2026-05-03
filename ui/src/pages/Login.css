@@ -199,3 +199,26 @@
   font-weight: 600;
   color: #1f2937;
 }
+
+.login-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.login-input-password-padding {
+  padding-right: 4.25rem;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4f46e5;
+  cursor: pointer;
+  padding: 0.25rem 0.35rem;
+}
