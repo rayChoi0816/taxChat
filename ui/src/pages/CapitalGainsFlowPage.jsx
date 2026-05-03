@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import QuestionCard from '../components/taxPreview/QuestionCard.jsx'
 import OptionButton from '../components/taxPreview/OptionButton.jsx'
@@ -62,6 +62,7 @@ export default function CapitalGainsFlowPage() {
   const [saleStr, setSaleStr] = useState('')
   const [expenseStr, setExpenseStr] = useState('')
   const [expensePhase, setExpensePhase] = useState('choose')
+  const expenseInputRef = useRef(null)
 
   useEffect(() => {
     if (stepIndex !== 4) return
@@ -79,14 +80,21 @@ export default function CapitalGainsFlowPage() {
       setExpensePhase('choose')
       return
     }
-    if (data.expensesUnknown === false && data.expenses != null) {
+    if (data.expensesUnknown === false) {
       setExpensePhase('input')
-      setExpenseStr(formatKRWLabel(data.expenses))
+      if (data.expenses != null && Number.isFinite(Number(data.expenses))) {
+        setExpenseStr(formatKRWLabel(data.expenses))
+      }
       return
     }
     setExpensePhase('choose')
     setExpenseStr('')
   }, [stepIndex, data.expenses, data.expensesUnknown])
+
+  useLayoutEffect(() => {
+    if (stepIndex !== 6 || expensePhase !== 'input') return
+    expenseInputRef.current?.focus({ preventScroll: true })
+  }, [stepIndex, expensePhase])
 
   const ctxMemo = useMemo(
     () => ({
@@ -292,6 +300,7 @@ export default function CapitalGainsFlowPage() {
               </OptionButton>
               {expensePhase === 'input' ? (
                 <input
+                  ref={expenseInputRef}
                   className="tax-num-field"
                   inputMode="numeric"
                   placeholder="비용 합계 (원)"
