@@ -6,6 +6,7 @@ import './AuthVerify.css'
 import mayLogo from '../assets/may_logo.png'
 import { authAPI } from '../utils/api'
 import AuthPageHeader from '../components/AuthPageHeader'
+import PasswordVisibilityToggle from '../components/auth/PasswordVisibilityToggle.jsx'
 
 const PHONE_REGEX = /^01\d{8,9}$/
 // 비밀번호 규칙: 영문/숫자/특수문자 6~20자 (공백 제외 ASCII 출력 가능 문자)
@@ -27,6 +28,8 @@ const AuthVerify = () => {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [showPwd2, setShowPwd2] = useState(false)
   const [agreed, setAgreed] = useState(false)
 
   const [smsOpen, setSmsOpen] = useState(false)
@@ -268,15 +271,18 @@ const AuthVerify = () => {
                   <label className="auth-verify-label">비밀번호</label>
                   <span className="auth-verify-hint">영문 또는 숫자 또는 특수문자 6~20</span>
                 </div>
-                <input
-                  type="password"
-                  className="login-input auth-verify-input"
-                  placeholder="비밀번호 입력"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  autoComplete="new-password"
-                  maxLength={20}
-                />
+                <div className="login-password-wrap">
+                  <input
+                    type={showPwd ? 'text' : 'password'}
+                    className="login-input auth-verify-input login-input-password-padding"
+                    placeholder="비밀번호 입력"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    autoComplete="new-password"
+                    maxLength={20}
+                  />
+                  <PasswordVisibilityToggle revealed={showPwd} onToggle={() => setShowPwd((v) => !v)} />
+                </div>
                 {password.length > 0 && !isPasswordValid && (
                   <p className="auth-verify-field-error">
                     영문 또는 숫자 또는 특수문자로 6~20자를 입력해 주세요
@@ -287,15 +293,18 @@ const AuthVerify = () => {
               {/* 비밀번호 확인 */}
               <div className="auth-verify-field">
                 <label className="auth-verify-label">비밀번호 확인</label>
-                <input
-                  type="password"
-                  className="login-input auth-verify-input"
-                  placeholder="비밀번호 확인"
-                  value={passwordConfirm}
-                  onChange={handlePasswordConfirmChange}
-                  autoComplete="new-password"
-                  maxLength={20}
-                />
+                <div className="login-password-wrap">
+                  <input
+                    type={showPwd2 ? 'text' : 'password'}
+                    className="login-input auth-verify-input login-input-password-padding"
+                    placeholder="비밀번호 확인"
+                    value={passwordConfirm}
+                    onChange={handlePasswordConfirmChange}
+                    autoComplete="new-password"
+                    maxLength={20}
+                  />
+                  <PasswordVisibilityToggle revealed={showPwd2} onToggle={() => setShowPwd2((v) => !v)} />
+                </div>
                 {passwordConfirm.length > 0 && password !== passwordConfirm && (
                   <p className="auth-verify-field-error">
                     비밀번호가 일치하지 않습니다

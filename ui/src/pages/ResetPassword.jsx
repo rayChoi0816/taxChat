@@ -6,6 +6,7 @@ import './AuthVerify.css'
 import mayLogo from '../assets/may_logo.png'
 import { authAPI } from '../utils/api'
 import AuthPageHeader from '../components/AuthPageHeader'
+import PasswordVisibilityToggle from '../components/auth/PasswordVisibilityToggle.jsx'
 
 const PHONE_REGEX = /^01\d{8,9}$/
 const PASSWORD_REGEX = /^[\x21-\x7E]{6,20}$/
@@ -187,7 +188,7 @@ const ResetPassword = () => {
                     </div>
                     <h1 className="login-service-name">세무회계 오월</h1>
                     <p className="auth-verify-subtitle">
-                      가입한 휴대폰으로 인증 후 새 비밀번호를 설정할 수 있습니다
+                      등록된 휴대폰으로 인증 후 비밀번호 변경
                     </p>
                   </div>
 
@@ -239,14 +240,10 @@ const ResetPassword = () => {
                           maxLength={20}
                           disabled={!verified}
                         />
-                        <button
-                          type="button"
-                          className="login-password-toggle"
-                          aria-label={showPwd ? '비밀번호 숨기기' : '비밀번호 확인'}
-                          onClick={() => setShowPwd(!showPwd)}
-                        >
-                          {showPwd ? '숨김' : '보기'}
-                        </button>
+                        <PasswordVisibilityToggle
+                          revealed={showPwd}
+                          onToggle={() => setShowPwd(!showPwd)}
+                        />
                       </div>
                       {password.length > 0 && !isPasswordValid && (
                         <p className="auth-verify-field-error">
@@ -268,14 +265,10 @@ const ResetPassword = () => {
                           maxLength={20}
                           disabled={!verified}
                         />
-                        <button
-                          type="button"
-                          className="login-password-toggle"
-                          aria-label={showPwd2 ? '비밀번호 확인 숨기기' : '비밀번호 확인 보기'}
-                          onClick={() => setShowPwd2(!showPwd2)}
-                        >
-                          {showPwd2 ? '숨김' : '보기'}
-                        </button>
+                        <PasswordVisibilityToggle
+                          revealed={showPwd2}
+                          onToggle={() => setShowPwd2(!showPwd2)}
+                        />
                       </div>
                       {passwordConfirm.length > 0 && password !== passwordConfirm && (
                         <p className="auth-verify-field-error">비밀번호가 일치하지 않습니다</p>

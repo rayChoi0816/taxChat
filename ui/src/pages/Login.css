@@ -206,19 +206,36 @@
 }
 
 .login-input-password-padding {
-  padding-right: 4.25rem;
+  padding-right: 3.5rem;
 }
 
-.login-password-toggle {
+.pwd-visibility-toggle {
   position: absolute;
-  right: 0.85rem;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   border: none;
   background: transparent;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #4f46e5;
   cursor: pointer;
   padding: 0.25rem 0.35rem;
+  border-radius: 10px;
+  color: #4338ca;
+}
+
+.pwd-visibility-toggle:hover {
+  background: rgba(67, 56, 202, 0.08);
+}
+
+.pwd-visibility-favicon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.pwd-visibility-svg {
+  display: block;
+  flex-shrink: 0;
 }

@@ -6,6 +6,7 @@ import mayLogo from '../assets/may_logo.png'
 import { useAuth } from '../contexts/AuthContext'
 import AuthPageHeader from '../components/AuthPageHeader'
 import { KAKAO_CONSULT_CHAT_URL } from '../components/KakaoConsultDragButton'
+import PasswordVisibilityToggle from '../components/auth/PasswordVisibilityToggle.jsx'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -133,14 +134,10 @@ const Login = () => {
                         onKeyDown={handleKeyDown}
                         autoComplete="current-password"
                       />
-                      <button
-                        type="button"
-                        className="login-password-toggle"
-                        aria-label={showPwd ? '비밀번호 숨기기' : '비밀번호 보기'}
-                        onClick={() => setShowPwd((v) => !v)}
-                      >
-                        {showPwd ? '숨김' : '보기'}
-                      </button>
+                      <PasswordVisibilityToggle
+                        revealed={showPwd}
+                        onToggle={() => setShowPwd((v) => !v)}
+                      />
                     </div>
 
                     <button
