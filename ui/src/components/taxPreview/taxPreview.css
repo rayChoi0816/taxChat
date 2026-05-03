@@ -145,8 +145,11 @@
   border-color: #2563eb;
 }
 
-.tax-expense-input-below {
-  margin-top: 0.85rem;
+.tax-expense-direct-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
 }
 
 .tax-quick-row {

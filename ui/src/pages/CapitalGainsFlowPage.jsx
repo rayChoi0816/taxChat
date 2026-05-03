@@ -43,9 +43,11 @@ function validateStep(stepIndex, data, ctx) {
     case 5:
       return digitsToInt(saleStr) > 0
     case 6:
-      if (expensePhase === 'choose')
-        return data.expensesUnknown === true
-      return String(expenseStr || '').replace(/\D/g, '').length > 0
+      return (
+        data.expensesUnknown === true ||
+        (expensePhase === 'input' &&
+          String(expenseStr || '').replace(/\D/g, '').length > 0)
+      )
     case 7:
       return false
     default:
@@ -273,36 +275,33 @@ export default function CapitalGainsFlowPage() {
         )
       case 6:
         return (
-          <>
-            <div className="tax-option-grid">
-              <OptionButton
-                selected={data.expensesUnknown === true}
-                onClick={() => {
-                  setExpensePhase('choose')
-                  setExpenseStr('')
-                  patch({ expensesUnknown: true, expenses: null })
-                }}
-              >
-                잘 모르겠어요 (기본값 적용)
-              </OptionButton>
-              <OptionButton
-                selected={expensePhase === 'input'}
-                onClick={startExpenseDirect}
-              >
+          <div className="tax-option-grid tax-expense-question-stack">
+            <OptionButton
+              selected={data.expensesUnknown === true}
+              onClick={() => {
+                setExpensePhase('choose')
+                setExpenseStr('')
+                patch({ expensesUnknown: true, expenses: null })
+              }}
+            >
+              잘 모르겠어요 (기본값 적용)
+            </OptionButton>
+            <div className="tax-expense-direct-wrap">
+              <OptionButton selected={expensePhase === 'input'} onClick={startExpenseDirect}>
                 직접 입력
               </OptionButton>
+              {expensePhase === 'input' ? (
+                <input
+                  className="tax-num-field"
+                  inputMode="numeric"
+                  placeholder="비용 합계 (원)"
+                  aria-label="비용"
+                  value={expenseStr}
+                  onChange={(e) => onChangeDigits(e.target.value, setExpenseStr)}
+                />
+              ) : null}
             </div>
-            {expensePhase === 'input' ? (
-              <input
-                className="tax-num-field tax-expense-input-below"
-                inputMode="numeric"
-                placeholder="비용 합계 (원)"
-                aria-label="비용"
-                value={expenseStr}
-                onChange={(e) => onChangeDigits(e.target.value, setExpenseStr)}
-              />
-            ) : null}
-          </>
+          </div>
         )
       case 7:
         return (
@@ -349,9 +348,7 @@ export default function CapitalGainsFlowPage() {
   const footerDisabled =
     stepIndex === TOTAL_STEPS - 1 ||
     (stepIndex === 6
-      ? expensePhase === 'choose'
-        ? !data.expensesUnknown
-        : !expenseHasDigitInput
+      ? !(data.expensesUnknown === true || expenseHasDigitInput)
       : !canNext)
 
   return (
