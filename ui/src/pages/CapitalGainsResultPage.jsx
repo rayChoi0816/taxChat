@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../components/taxPreview/taxPreview.css'
 import { KAKAO_CONSULT_CHAT_URL } from '../components/KakaoConsultDragButton.jsx'
-import { pwdFaviconSrc } from '../components/auth/PasswordVisibilityToggle.jsx'
 import { calculateCapitalGainsTax } from '../engine/taxPreview/TaxCalculator.js'
 import { interpretCapitalGainsResult } from '../engine/taxPreview/ResultInterpreter.js'
 import { CAPITAL_GAINS_TAX_VERSION } from '../engine/taxPreview/capitalGainsQuestionConfig.js'
@@ -86,10 +85,9 @@ export default function CapitalGainsResultPage() {
         </button>
         <h1 className="tax-preview-title tax-result-header-title">계산 결과</h1>
         <button type="button" className="tax-result-home-brand-btn" aria-label="홈으로 이동" onClick={goHome}>
-          <img src={pwdFaviconSrc()} alt="" width={18} height={18} className="tax-result-header-favicon" />
           <svg
-            width={22}
-            height={22}
+            width={24}
+            height={24}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -217,22 +217,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 0.25rem 0.35rem;
+  padding: 0.35rem;
   border-radius: 10px;
-  color: #4338ca;
+  color: #475569;
 }
 
 .pwd-visibility-toggle:hover {
-  background: rgba(67, 56, 202, 0.08);
-}
-
-.pwd-visibility-favicon {
-  display: block;
-  flex-shrink: 0;
+  background: rgba(71, 85, 105, 0.09);
+  color: #1e293b;
 }
 
 .pwd-visibility-svg {

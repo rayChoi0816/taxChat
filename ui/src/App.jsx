@@ -41,6 +41,7 @@ import TaxSelectPage from './pages/TaxSelectPage.jsx'
 import CapitalGainsLayout from './pages/CapitalGainsLayout.jsx'
 import CapitalGainsFlowPage from './pages/CapitalGainsFlowPage.jsx'
 import CapitalGainsResultPage from './pages/CapitalGainsResultPage.jsx'
+import { CAPITAL_GAINS_PREVIEW_STORAGE_KEY } from './engine/taxPreview/TaxFlowEngine.jsx'
 
 function BannerSlider({ banners }) {
   const swiperRef = useRef(null)
@@ -179,6 +180,11 @@ function Home() {
   }
 
   const handleTaxPreviewClick = () => {
+    try {
+      sessionStorage.removeItem(CAPITAL_GAINS_PREVIEW_STORAGE_KEY)
+    } catch (_) {
+      /* ignore */
+    }
     navigate('/tax-preview')
   }
 

@@ -9,6 +9,9 @@ import {
 
 const STORAGE_KEY = 'taxChat_capitalGains_preview_v1'
 
+/** 홈 예상 세금 진입 등 외부에서 초기화할 때 동일 키 사용 */
+export const CAPITAL_GAINS_PREVIEW_STORAGE_KEY = STORAGE_KEY
+
 const defaultCapitalGainsData = () => ({
   taxType: 'capital_gains',
   isAdjustZone: false,

@@ -307,11 +307,6 @@
   margin-top: 1.25rem;
 }
 
-.tax-cta-merged {
-  line-height: 1.35;
-  white-space: normal;
-}
-
 /* 양도소득 계산 결과: 헤더 고정 + 본문 스크롤 */
 .tax-result-page-shell {
   min-height: 100vh;
@@ -366,27 +361,29 @@
   justify-self: start;
 }
 
+.tax-cta-single-wrap .tax-cta-primary.tax-cta-merged {
+  white-space: nowrap;
+  font-size: clamp(0.78rem, 3.25vw, 0.9375rem);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
 .tax-result-home-brand-btn {
   justify-self: end;
   grid-column: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
   border: none;
   background: transparent;
   cursor: pointer;
   color: #2563eb;
-  padding: 0.35rem 0.5rem;
-  border-radius: 10px;
+  padding: 0.35rem;
+  border-radius: 12px;
 }
 
 .tax-result-home-brand-btn:hover {
   background: rgba(37, 99, 235, 0.08);
-}
-
-.tax-result-header-favicon {
-  display: block;
 }
 
 .tax-result-header-home-svg {
