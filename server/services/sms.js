@@ -1575,15 +1575,12 @@ export const buildSignupNotificationMessage = ({
 
 /** 카카오 비즈니스 승인본(#{varN}) 유지용 — 소스 오브 트루스(API changeWord 키는 var1~var4) */
 export const SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT =
+  '택스챗 신규 회원이 가입되었습니다.  \n' +
   '\n' +
-  '택스챗 신규 회원이 가입되었습니다.\n' +
-  '\n' +
-  '사업자 유형: #{var1}\n' +
-  '회원명: #{var2}\n' +
-  '연락처: #{var3}\n' +
-  '가입일시: #{var4}\n' +
-  '\n' +
-  '택스쳇 관리자페이지로 이동\n'
+  '사업자 유형: #{var1} \n' +
+  '회원명: #{var2} \n' +
+  '연락처: #{var3} \n' +
+  '가입일시: #{var4} \n'
 
 /**
  * 뿌리오 API용(#{varN} + changeWord.var1…)
