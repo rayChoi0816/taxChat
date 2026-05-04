@@ -416,3 +416,314 @@
   margin-top: 1rem;
   width: 100%;
 }
+
+/* —— 예상 세금 결과 v2 (부분 공개 → 전체 공개) —— */
+
+.tax-result-page-v2 .tax-result-header-title {
+  font-size: clamp(0.94rem, 3.8vw, 1.08rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.tax-result-scroll-body-v2 {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+}
+
+.tax-result-card-v2 {
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.tax-result-intro {
+  text-align: center;
+  padding: 0.25rem 0 1.15rem;
+  border-bottom: 1px solid #e9eef5;
+}
+
+.tax-result-intro-copy {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.tax-result-phase-partial,
+.tax-result-phase-full {
+  text-align: center;
+  padding: 1.35rem 0 0.5rem;
+}
+
+.tax-result-hero-amount {
+  margin: 0;
+  font-size: clamp(2.1rem, 8vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.tax-result-amount-teaser {
+  color: #1e293b;
+  filter: blur(0.65px);
+  text-shadow:
+    0 0 1px rgba(15, 23, 42, 0.08),
+    0 2px 20px rgba(37, 99, 235, 0.12);
+  font-variant-numeric: tabular-nums;
+}
+
+.tax-result-amount-reveal {
+  color: #1e40af;
+  font-variant-numeric: tabular-nums;
+}
+
+.tax-result-micro-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.tax-result-ratio-pill {
+  display: inline-block;
+  margin-top: 0.55rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0369a1;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+}
+
+.tax-result-save-teaser-line {
+  margin: 1.25rem auto 0;
+  font-size: 1rem;
+  font-weight: 800;
+  max-width: 18rem;
+  line-height: 1.35;
+  color: #059669;
+  letter-spacing: -0.02em;
+}
+
+.tax-result-savings-highlight {
+  margin: 1.35rem auto 0;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  text-align: center;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1.5px solid #6ee7b7;
+  box-shadow: 0 10px 30px rgba(5, 150, 105, 0.1);
+}
+
+.tax-result-savings-main {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #047857;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tax-result-savings-sub {
+  margin: 0.45rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #065f46;
+  line-height: 1.45;
+}
+
+.tax-result-rows-v2 {
+  margin-top: 1.5rem !important;
+  padding-top: 0.85rem;
+  border-top: 1px solid #e9eef5;
+}
+
+.tax-result-interpret-lines {
+  margin-top: 1rem;
+}
+
+.tax-result-interpret-line {
+  margin: 0;
+  padding: 0.15rem 0;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.52;
+}
+
+.tax-result-footer-disclaimer {
+  margin: 2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #94a3b8;
+}
+
+.tax-result-soft-btn-v2 {
+  margin-top: 1.25rem;
+}
+
+.tax-result-sticky-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, #f8fafc 70%, rgba(248, 250, 252, 0));
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+  max-width: 100vw;
+  box-sizing: border-box;
+}
+
+.tax-result-sticky-primary,
+.tax-result-sticky-accent {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  display: block;
+  padding: 1rem 1.1rem;
+  border: none;
+  border-radius: 14px;
+  font-size: 1.06rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.tax-result-sticky-primary {
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow:
+    0 6px 20px rgba(37, 99, 235, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tax-result-sticky-primary:active {
+  transform: scale(0.99);
+}
+
+.tax-result-sticky-accent {
+  color: #fff;
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  box-shadow:
+    0 6px 26px rgba(234, 88, 12, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tax-result-sticky-accent:active {
+  transform: scale(0.99);
+}
+
+.tax-result-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.52);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: tax-result-sheet-fade-in 0.22s ease;
+}
+
+.tax-result-sheet-panel {
+  width: min(520px, 100%);
+  margin: 0 auto;
+  max-height: min(92dvh, 640px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 0.5rem 1.15rem 1.25rem;
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+  animation: tax-result-sheet-slide-up 0.28s ease;
+}
+
+@media (min-width: 640px) {
+  .tax-result-sheet-backdrop {
+    align-items: center;
+    padding: 1.5rem;
+  }
+
+  .tax-result-sheet-panel {
+    border-radius: 20px;
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+}
+
+.tax-result-sheet-grab {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  margin: 0.35rem auto 0.75rem;
+}
+
+.tax-result-sheet-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.tax-result-sheet-body {
+  margin: 0 0 1.15rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #475569;
+  font-weight: 500;
+}
+
+.tax-result-sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tax-result-sheet-confirm {
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.tax-result-sheet-dismiss {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  background: #f1f5f9;
+}
+
+@keyframes tax-result-sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tax-result-sheet-slide-up {
+  from {
+    transform: translateY(18px);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

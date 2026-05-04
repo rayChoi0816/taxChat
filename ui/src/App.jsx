@@ -287,7 +287,7 @@ function Home() {
               <button className="action-button primary tax-preview" onClick={handleTaxPreviewClick}>
                 <div className="button-content">
                   <h3>예상 세금 미리보기</h3>
-                  <p>예상 세금과 절세 가능성까지 한 번에 확인하세요</p>
+                  <p>입력 정보를 기반으로 자동 계산된 예상 세금과 절세 가능 여부를 참고용으로 확인해보세요.</p>
                 </div>
               </button>
               <button className="action-button primary" onClick={handlePaymentClick}>
