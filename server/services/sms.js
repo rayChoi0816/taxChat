@@ -1586,16 +1586,16 @@ export const SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT =
   '택스쳇 관리자페이지로 이동\n'
 
 /**
- * 뿌리오 API용([*n*] + changeWord.var1…)
- * 콘솔 등록 템플릿과 줄바꿈·공백까지 맞춤: 선행 빈 줄·본문 후 빈 줄 없음. 마지막 줄만 "택스쳇"(등록 오탈자) 유지.
+ * 뿌리오 API용(#{varN} + changeWord.var1…)
+ * 콘솔 등록 템플릿과 줄바꿈·공백까지 맞춤: 선행 빈 줄·본문 후 빈 줄 없음.
  */
 export const SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT = `
 택스챗 신규 회원이 가입되었습니다.
-사업자 유형: [*1*]
-회원명: [*2*]
-연락처: [*3*]
-가입일시: [*4*]
-택스쳇 관리자페이지로 이동
+사업자 유형: #{var1}
+회원명: #{var2}
+연락처: #{var3}
+가입일시: #{var4}
+택스챗 관리자페이지로 이동
 `.trim()
 
 /** @deprecated SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT 권장 */
@@ -1646,14 +1646,14 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   const pad = (n) => String(n).padStart(2, '0')
   const signupAt = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 
-  const envStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '').trim().toLowerCase()
+  const envStyle = String(process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || 'hash').trim().toLowerCase()
   const useHashBranch =
     envStyle === 'hash' ||
     envStyle === 'kakao_hash' ||
     envStyle === 'legacy_hash' ||
     envStyle === 'sharp'
 
-  /** 기본값: numbered (환경변수 비움 또는 `numbered` 명시 동일 처리) → #{ } 분기 미매칭으로 대체문자만 가는 현상 예방 */
+  /** 기본값: hash · `numbered` 명시 시 SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT 분기 */
   const isNumbered = !useHashBranch
 
   const envOriginal = String(process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE || '').trim()
@@ -1673,7 +1673,7 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
 
   console.log(
     `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered([*]+var)' : 'hash(#{변수}-본문)'} · changeWord=var1~var4 고정 ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
-      process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '(기본 numbered)'
+      process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '(기본 hash)'
     }"`
   )
 
