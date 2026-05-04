@@ -1573,15 +1573,15 @@ export const buildSignupNotificationMessage = ({
   ].join('\n')
 }
 
-/** 카카오 비즈니스 승인본(#{변수}) 유지용 — 소스 오브 트루스 */
+/** 카카오 비즈니스 승인본(#{varN}) 유지용 — 소스 오브 트루스(API changeWord 키는 var1~var4) */
 export const SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT =
   '\n' +
   '택스챗 신규 회원이 가입되었습니다.\n' +
   '\n' +
-  '사업자 유형: #{memberType}\n' +
-  '회원명: #{memberName}\n' +
-  '연락처: #{phone}\n' +
-  '가입일시: #{signupAt}\n' +
+  '사업자 유형: #{var1}\n' +
+  '회원명: #{var2}\n' +
+  '연락처: #{var3}\n' +
+  '가입일시: #{var4}\n' +
   '\n' +
   '택스쳇 관리자페이지로 이동\n'
 
@@ -1605,11 +1605,11 @@ export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGI
  * 신규가입 카카오 알림톡 (관리자 수신)
  *
  * 뿌리오 카카오 API 는 `changeWord` 키로 `var1`, `var2`, … 형만 허용합니다(커스텀 키 시 400).
- * 카카오 콘솔 표기 `#{memberType}` 등과 순서 매핑: var1→사업자 유형 · var2→회원명 · var3→연락처 · var4→가입일시.
+ * 카카오 템플릿 표기 `#{var1}` … `#{var4}` 와 순서 매핑: var1→사업자 유형 · var2→회원명 · var3→연락처 · var4→가입일시.
  * **`PPURIO_SIGNUP_ALIMTALK_WORD_STYLE`**(`numbered`/`hash`/… 포함 `named`)는 **본문 문자열**(content) 선택 분기만 담당하며,
  * API `changeWord` 는 항상 아래 순서의 `var1`~`var4` 로 통일합니다.
  *
- * payload (routes/auth.js): memberType, name→memberName, phone, signupAt (+ customerId는 LMS 폴백)
+ * payload (routes/auth.js): memberType, name→var2 값, phone→var3, signupAt→var4 (+ customerId는 LMS 폴백)
  *
  * - PPURIO_SIGNUP_ALIMTALK_MODE=plain → 치환 없이 LMS 위주
  * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE → (선택) hash 분기만 본문 덮어쓰기 (#{ })
@@ -1678,7 +1678,7 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   )
 
   if (!payload.name || String(payload.name).trim() === '') {
-    console.warn('[회원가입 알림톡] payload.name 비어 있음 → memberName 은 "-" 로 대체됩니다.')
+    console.warn('[회원가입 알림톡] payload.name 비어 있음 → changeWord.var2(회원명)은 "-" 로 대체됩니다.')
   }
   if (!payload.phone || String(payload.phone).replace(/[^\d]/g, '').length < 10) {
     console.warn('[회원가입 알림톡] payload.phone 이 짧거나 비어 있을 수 있습니다.')
@@ -1688,7 +1688,7 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   console.log(content)
   console.log('===== changeWord =====')
   console.log(changeWord)
-  console.log('[회원가입 알림톡] 회원명(payload.name→memberName):', memberName)
+  console.log('[회원가입 알림톡] 회원명(payload.name→var2):', memberName)
   console.log('[회원가입 알림톡] 회원 연락처(raw):', payload.phone ?? '(payload 없음)')
   console.log('[회원가입 알림톡] 회원 연락처(치환용 phone):', phone)
   console.log('[회원가입 알림톡] 사업자 유형(payload.memberType):', memberType)
