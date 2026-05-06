@@ -59,6 +59,13 @@ router.get('/', authenticateToken, async (req, res) => {
     //   - 페이지네이션/정렬/카운트는 모두 "펼친 행" 기준으로 계산합니다.
     // ────────────────────────────────────────────────────────────────────────
 
+    const normMt =
+      `(CASE COALESCE(mt.member_type, m.member_type)
+          WHEN '개인사업자' THEN '개인 사업자'
+          WHEN '법인사업자' THEN '법인 사업자'
+          ELSE COALESCE(mt.member_type, m.member_type)
+        END)`
+
     // 공통 FROM/WHERE 블록을 한 번 만들어서 SELECT 와 COUNT 모두에서 재사용합니다.
     const params = []
     let paramIndex = 1
@@ -66,12 +73,12 @@ router.get('/', authenticateToken, async (req, res) => {
                      LEFT JOIN member_types mt ON mt.member_id = m.id
                      WHERE TRUE`
 
-    // 날짜 필터
-    // NOTE: 'YYYY-MM-DD' 문자열만으로 timestamp 와 비교하면 종료일이 00:00:00 으로 해석되어
-    //       당일 오후에 가입한 회원이 목록에서 빠지는 버그가 생긴다.
-    //       날짜 단위(일)로만 비교한다.
+    // 날짜 필터 (표 한 줄 기준)
+    // - 회원 최초 가입일(m.created_at)만 보면, 같은 번호로 나중에 회원 유형만 추가한 행이 기간 밖으로 빠집니다.
+    // - 펼친 행의 등록 시점은 COALESCE(mt.created_at, m.created_at) 로 보고 필터·정렬합니다.
+    // NOTE: YYYY-MM-DD 문자열은 ::date 캐스팅으로 일 단위만 비교 (종일 포함).
     if (startDate && endDate) {
-      whereSql += ` AND m.created_at::date >= $${paramIndex}::date AND m.created_at::date <= $${paramIndex + 1}::date`
+      whereSql += ` AND COALESCE(mt.created_at, m.created_at)::date >= $${paramIndex}::date AND COALESCE(mt.created_at, m.created_at)::date <= $${paramIndex + 1}::date`
       params.push(startDate, endDate)
       paramIndex += 2
     }
@@ -99,7 +106,7 @@ router.get('/', authenticateToken, async (req, res) => {
       }
 
       if (types.length > 0) {
-        whereSql += ` AND COALESCE(mt.member_type, m.member_type) = ANY($${paramIndex})`
+        whereSql += ` AND ${normMt} = ANY($${paramIndex})`
         params.push(types)
         paramIndex++
       }
@@ -117,16 +124,17 @@ router.get('/', authenticateToken, async (req, res) => {
       }
 
       if (methods.length > 0) {
-        whereSql += ` AND m.signup_method = ANY($${paramIndex})`
+        // signup_method 가 NULL/공백이면 SQL 에서 = ANY(...) 가 알려지지 않아 행이 통째로 빠졌음 → 기본값과 동일하게 처리
+        whereSql += ` AND COALESCE(NULLIF(TRIM(m.signup_method), ''), '회원 직접 가입') = ANY($${paramIndex})`
         params.push(methods)
         paramIndex++
       }
     }
 
-    // 정렬: 같은 회원이 여러 유형이면 가입 순서대로
+    // 정렬: 펼친 행의 등록 시각 기준 (유형 추가 건도 최근순에 반영)
     const orderSql = sortOrder === '등록일시 역순'
-      ? ' ORDER BY m.created_at DESC, mt.created_at ASC NULLS FIRST, mt.id ASC NULLS FIRST'
-      : ' ORDER BY m.created_at ASC, mt.created_at ASC NULLS FIRST, mt.id ASC NULLS FIRST'
+      ? ' ORDER BY COALESCE(mt.created_at, m.created_at) DESC NULLS LAST, mt.id DESC NULLS LAST'
+      : ' ORDER BY COALESCE(mt.created_at, m.created_at) ASC NULLS LAST, mt.id ASC NULLS FIRST'
 
     // SELECT — 한 행이 "회원×유형" 한 쌍을 나타냅니다.
     // 사업자/비사업자 정보는 member_types 행 값 → members 값 순으로 fallback 합니다.
@@ -139,26 +147,26 @@ router.get('/', authenticateToken, async (req, res) => {
         m.signup_method, m.has_info_input,
         m.created_at, m.updated_at, m.deleted,
         mt.id AS member_type_row_id,
-        COALESCE(mt.member_type, m.member_type) AS row_member_type,
+        ${normMt} AS row_member_type,
         COALESCE(mt.customer_id, m.customer_id) AS row_customer_id,
         COALESCE(mt.created_at, m.created_at) AS row_created_at,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) = '비사업자'
+        CASE WHEN ${normMt} = '비사업자'
              THEN COALESCE(mt.name, m.name) ELSE NULL END AS row_name,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) = '비사업자'
+        CASE WHEN ${normMt} = '비사업자'
              THEN COALESCE(mt.gender, m.gender) ELSE NULL END AS row_gender,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) = '비사업자'
+        CASE WHEN ${normMt} = '비사업자'
              THEN COALESCE(mt.resident_number, m.resident_number) ELSE NULL END AS row_resident_number,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+        CASE WHEN ${normMt} <> '비사업자'
              THEN COALESCE(mt.business_name, m.business_name) ELSE NULL END AS row_business_name,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+        CASE WHEN ${normMt} <> '비사업자'
              THEN COALESCE(mt.representative_name, m.representative_name) ELSE NULL END AS row_representative_name,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+        CASE WHEN ${normMt} <> '비사업자'
              THEN COALESCE(mt.business_number, m.business_number) ELSE NULL END AS row_business_number,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+        CASE WHEN ${normMt} <> '비사업자'
              THEN COALESCE(mt.industry, m.industry) ELSE NULL END AS row_industry,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+        CASE WHEN ${normMt} <> '비사업자'
              THEN COALESCE(mt.business_type, m.business_type) ELSE NULL END AS row_business_type,
-        CASE WHEN COALESCE(mt.member_type, m.member_type) <> '비사업자'
+        CASE WHEN ${normMt} <> '비사업자'
              THEN TO_CHAR(COALESCE(mt.start_date, m.start_date), 'YYYY-MM-DD') ELSE NULL END AS row_start_date,
         COALESCE(mt.base_address, m.base_address) AS row_base_address,
         COALESCE(mt.detail_address, m.detail_address) AS row_detail_address
@@ -192,6 +200,7 @@ router.get('/', authenticateToken, async (req, res) => {
       signup_method: r.signup_method,
       has_info_input: r.has_info_input,
       created_at: r.created_at,
+      row_created_at: r.row_created_at,
       updated_at: r.updated_at,
       deleted: r.deleted,
       // ↓ 이 행이 보여줄 type 별 정보 (member_types → members 순으로 fallback)

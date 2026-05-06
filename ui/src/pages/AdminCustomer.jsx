@@ -179,7 +179,8 @@ const AdminCustomer = () => {
             residentNumber: member.resident_number || '',
             memo: '',
             hasInfoInput: member.has_info_input || false,
-            registrationDate: member.created_at ? new Date(member.created_at).toLocaleString('ko-KR', {
+            registrationDate: (member.row_created_at || member.created_at)
+              ? new Date(member.row_created_at || member.created_at).toLocaleString('ko-KR', {
               year: 'numeric',
               month: '2-digit',
               day: '2-digit',
@@ -292,16 +293,21 @@ const AdminCustomer = () => {
 
   const handleDateQuickSelect = (period) => {
     setSelectedPeriod(period) // 선택된 기간 업데이트
-    
+
     const today = new Date()
     let startDate = new Date()
-    
+
+    const formatDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
     switch (period) {
       case '오늘':
-        // 오늘 날짜로 설정 (시작일과 종료일 모두 오늘)
-        const todayStr = today.toISOString().split('T')[0]
-        setDateRange({ start: todayStr, end: todayStr })
-        // useEffect가 자동으로 loadCustomers 호출
+        // 브라우저 로컬 기준 오늘 (toISOString 은 UTC 라서 한국 등에서 하루 어긋날 수 있음)
+        setDateRange({ start: formatDate(today), end: formatDate(today) })
         return
       case '1주일':
         startDate.setDate(today.getDate() - 7)
@@ -324,17 +330,10 @@ const AdminCustomer = () => {
       default:
         return
     }
-    
-    const formatDate = (date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-    
+
     setDateRange({
       start: formatDate(startDate),
-      end: formatDate(today)
+      end: formatDate(today),
     })
   }
 
