@@ -53,10 +53,11 @@ const normalizePpurioKakaoSenderProfile = (trimmedRaw) => {
 const getPpurioKakaoSenderProfile = () =>
   normalizePpurioKakaoSenderProfile(readPpurioKakaoSenderProfileEnv())
 
-/** 알림톡 템플릿 코드. 별칭: PPURIO_KAKAO_TEMPLATE */
+/** 알림톡 템플릿 코드. 회원가입 우선: PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE · 별칭 PPURIO_KAKAO_TEMPLATE */
 const getPpurioKakaoTemplateCode = () =>
   String(
-    process.env.PPURIO_KAKAO_TEMPLATE_CODE ||
+    process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE ||
+      process.env.PPURIO_KAKAO_TEMPLATE_CODE ||
       process.env.PPURIO_KAKAO_TEMPLATE ||
       ''
   ).trim()
@@ -80,7 +81,9 @@ function logAlimtalkSkippedReason() {
     )
   }
   if (!getPpurioKakaoTemplateCode()) {
-    miss.push('PPURIO_KAKAO_TEMPLATE_CODE(또는 PPURIO_KAKAO_TEMPLATE): 알림톡 템플릿 코드')
+    miss.push(
+      'PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE 또는 PPURIO_KAKAO_TEMPLATE_CODE(또는 PPURIO_KAKAO_TEMPLATE): 알림톡 템플릿 코드'
+    )
   }
   console.warn(
     '[알림톡 진단] 위 값이 프로세스 env 에 없어 /v1/kakao 를 호출하지 않고 LMS 만 발송합니다.',
@@ -999,7 +1002,8 @@ export const buildVerificationMessage = (code) => {
 //
 // 추가로 필요한 환경변수:
 //   PPURIO_KAKAO_SENDER_KEY   : 카카오 발신 프로필(@채널검색아이디). @ 생략 시 코드에서 @ 접두 보정
-//   PPURIO_KAKAO_TEMPLATE_CODE: 사전 승인된 알림톡 템플릿 코드(별칭 PPURIO_KAKAO_TEMPLATE)
+//   PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE: 회원가입 알림톡 템플릿 코드(우선)
+//   PPURIO_KAKAO_TEMPLATE_CODE: 동일 용도 별칭(미설정 시 보조)
 //
 // 교차 검증(선택, 뿌리오 공식 「프로필·템플릿 조회 API」 부재 시 서버 규칙):
 //   PPURIO_ALIMTALK_ALLOWED_SENDER_PROFILES  콤마·세미콜론·파이프로 구분 허용 @발신프로필
@@ -1022,8 +1026,8 @@ export const buildVerificationMessage = (code) => {
 //   PPURIO_ALIMTALK_DELIVERY_FALLBACK_POLICY  none | always | delivery_fail_only (기본, 권장) | not_verified_fallback(폐기·fail_only 동일 처리)
 //   PPURIO_ALIMTALK_SMS_ON_DELIVERY_UNDEFINED=1  (선택) 미확정(undefined)·미매핑 응답 시에도 LMS 발송·과금. 운영 점검용
 //   또는 호환: PPURIO_ALIMTALK_AFTER_1000_LMS mirror|always → always, never→none, if_delivery_not_confirmed→delivery_fail_only(미확정 시 문자 없음)
-// 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 규격대로 var1[*1*] 또는 
-// #{ }+카멜키(계정별 상이) 여부를 맞춰야 한다. 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
+// 알림톡 본문은 뿌리오에 등록된 템플릿과 **바이트까지 동일**해야 하고, changeWord 는 승인된 플레이스홀더 순서([*1*]→var1 …)에 맞춰야 한다.
+// 불일치 시 isResend=Y 이면 카카오 단계에서 떨어지고 **SMS/LMS 만** 올 수 있다.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PPURIO_VAR_MAX_LEN = 100
@@ -1573,27 +1577,19 @@ export const buildSignupNotificationMessage = ({
   ].join('\n')
 }
 
-/** 카카오 비즈니스 승인본(#{varN}) 유지용 — 소스 오브 트루스(API changeWord 키는 var1~var4) */
+/** 카카오 비즈니스 승인본([*n*] 플레이스홀더) — 소스 오브 트루스(API changeWord 는 var1~var4 순서 대응) */
 export const SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT =
-  '택스챗 신규 회원이 가입되었습니다.  \n' +
+  '택스챗 신규 회원이 가입되었습니다.\n' +
   '\n' +
-  '사업자 유형: #{var1} \n' +
-  '회원명: #{var2} \n' +
-  '연락처: #{var3} \n' +
-  '가입일시: #{var4} \n'
+  '사업자 유형: [*1*]\n' +
+  '회원명: [*2*]\n' +
+  '연락처: [*3*]\n' +
+  '가입일시: [*4*]'
 
 /**
- * 뿌리오 API용(#{varN} + changeWord.var1…)
- * 콘솔 등록 템플릿과 줄바꿈·공백까지 맞춤: 선행 빈 줄·본문 후 빈 줄 없음.
+ * 뿌리오 순서형 [*1*]~[*4*] + changeWord.var1… (승인 템플릿과 동일 본문)
  */
-export const SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT = `
-택스챗 신규 회원이 가입되었습니다.
-사업자 유형: #{var1}
-회원명: #{var2}
-연락처: #{var3}
-가입일시: #{var4}
-택스챗 관리자페이지로 이동
-`.trim()
+export const SIGNUP_ADMIN_ALIMTALK_NUMBERED_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
 
 /** @deprecated SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT 권장 */
 export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGINAL_CONTENT
@@ -1601,15 +1597,15 @@ export const SIGNUP_ADMIN_ALIMTALK_DEFAULT_CONTENT = SIGNUP_ADMIN_ALIMTALK_ORIGI
 /**
  * 신규가입 카카오 알림톡 (관리자 수신)
  *
- * 뿌리오 카카오 API 는 `changeWord` 키로 `var1`, `var2`, … 형만 허용합니다(커스텀 키 시 400).
- * 카카오 템플릿 표기 `#{var1}` … `#{var4}` 와 순서 매핑: var1→사업자 유형 · var2→회원명 · var3→연락처 · var4→가입일시.
- * **`PPURIO_SIGNUP_ALIMTALK_WORD_STYLE`**(`numbered`/`hash`/… 포함 `named`)는 **본문 문자열**(content) 선택 분기만 담당하며,
- * API `changeWord` 는 항상 아래 순서의 `var1`~`var4` 로 통일합니다.
+ * 뿌리오 카카오 API 는 `changeWord` 로 `var1`…`var4` 만 허용합니다(커스텀 키 시 400).
+ * 승인 템플릿 플레이스홀더 `[*1*]`…`[*4*]` 와 1:1 대응: var1→사업자 유형 · var2→회원명 · var3→연락처 · var4→가입일시.
+ * **`PPURIO_SIGNUP_ALIMTALK_WORD_STYLE`**(`numbered`/`hash`)는 **참조 본문 문자열** 선택 분기만 담당합니다.
+ * API `changeWord` 는 항상 `var1`~`var4` 순서를 유지합니다.
  *
  * payload (routes/auth.js): memberType, name→var2 값, phone→var3, signupAt→var4 (+ customerId는 LMS 폴백)
  *
  * - PPURIO_SIGNUP_ALIMTALK_MODE=plain → 치환 없이 LMS 위주
- * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE → (선택) hash 분기만 본문 덮어쓰기 (#{ })
+ * - PPURIO_SIGNUP_ALIMTALK_TEMPLATE → (선택) hash 분기만 본문 덮어쓰기
  */
 export const buildSignupAdminAlimtalkRequest = (payload) => {
   const plainText = buildSignupNotificationMessage(payload)
@@ -1669,7 +1665,7 @@ export const buildSignupAdminAlimtalkRequest = (payload) => {
   })
 
   console.log(
-    `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered([*]+var)' : 'hash(#{변수}-본문)'} · changeWord=var1~var4 고정 ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
+    `[회원가입 알림톡] 전송 분기=${isNumbered ? 'numbered' : 'hash'} · changeWord=var1~var4 ([*1*]~[*4*] 순서 일치) ENV.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE="${
       process.env.PPURIO_SIGNUP_ALIMTALK_WORD_STYLE || '(기본 hash)'
     }"`
   )

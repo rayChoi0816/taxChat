@@ -83,12 +83,21 @@ router.get('/alimtalk-config', (req, res) => {
     if (s.length <= 8) return '***'
     return `${s.slice(0, 6)}***${s.slice(-3)}`
   }
+  const resolvedTemplateCode = String(
+    process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE ||
+      process.env.PPURIO_KAKAO_TEMPLATE_CODE ||
+      process.env.PPURIO_KAKAO_TEMPLATE ||
+      ''
+  ).trim()
   res.json({
     PPURIO_ACCOUNT: mask(process.env.PPURIO_ACCOUNT),
     PPURIO_API_KEY: process.env.PPURIO_API_KEY ? 'set' : 'empty',
     PPURIO_FROM: process.env.PPURIO_FROM || null,
     PPURIO_KAKAO_SENDER_KEY: mask(process.env.PPURIO_KAKAO_SENDER_KEY),
+    PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE:
+      process.env.PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE || null,
     PPURIO_KAKAO_TEMPLATE_CODE: process.env.PPURIO_KAKAO_TEMPLATE_CODE || null,
+    resolvedTemplateCode: resolvedTemplateCode || null,
     ADMIN_NOTIFY_PHONE: process.env.ADMIN_NOTIFY_PHONE || null,
     NODE_ENV: process.env.NODE_ENV || 'development',
   })
