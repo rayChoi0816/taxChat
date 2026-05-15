@@ -82,8 +82,8 @@ git push
 | `DB_SSL` | SSL 사용 여부 | `true` |
 | `JWT_SECRET` | 로그인 토큰용 비밀키 | (Render가 자동 생성, 그대로 둬도 됨) |
 | `CORS_ORIGIN` | 어느 사이트가 우리 서버에 접속 가능한지 | `https://taxchat-ui.onrender.com,http://localhost:5173` |
-| **`TOSS_CLIENT_KEY`** | **토스 테스트 클라이언트 키** | **`test_ck_D5GePWvyJnrKnyd0NWJoq8Bcaeke`** |
-| **`TOSS_SECRET_KEY`** | **토스 테스트 시크릿 키 (💥 절대 비밀!)** | **`test_sk_D5GePWvyJnrKnyd0NWJoq8Bcaeke`** |
+| **`TOSS_CLIENT_KEY`** | **토스 테스트 클라이언트 키** | **`test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq`** |
+| **`TOSS_SECRET_KEY`** | **토스 테스트 시크릿 키 (💥 절대 비밀!)** | **`test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R`** |
 | `PPURIO_ACCOUNT` | 뿌리오 계정 (문자) | `tax5wol` |
 | `PPURIO_API_KEY` | 뿌리오 API 키 | (실제 키) |
 | `PPURIO_FROM` | 발신 전화번호 | `01021637610` |
@@ -96,7 +96,7 @@ git push
 | 변수 이름 | 무엇을 적을까? | 예시 |
 |---|---|---|
 | `VITE_API_BASE_URL` | 서버 주소 + `/api` | `https://taxchat-api.onrender.com/api` |
-| **`VITE_TOSS_CLIENT_KEY`** | **토스 테스트 클라이언트 키** | **`test_ck_D5GePWvyJnrKnyd0NWJoq8Bcaeke`** |
+| **`VITE_TOSS_CLIENT_KEY`** | **토스 테스트 클라이언트 키 (서버 값과 동일)** | **`test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq`** |
 
 > 💡 `VITE_` 로 시작하는 변수만 브라우저에서 사용할 수 있어요. **시크릿 키는 절대 `VITE_` 로 시작하게 만들면 안 돼요!**
 

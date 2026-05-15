@@ -59,7 +59,16 @@ router.post('/toss/confirm', async (req, res) => {
 
     if (!tossRes.ok) {
       // Toss 가 내려준 에러를 그대로 전달 (code/message)
-      console.error('Toss 결제 승인 실패:', tossData)
+      // UNAUTHORIZED_KEY (401) 가 가장 흔한 오류이므로, 디버깅을 돕기 위해
+      // 사용 중인 시크릿 키의 prefix(처음 12자) 만 로그에 남깁니다.
+      const keyHint = secretKey ? `${secretKey.slice(0, 12)}…(len=${secretKey.length})` : 'EMPTY'
+      console.error('[Toss] 결제 승인 실패:', {
+        status: tossRes.status,
+        code: tossData?.code,
+        message: tossData?.message,
+        secretKeyHint: keyHint,
+        orderId,
+      })
       return res.status(tossRes.status).json({
         success: false,
         error: tossData?.message || '결제 승인에 실패했습니다',
