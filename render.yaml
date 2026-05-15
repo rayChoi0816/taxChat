@@ -1,0 +1,82 @@
+# =============================================================================
+# Render Blueprint (자동 배포 설정)
+# -----------------------------------------------------------------------------
+# 이 파일을 Render 가 읽고, 한 번에 두 개의 서비스를 만들어 줍니다.
+#   1) taxchat-api  : 백엔드 (Node/Express)   ← 서버 폴더
+#   2) taxchat-ui   : 프론트엔드 (Vite/React) ← UI 폴더 (정적 사이트)
+#
+# Render Dashboard → "New +" → "Blueprint" → GitHub 저장소 선택하면
+# 이 파일을 자동으로 인식해 두 서비스를 동시에 만들어 줍니다.
+# =============================================================================
+services:
+  # ───────────────────────── 백엔드 (Web Service) ─────────────────────────
+  - type: web
+    name: taxchat-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # 아래 값들은 Render Dashboard 에서 직접 채워야 합니다. (sync: false)
+      # 시크릿/비밀번호는 절대 이 파일에 적지 마세요.
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      # TossPayments
+      - key: TOSS_CLIENT_KEY
+        sync: false
+      - key: TOSS_SECRET_KEY
+        sync: false
+      # 뿌리오 SMS (선택)
+      - key: PPURIO_ACCOUNT
+        sync: false
+      - key: PPURIO_API_KEY
+        sync: false
+      - key: PPURIO_FROM
+        sync: false
+      - key: PPURIO_KAKAO_SENDER_KEY
+        sync: false
+      - key: PPURIO_SIGNUP_ALIMTALK_TEMPLATE_CODE
+        sync: false
+      - key: ADMIN_NOTIFY_PHONE
+        sync: false
+
+  # ───────────────────────── 프론트엔드 (Static Site) ─────────────────────────
+  - type: web
+    name: taxchat-ui
+    runtime: static
+    plan: free
+    rootDir: ui
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    # SPA 라우팅: 모든 경로를 index.html 로 보냅니다.
+    # (ui/public/_redirects 에도 동일 규칙이 있어 두 곳 모두에 적용됩니다.)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_TOSS_CLIENT_KEY
+        sync: false

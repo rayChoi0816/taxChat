@@ -1,22 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './Payment.css'
 import './CheckoutPage.css'
+import { useAuth } from '../contexts/AuthContext'
+import { generateOrderId, requestTossPayment } from '../utils/tossPayments'
 
 // 결제하기 페이지
 // - ProductSelection 에서 "결제하기" 버튼을 누르면 이 페이지로 이동됩니다.
 // - location.state.product 에 ProductSelection 에서 선택한 상품이 들어오며,
 //   상품 선택 상세 페이지의 `.payment-item-card.selected` 와 동일한 UI 로 보여줍니다.
-// - 하단의 "위 내용을 확인하였으며 결제에 동의합니다." 체크박스가 체크되어야만
-//   결제하기 버튼이 활성화됩니다. (PG 연동은 준비 중)
+// - 하단의 "위 내용을 확인하였으며 결제에 동의합니다." 체크박스가 체크되어야
+//   결제하기 버튼이 활성화되고, 클릭하면 TossPayments 결제창이 열립니다.
 const CheckoutPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
 
   const product = location.state?.product || null
   const category = location.state?.category || null
 
   const [agreed, setAgreed] = useState(false)
+  const [paying, setPaying] = useState(false)
+
+  // 주문 ID 는 페이지 진입 시 한 번 발급. UUID v4 사용.
+  // - Toss 는 orderId 6~64 자 (영문/숫자/-/_) 를 요구하며 UUID 가 이 조건을 만족합니다.
+  // - 결제창에서 재시도 시에도 같은 orderId 가 유지되도록 useMemo 로 캐시합니다.
+  const orderId = useMemo(() => generateOrderId(), [])
 
   // 상품 정보 없이 직접 URL 로 진입한 경우에는 이전 페이지로 되돌려 보냅니다.
   useEffect(() => {
@@ -28,9 +37,51 @@ const CheckoutPage = () => {
 
   const formatPrice = (price) => new Intl.NumberFormat('ko-KR').format(price || 0)
 
-  const handlePay = () => {
-    if (!agreed) return
-    alert('PG 연동 준비 중입니다.')
+  const handlePay = async () => {
+    if (!agreed || paying || !product) return
+
+    const amount = Number(product.price)
+    if (!amount || amount <= 0) {
+      alert('결제 금액이 올바르지 않습니다.')
+      return
+    }
+
+    try {
+      setPaying(true)
+      // 결제 진행 직전에 사용자에게 보여줄 정보를 sessionStorage 에 임시 저장.
+      // success / fail 페이지에서 표시·검증에 활용합니다.
+      sessionStorage.setItem(
+        'pendingPayment',
+        JSON.stringify({
+          orderId,
+          amount,
+          productId: product.id,
+          productName: product.name,
+          memberId: user?.id || null,
+        }),
+      )
+
+      await requestTossPayment({
+        amount,
+        orderId,
+        orderName: product.name || '상품 결제',
+        customerName: user?.name || user?.business_name || undefined,
+        customerEmail: user?.email || undefined,
+        method: '카드',
+      })
+      // requestPayment 는 결제 성공 시 successUrl 로 redirect 되므로
+      // 이 시점 이후의 코드는 일반적으로 실행되지 않습니다.
+    } catch (err) {
+      // 사용자가 결제창을 닫거나 카드사 인증에서 실패한 경우.
+      console.error('TossPayments requestPayment 실패:', err)
+      const message = err?.message || '결제 요청 중 오류가 발생했습니다.'
+      // 사용자가 직접 닫은 경우(USER_CANCEL) 는 조용히 무시.
+      if (err?.code !== 'USER_CANCEL') {
+        alert(message)
+      }
+    } finally {
+      setPaying(false)
+    }
   }
 
   if (!product) return null
@@ -115,11 +166,11 @@ const CheckoutPage = () => {
         {/* Footer: 결제하기 버튼 */}
         <div className="form-footer">
           <button
-            className={`payment-btn ${agreed ? 'active' : 'disabled'}`}
+            className={`payment-btn ${agreed && !paying ? 'active' : 'disabled'}`}
             onClick={handlePay}
-            disabled={!agreed}
+            disabled={!agreed || paying}
           >
-            결제하기
+            {paying ? '결제창 여는 중...' : '결제하기'}
           </button>
         </div>
       </div>

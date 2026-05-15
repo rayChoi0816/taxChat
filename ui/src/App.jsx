@@ -20,6 +20,8 @@ import AdminOrderPayment from './pages/AdminOrderPayment'
 import Payment from './pages/Payment'
 import ProductSelection from './pages/ProductSelection'
 import CheckoutPage from './pages/CheckoutPage'
+import PaymentSuccess from './pages/PaymentSuccess'
+import PaymentFail from './pages/PaymentFail'
 import MyPage from './pages/MyPage'
 import ServiceHistory from './pages/ServiceHistory'
 import DocumentStorage from './pages/DocumentStorage'
@@ -414,6 +416,11 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Toss 결제 결과 콜백 페이지
+              - success/fail URL 은 모두 window.location.origin 기반으로 빌드되므로
+                로컬(http://localhost:5173) 과 Render 배포 도메인 모두 자동 분기됩니다. */}
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/fail" element={<PaymentFail />} />
           <Route 
             path="/mypage" 
             element={
