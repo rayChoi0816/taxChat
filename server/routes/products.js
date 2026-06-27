@@ -26,8 +26,15 @@ router.get('/categories', async (req, res) => {
       data: result.rows
     })
   } catch (error) {
+    // 운영 진단을 돕기 위해 PG 의 실제 에러 코드/메시지를 응답에 포함합니다.
+    // (예: relation "product_categories" does not exist / SSL required 등)
+    // 시크릿/민감정보는 들어있지 않으며, 필요 시 안정화 후 제거하세요.
     console.error('상품 카테고리 조회 오류:', error)
-    res.status(500).json({ error: '상품 카테고리 조회 중 오류가 발생했습니다' })
+    res.status(500).json({
+      error: '상품 카테고리 조회 중 오류가 발생했습니다',
+      detail: error?.message || null,
+      pgCode: error?.code || null,
+    })
   }
 })
 

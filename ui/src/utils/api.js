@@ -23,7 +23,11 @@ const fetchAPI = async (endpoint, options = {}) => {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: '서버 오류가 발생했습니다' }))
-      throw new Error(error.error || `HTTP error! status: ${response.status}`)
+      // 서버가 detail/pgCode 등 진단 정보를 같이 내려준 경우 그대로 노출합니다.
+      const baseMsg = error.error || `HTTP error! status: ${response.status}`
+      const extra = error.detail ? ` — ${error.detail}` : ''
+      const code = error.pgCode ? ` (pg ${error.pgCode})` : ''
+      throw new Error(`${baseMsg}${extra}${code}`)
     }
 
     return await response.json()

@@ -3,24 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import './Payment.css'
 import { productAPI } from '../utils/api'
 
+// 디버깅용 — 빌드 시점에 박힌 API base URL 을 화면에 노출.
+// (실제로 어디로 요청이 가는지 한눈에 확인해 배포 환경변수 누락을 빠르게 진단)
+const RUNTIME_API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+
 const Payment = () => {
   const navigate = useNavigate()
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await productAPI.getCategories({ displayStatus: '진열' })
         if (response.success) {
-          // 가격 범위 계산을 위해 상품도 가져오기
           const productsResponse = await productAPI.getProducts({ displayStatus: '진열' })
           const products = productsResponse.success ? productsResponse.data : []
-          
-          const categoriesWithPrices = response.data.map(category => {
-            const categoryProducts = products.filter(p => p.category_id === category.id)
-            const prices = categoryProducts.map(p => p.price)
+
+          const categoriesWithPrices = response.data.map((category) => {
+            const categoryProducts = products.filter((p) => p.category_id === category.id)
+            const prices = categoryProducts.map((p) => p.price)
             return {
               ...category,
               id: category.id,
@@ -29,13 +34,18 @@ const Payment = () => {
               briefDesc: category.brief_description || '',
               detailedDesc: category.detailed_description || '',
               minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-              maxPrice: prices.length > 0 ? Math.max(...prices) : 0
+              maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
             }
           })
           setCategories(categoriesWithPrices)
+        } else {
+          setLoadError(response?.error || '카테고리 응답이 올바르지 않습니다.')
         }
       } catch (error) {
         console.error('카테고리 조회 오류:', error)
+        // "Failed to fetch" 등 네트워크/배포 환경변수 문제를 화면에 그대로 노출해
+        // "등록된 상품이 없습니다" 로 잘못 보이는 케이스를 방지.
+        setLoadError(error?.message || '카테고리를 불러오지 못했습니다.')
       } finally {
         setLoading(false)
       }
@@ -85,6 +95,31 @@ const Payment = () => {
         <div className="payment-items">
           {loading ? (
             <div style={{ textAlign: 'center', padding: '2rem' }}>로딩 중...</div>
+          ) : loadError ? (
+            <div
+              style={{
+                textAlign: 'left',
+                padding: '1.5rem',
+                background: '#fff4f4',
+                border: '1px solid #f1c0c0',
+                borderRadius: 8,
+                color: '#b32424',
+                fontSize: '0.9rem',
+                lineHeight: 1.6,
+              }}
+            >
+              <strong>상품 정보를 불러오지 못했습니다.</strong>
+              <div style={{ marginTop: 8 }}>사유: {loadError}</div>
+              <div style={{ marginTop: 8, color: '#666', wordBreak: 'break-all' }}>
+                API base URL: <code>{RUNTIME_API_BASE_URL}</code>
+              </div>
+              <div style={{ marginTop: 8, color: '#666' }}>
+                Render 배포라면 프론트 환경변수 <code>VITE_API_BASE_URL</code> 이
+                백엔드 주소(<code>https://&lt;백엔드&gt;.onrender.com/api</code>)로
+                설정되어 있는지, 그리고 백엔드 <code>CORS_ORIGIN</code> 이 현재
+                프론트 도메인을 허용하는지 확인하세요.
+              </div>
+            </div>
           ) : categories.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem' }}>등록된 상품 카테고리가 없습니다.</div>
           ) : (

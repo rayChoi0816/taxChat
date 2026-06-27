@@ -104,6 +104,38 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// DB 상태 진단 (Render 배포 환경에서 한 번에 DB 상태를 확인하기 위한 엔드포인트)
+//  - SELECT NOW() 와 SELECT to_regclass('product_categories') 를 실행해
+//    "DB 연결 자체가 살아있는지" 와 "필수 테이블이 존재하는지" 를 동시에 알려줍니다.
+app.get('/api/health/db', async (req, res) => {
+  const result = {
+    dbHost: process.env.DB_HOST || '(default)',
+    dbName: process.env.DB_NAME || '(default)',
+    sslEnabled: process.env.DB_SSL === 'true' || /\.render\.com$/i.test(process.env.DB_HOST || ''),
+    connected: false,
+    now: null,
+    tables: {},
+    error: null,
+    errorCode: null,
+  }
+  try {
+    const r = await pool.query('SELECT NOW() as now')
+    result.connected = true
+    result.now = r.rows[0].now
+
+    const tableNames = ['members', 'product_categories', 'products', 'orders', 'payments']
+    for (const name of tableNames) {
+      const tr = await pool.query('SELECT to_regclass($1) AS exists', [`public.${name}`])
+      result.tables[name] = Boolean(tr.rows[0].exists)
+    }
+    return res.json(result)
+  } catch (err) {
+    result.error = err?.message || String(err)
+    result.errorCode = err?.code || null
+    return res.status(500).json(result)
+  }
+})
+
 // API 라우트
 app.use('/api/auth', authRoutes)
 app.use('/api/members', memberRoutes)
@@ -138,15 +170,17 @@ app.use((err, req, res, next) => {
   })
 })
 
-// 데이터베이스 초기화 및 마이그레이션 (개발 환경), 전역 설정 기본값 (모든 환경)
+// 데이터베이스 초기화 및 마이그레이션 (모든 환경)
+//  - initDatabase 의 모든 SQL 은 CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS
+//    같은 idempotent 작업뿐이므로 운영(Render) 환경에서도 안전합니다.
+//  - 운영에서 이 단계를 건너뛰면 새로 발급받은 빈 Postgres 에 테이블이 없어
+//    /api/products/categories 같은 조회 API 가 500 으로 죽습니다.
 const bootServer = async () => {
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      await initDatabase()
-      await migrateCustomerId()
-    } catch (err) {
-      console.error(err)
-    }
+  try {
+    await initDatabase()
+    await migrateCustomerId()
+  } catch (err) {
+    console.error('DB 초기화/마이그레이션 실패:', err)
   }
 
   try {

@@ -11,6 +11,18 @@ const dbConfig = {
   database: process.env.DB_NAME || 'taxchat',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
+
+  // === 연결 안정성 옵션 ===
+  // Render 무료 PostgreSQL은 idle 커넥션을 갑자기 닫는 경향이 있어
+  // "Connection terminated unexpectedly" 가 자주 발생합니다.
+  // 아래 옵션으로 1) 죽은 커넥션을 재활용하지 않고 2) TCP keepalive 로 살아있게 유지합니다.
+  max: 10, // pool 최대 동시 커넥션
+  idleTimeoutMillis: 30_000, // 30초 idle 후 커넥션 정리
+  connectionTimeoutMillis: 10_000, // 새 커넥션 확보 10초 타임아웃
+  keepAlive: true, // TCP keepalive 활성화
+  keepAliveInitialDelayMillis: 10_000,
+  // 끊긴 클라이언트를 다음 acquire 때 자동으로 폐기
+  allowExitOnIdle: false,
 }
 
 // 원격(Render 등) PostgreSQL 연결 시 SSL 필요
@@ -31,9 +43,15 @@ console.log('데이터베이스 연결 설정:', {
 
 const pool = new Pool(dbConfig)
 
-// 연결 에러 핸들링
-pool.on('error', (err) => {
-  console.error('예상치 못한 데이터베이스 클라이언트 오류:', err)
+// pool 레벨 에러 핸들링
+// - 끊긴 idle client 가 다음 쿼리에서 다시 사용되지 않도록 즉시 destroy.
+pool.on('error', (err, client) => {
+  console.error('[DB] pool 클라이언트 오류 (연결 폐기 처리):', err.message)
+  try {
+    client?.release(true) // true = destroy
+  } catch (_) {
+    /* ignore */
+  }
 })
 
 // 테스트 연결
@@ -44,7 +62,7 @@ pool.query('SELECT NOW()', (err, res) => {
       host: dbConfig.host,
       port: dbConfig.port,
       database: dbConfig.database,
-      user: dbConfig.user
+      user: dbConfig.user,
     })
     console.error('오류 상세:', err)
   } else {
