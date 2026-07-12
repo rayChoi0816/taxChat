@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import './Payment.css'
 import './CheckoutPage.css'
-import { paymentAPI, orderAPI } from '../utils/api'
+import { paymentAPI } from '../utils/api'
 
 // =============================================================================
 // 결제 성공 페이지 (Toss successUrl 콜백)
@@ -44,10 +44,16 @@ const PaymentSuccess = () => {
 
     const run = async () => {
       try {
+        // 서버가 승인 성공 시 orders + payments 를 함께 저장하도록 memberId/productId 를 함께 전달.
+        // (이전엔 프론트에서 별도로 orderAPI.createOrder 를 호출했으나,
+        //  로그인 토큰 유실이나 sessionStorage 손실로 저장이 실패하는 케이스가 있어
+        //  서버 단일 지점에서 원자적으로 처리하도록 변경했습니다.)
         const res = await paymentAPI.confirmTossPayment({
           paymentKey,
           orderId,
           amount: Number(amount),
+          memberId: pending?.memberId || null,
+          productId: pending?.productId || null,
         })
 
         if (!res?.success) {
@@ -56,20 +62,6 @@ const PaymentSuccess = () => {
 
         setConfirmed(res.data)
         setStatus('success')
-
-        // 결제 승인이 떨어졌으니, 우리 시스템의 주문도 함께 생성.
-        // 주문 생성에 실패하더라도 결제 자체는 이미 승인된 상태이므로
-        // 사용자에게는 성공으로 보여주고 콘솔에만 로그를 남깁니다.
-        if (pending?.memberId && pending?.productId) {
-          try {
-            await orderAPI.createOrder({
-              memberId: pending.memberId,
-              productId: pending.productId,
-            })
-          } catch (orderErr) {
-            console.warn('주문 생성 실패(결제는 성공):', orderErr)
-          }
-        }
 
         sessionStorage.removeItem('pendingPayment')
       } catch (err) {

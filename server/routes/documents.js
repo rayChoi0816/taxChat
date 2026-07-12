@@ -170,7 +170,7 @@ router.get('/', async (req, res) => {
 // 서류 등록
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { categoryId, name, description } = req.body
+    const { categoryId, name, description, usageStatus } = req.body
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: '서류명이 필요합니다' })
@@ -179,11 +179,17 @@ router.post('/', authenticateToken, async (req, res) => {
     // categoryId가 문자열인 경우 숫자로 변환
     const catId = categoryId ? (typeof categoryId === 'string' ? parseInt(categoryId) : categoryId) : null
 
+    // 등록된 서류는 기본적으로 '진열' 상태로 저장합니다.
+    //  - 서류를 등록한다는 것 자체가 "상품 첨부서류로 사용할 목적" 이라 진열이 자연스러움.
+    //  - 필요 시 서류 관리 페이지에서 즉시 '비진열' 로 토글 가능합니다.
+    //  - 요청 바디에 usageStatus 가 명시적으로 오면 그 값을 우선 사용합니다.
+    const initialUsageStatus = usageStatus === '비진열' ? '비진열' : '진열'
+
     const result = await pool.query(
       `INSERT INTO documents (category_id, name, description, usage_status)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [catId, name.trim(), description || null, '비진열']
+      [catId, name.trim(), description || null, initialUsageStatus]
     )
 
     // 등록된 서류와 카테고리 정보를 함께 조회

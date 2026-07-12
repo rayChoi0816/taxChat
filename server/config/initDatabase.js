@@ -183,6 +183,7 @@ const initDatabase = async () => {
         product_name VARCHAR(200),
         product_price INTEGER,
         required_documents TEXT,
+        payment_amount INTEGER,
         status VARCHAR(50) DEFAULT '결제대기',
         payment_date TIMESTAMP,
         cancel_amount INTEGER DEFAULT 0,
@@ -190,6 +191,13 @@ const initDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `)
+
+    // 기존 배포본 대응: orders.payment_amount 컬럼이 없는 경우 idempotent 하게 추가.
+    // (기존 스키마에는 이 컬럼이 없어서 routes/orders.js 의 INSERT 가 실패하고 있었음)
+    await pool.query(`
+      ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS payment_amount INTEGER
     `)
 
     // 서류 카테고리 테이블

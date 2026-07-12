@@ -18,9 +18,28 @@ const router = express.Router()
 //  - 인증 토큰이 없어도 결제 흐름이 끊기지 않도록 authenticateToken 은 붙이지 않고,
 //    대신 orderId(UUID) 와 paymentKey 로 멱등 처리합니다.
 // ===========================================================================
+// 내부 주문번호 생성기: YYMMDDHHMMSS + 소문자 2자리 (기존 orders.js 와 동일 규칙)
+const generateInternalOrderId = () => {
+  const now = new Date()
+  const y = String(now.getFullYear()).slice(-2)
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  const H = String(now.getHours()).padStart(2, '0')
+  const M = String(now.getMinutes()).padStart(2, '0')
+  const S = String(now.getSeconds()).padStart(2, '0')
+  const rnd = Math.random().toString(36).substring(2, 4).toLowerCase()
+  return `${y}${m}${d}${H}${M}${S}${rnd}`
+}
+
 router.post('/toss/confirm', async (req, res) => {
   try {
-    const { paymentKey, orderId, amount } = req.body || {}
+    const {
+      paymentKey,
+      orderId,      // TossPayments 에 넘겼던 orderId (UUID)
+      amount,
+      memberId,     // 우리 시스템의 회원 ID (프론트에서 함께 전달)
+      productId,    // 결제 대상 상품 ID (프론트에서 함께 전달)
+    } = req.body || {}
 
     if (!paymentKey || !orderId || amount == null) {
       return res.status(400).json({
@@ -38,7 +57,37 @@ router.post('/toss/confirm', async (req, res) => {
       })
     }
 
-    // Basic 인증 헤더: "{secretKey}:" 를 base64 인코딩
+    // === (0) 멱등성 체크 ===
+    //  - 브라우저 새로고침, Toss 재요청 등으로 confirm 이 여러 번 들어와도
+    //    payments.pg_transaction_id (paymentKey) 로 중복 저장을 방지합니다.
+    try {
+      const existing = await pool.query(
+        'SELECT p.*, o.order_id as internal_order_id, o.product_name FROM payments p LEFT JOIN orders o ON p.order_id = o.id WHERE p.pg_transaction_id = $1 LIMIT 1',
+        [paymentKey]
+      )
+      if (existing.rows.length > 0) {
+        const row = existing.rows[0]
+        console.log('[Toss] 이미 처리된 결제(멱등 응답):', paymentKey)
+        return res.json({
+          success: true,
+          alreadyProcessed: true,
+          data: {
+            paymentKey,
+            orderId,
+            orderName: row.product_name || '',
+            method: row.payment_method,
+            totalAmount: row.payment_amount,
+            status: row.payment_status,
+            approvedAt: row.payment_completed_at,
+            internalOrderId: row.internal_order_id,
+          },
+        })
+      }
+    } catch (e) {
+      console.warn('[Toss] 멱등성 사전조회 실패 (계속 진행):', e.message)
+    }
+
+    // === (1) Toss 결제 승인 API 호출 ===
     const authHeader =
       'Basic ' + Buffer.from(`${secretKey}:`, 'utf8').toString('base64')
 
@@ -58,9 +107,6 @@ router.post('/toss/confirm', async (req, res) => {
     const tossData = await tossRes.json().catch(() => ({}))
 
     if (!tossRes.ok) {
-      // Toss 가 내려준 에러를 그대로 전달 (code/message)
-      // UNAUTHORIZED_KEY (401) 가 가장 흔한 오류이므로, 디버깅을 돕기 위해
-      // 사용 중인 시크릿 키의 prefix(처음 12자) 만 로그에 남깁니다.
       const keyHint = secretKey ? `${secretKey.slice(0, 12)}…(len=${secretKey.length})` : 'EMPTY'
       console.error('[Toss] 결제 승인 실패:', {
         status: tossRes.status,
@@ -76,15 +122,123 @@ router.post('/toss/confirm', async (req, res) => {
       })
     }
 
-    // amount 위·변조 방지: Toss 응답 금액과 요청 금액이 다르면 즉시 실패 처리
+    // amount 위·변조 방지
     if (Number(tossData.totalAmount) !== Number(amount)) {
-      console.error('Toss 결제 금액 불일치:', {
+      console.error('[Toss] 결제 금액 불일치:', {
         requested: amount,
         confirmed: tossData.totalAmount,
       })
       return res.status(400).json({
         success: false,
         error: '결제 금액이 일치하지 않습니다',
+      })
+    }
+
+    // === (2) 승인 성공 → orders + payments 저장 ===
+    // 관리자 "주문 결제 관리" 페이지와 마이페이지 "서비스 이용 내역" 이
+    // orders 테이블을 조회하므로 반드시 orders 도 함께 INSERT 합니다.
+    let internalOrderId = null
+    let ordersRowId = null
+    let productSnapshot = null
+
+    if (memberId && productId) {
+      try {
+        // 상품 스냅샷 조회 (주문 시점의 이름/가격/카테고리/필수서류 기록)
+        const productResult = await pool.query(
+          `SELECT p.*, pc.name AS category_name
+             FROM products p
+             LEFT JOIN product_categories pc ON p.category_id = pc.id
+            WHERE p.id = $1`,
+          [productId]
+        )
+        productSnapshot = productResult.rows[0] || null
+
+        // 우리 내부 주문번호(짧은 형식) — Toss orderId(UUID) 와는 별도
+        internalOrderId = generateInternalOrderId()
+
+        // 중복 확인
+        let dup = await pool.query('SELECT id FROM orders WHERE order_id = $1', [internalOrderId])
+        let attempts = 0
+        while (dup.rows.length > 0 && attempts < 10) {
+          internalOrderId = generateInternalOrderId()
+          dup = await pool.query('SELECT id FROM orders WHERE order_id = $1', [internalOrderId])
+          attempts += 1
+        }
+
+        // required_documents 는 상품 스냅샷을 JSON 문자열로 유지 (orders.js 규칙과 동일)
+        let requiredDocs = productSnapshot?.required_documents || '[]'
+        if (typeof requiredDocs !== 'string') {
+          try {
+            requiredDocs = JSON.stringify(requiredDocs)
+          } catch (_) {
+            requiredDocs = '[]'
+          }
+        } else {
+          try {
+            JSON.parse(requiredDocs)
+          } catch (_) {
+            requiredDocs = '[]'
+          }
+        }
+
+        const orderInsert = await pool.query(
+          `INSERT INTO orders (
+             order_id, member_id, product_id,
+             category_name, product_name, product_price, required_documents,
+             payment_amount, status, payment_date
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+           RETURNING id, order_id`,
+          [
+            internalOrderId,
+            memberId,
+            productId,
+            productSnapshot?.category_name || null,
+            productSnapshot?.name || tossData.orderName || null,
+            productSnapshot?.price || tossData.totalAmount,
+            requiredDocs,
+            tossData.totalAmount,
+            '결제완료',
+          ]
+        )
+        ordersRowId = orderInsert.rows[0].id
+
+        // payments 테이블에도 함께 INSERT (결제 이력 관리용)
+        await pool.query(
+          `INSERT INTO payments (
+             order_id, payment_method, pg_transaction_id,
+             payment_amount, payment_status, payment_completed_at
+           ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+          [
+            ordersRowId,
+            tossData.method || '카드',
+            paymentKey,
+            tossData.totalAmount,
+            '결제완료',
+          ]
+        )
+
+        console.log('[Toss] 결제 완료 → orders/payments 저장 성공:', {
+          internalOrderId,
+          ordersRowId,
+          paymentKey,
+          memberId,
+          productId,
+        })
+      } catch (dbErr) {
+        // ⚠️ 결제 승인 자체는 성공한 뒤이므로 사용자에게는 성공을 반환하되,
+        //     서버 로그에는 반드시 남겨서 수동 리커버리 가능하게 합니다.
+        console.error('[Toss] 승인 성공 후 DB 저장 실패:', dbErr, {
+          paymentKey,
+          orderId,
+          memberId,
+          productId,
+        })
+      }
+    } else {
+      console.warn('[Toss] memberId/productId 미전달 — orders/payments 저장 건너뜀:', {
+        paymentKey,
+        memberId,
+        productId,
       })
     }
 
@@ -99,6 +253,7 @@ router.post('/toss/confirm', async (req, res) => {
         status: tossData.status,
         approvedAt: tossData.approvedAt,
         receiptUrl: tossData.receipt?.url || null,
+        internalOrderId, // 우리 내부 주문번호 (있으면)
       },
     })
   } catch (error) {

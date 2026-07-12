@@ -371,11 +371,13 @@ export const paymentAPI = {
   // 시크릿 키는 절대 응답에 포함되지 않습니다.
   getTossConfig: () => fetchAPI('/payments/toss/config'),
 
-  // 결제 성공 후 success URL 페이지에서 호출. 서버가 시크릿 키로 Toss 승인 API 를 호출합니다.
-  confirmTossPayment: ({ paymentKey, orderId, amount }) =>
+  // 결제 성공 후 success URL 페이지에서 호출. 서버가 시크릿 키로 Toss 승인 API 를 호출하고,
+  // 승인 성공 시 orders + payments 테이블에 자동으로 저장합니다.
+  //  - memberId, productId 는 sessionStorage 의 pendingPayment 에서 함께 넘기세요.
+  confirmTossPayment: ({ paymentKey, orderId, amount, memberId, productId }) =>
     fetchAPI('/payments/toss/confirm', {
       method: 'POST',
-      body: JSON.stringify({ paymentKey, orderId, amount }),
+      body: JSON.stringify({ paymentKey, orderId, amount, memberId, productId }),
     }),
 }
 
