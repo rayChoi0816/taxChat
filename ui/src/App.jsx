@@ -418,6 +418,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* 상품별 결제 링크: 관리자 상품 관리 페이지의 "결제 링크" 로 진입.
+              URL 파라미터 productId 로 상품을 자동 조회해 결제 페이지를 채웁니다. */}
+          <Route
+            path="/checkout/:productId"
+            element={
+              <ProtectedRoute>
+                <CheckoutPage />
+              </ProtectedRoute>
+            }
+          />
           {/* Toss 결제 결과 콜백 페이지
               - success/fail URL 은 모두 window.location.origin 기반으로 빌드되므로
                 로컬(http://localhost:5173) 과 Render 배포 도메인 모두 자동 분기됩니다. */}

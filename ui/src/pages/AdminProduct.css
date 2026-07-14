@@ -1,3 +1,40 @@
+/* 상품 결제 링크 (관리자 상품 관리 페이지) */
+.admin-checkout-link {
+  display: inline-block;
+  max-width: 260px;
+  color: #2563eb;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.admin-checkout-link:hover {
+  color: #1d4ed8;
+}
+
+.admin-checkout-link:active {
+  color: #1e40af;
+}
+
+@media (max-width: 1200px) {
+  .admin-checkout-link {
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-checkout-link {
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-all;
+  }
+}
+
 /* Search Area */
 .admin-search-area {
   background-color: #ffffff;

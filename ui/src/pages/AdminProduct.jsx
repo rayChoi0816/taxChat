@@ -700,6 +700,7 @@ const AdminProduct = () => {
                 <th>상품 가격</th>
                 <th>상품 이용 회원 유형</th>
                 <th>진열</th>
+                <th>결제 링크</th>
                 <th>기능</th>
                 <th>등록일</th>
               </tr>
@@ -707,7 +708,7 @@ const AdminProduct = () => {
             <tbody>
               {visibleProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="admin-table-empty">
+                  <td colSpan="10" className="admin-table-empty">
                     검색 결과가 없습니다.
                   </td>
                 </tr>
@@ -761,6 +762,33 @@ const AdminProduct = () => {
                       >
                         {product.display}
                       </button>
+                    </td>
+                    <td data-label="결제 링크">
+                      {/*
+                        상품별 개별 결제 링크. 관리자가 이 링크를 복사해
+                        회원에게 전달하면, 회원은 해당 상품이 자동 선택된
+                        결제 페이지로 바로 이동합니다.
+                        - 새 탭으로 열림 (관리자 페이지 유지)
+                        - 긴 URL은 CSS 로 말줄임 처리 (.admin-checkout-link)
+                      */}
+                      {(() => {
+                        const path = `/checkout/${product.id}`
+                        const absUrl =
+                          typeof window !== 'undefined'
+                            ? `${window.location.origin}${path}`
+                            : path
+                        return (
+                          <a
+                            className="admin-checkout-link"
+                            href={path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={absUrl}
+                          >
+                            {absUrl}
+                          </a>
+                        )
+                      })()}
                     </td>
                     <td data-label="기능">
                       <button 

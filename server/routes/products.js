@@ -203,7 +203,59 @@ router.get('/', async (req, res) => {
     })
   } catch (error) {
     console.error('상품 조회 오류:', error)
-    res.status(500).json({ error: '상품 조회 중 오류가 발생했습니다' })
+    res.status(500).json({
+      error: '상품 조회 중 오류가 발생했습니다',
+      detail: error?.message || null,
+      pgCode: error?.code || null,
+    })
+  }
+})
+
+// =============================================================================
+// 개별 상품 조회 (상품 결제 링크 진입용)
+// -----------------------------------------------------------------------------
+// 관리자 상품 관리 페이지의 "결제 링크" 로 접근한 사용자에게 상품 정보를
+// 즉시 채워주기 위한 API 입니다. `deleted = false` 만 조회하며, 삭제된 상품은
+// 404 로 응답해서 프론트가 "존재하지 않거나 삭제된 상품" 안내를 띄우게 합니다.
+//
+// 진열 상태(display_status) 는 필터하지 않습니다: 관리자가 회원에게 개별
+// 링크를 전달하는 시나리오에서 아직 진열되지 않은 상품도 결제할 수 있어야 하기
+// 때문입니다.
+// =============================================================================
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const numericId = Number(id)
+
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+      return res.status(400).json({ success: false, error: '올바르지 않은 상품 ID 입니다' })
+    }
+
+    const result = await pool.query(
+      `SELECT p.*, pc.name as category_name
+         FROM products p
+         LEFT JOIN product_categories pc ON p.category_id = pc.id
+        WHERE p.id = $1 AND p.deleted = false
+        LIMIT 1`,
+      [numericId]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: '상품을 찾을 수 없거나 이미 삭제된 상품입니다',
+      })
+    }
+
+    return res.json({ success: true, data: result.rows[0] })
+  } catch (error) {
+    console.error('상품 상세 조회 오류:', error)
+    return res.status(500).json({
+      success: false,
+      error: '상품 상세 조회 중 오류가 발생했습니다',
+      detail: error?.message || null,
+      pgCode: error?.code || null,
+    })
   }
 })
 

@@ -175,7 +175,10 @@ export const productAPI = {
     const queryString = new URLSearchParams(params).toString()
     return fetchAPI(`/products?${queryString}`)
   },
-  
+
+  // 상품 결제 링크(/checkout/:productId) 진입 시, 상품 상세 정보를 서버에서 조회.
+  getProduct: (id) => fetchAPI(`/products/${id}`),
+
   createProduct: (productData) => fetchAPI('/products', {
     method: 'POST',
     body: JSON.stringify(productData),

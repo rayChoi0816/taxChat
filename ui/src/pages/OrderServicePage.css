@@ -5,6 +5,56 @@
    단일 주문 상세용 레이아웃으로 여백/타이포그래피를 조정합니다.
    ========================================================================== */
 
+/* -----------------------------------------------------------------------------
+ * 헤더 (payment-header 기본 스타일에 order-service 전용 오버라이드)
+ * - 좌측: 페이지 제목 (상품카테고리명 / 상품명)
+ * - 우측: 닫기(X) 버튼
+ * ----------------------------------------------------------------------------- */
+.order-service-header {
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.order-service-header-title {
+  flex: 1 1 auto;
+  min-width: 0;               /* flex 아이템 내 ellipsis 를 위해 필수 */
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-align: left;
+  line-height: 1.35;
+  margin: 0;
+  padding-right: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-service-close-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #374151;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.order-service-close-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.order-service-close-btn:active {
+  background-color: #e5e7eb;
+}
+
 .order-service-body {
   flex: 1;
   padding: 1.25rem 1.25rem 2.5rem;
@@ -332,6 +382,10 @@
     width: 100%;
   }
 
+  .order-service-header-title {
+    font-size: 1.15rem;
+  }
+
   .order-service-page-title {
     font-size: 1.35rem;
   }
@@ -342,6 +396,15 @@
 }
 
 @media (max-width: 380px) {
+  .order-service-header-title {
+    font-size: 0.9rem;
+  }
+
+  .order-service-close-btn {
+    width: 32px;
+    height: 32px;
+  }
+
   .order-service-doc-btn {
     min-width: 96px;
     padding: 0.5rem 0.75rem;

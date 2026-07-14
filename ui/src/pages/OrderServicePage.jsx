@@ -257,20 +257,55 @@ const OrderServicePage = () => {
   }
 
   // ---------------------------------------------------------------------------
+  // 헤더 (공통)
+  // ---------------------------------------------------------------------------
+  // - 좌측: 페이지 제목 (상품카테고리명 / 상품명)
+  // - 우측: 닫기(X) 버튼
+  //   * 팝업/새 창(window.opener 존재)이면 window.close()
+  //   * 아니면 history.back() → 그것도 불가하면 홈으로 이동
+  const handleClose = () => {
+    try {
+      if (typeof window !== 'undefined' && window.opener && !window.opener.closed) {
+        window.close()
+        return
+      }
+      if (window.history.length > 1) {
+        navigate(-1)
+      } else {
+        navigate('/')
+      }
+    } catch (_) {
+      navigate('/')
+    }
+  }
+
+  const renderHeader = (titleText) => (
+    <header className="payment-header order-service-header">
+      <h1 className="payment-title order-service-header-title" title={titleText || undefined}>
+        {titleText}
+      </h1>
+      <button
+        type="button"
+        className="order-service-close-btn"
+        onClick={handleClose}
+        aria-label="닫기"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </header>
+  )
+
+  // ---------------------------------------------------------------------------
   // 렌더링
   // ---------------------------------------------------------------------------
   if (loading) {
     return (
       <div className="payment-wrapper">
         <div className="payment-container">
-          <header className="payment-header">
-            <button className="payment-back-btn" onClick={() => navigate(-1)} aria-label="뒤로 가기">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <h1 className="payment-title">결제 서비스 입력/확인 페이지</h1>
-          </header>
+          {renderHeader('')}
           <div className="order-service-loading">불러오는 중…</div>
         </div>
       </div>
@@ -281,14 +316,7 @@ const OrderServicePage = () => {
     return (
       <div className="payment-wrapper">
         <div className="payment-container">
-          <header className="payment-header">
-            <button className="payment-back-btn" onClick={() => navigate(-1)} aria-label="뒤로 가기">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <h1 className="payment-title">결제 서비스 입력/확인 페이지</h1>
-          </header>
+          {renderHeader('')}
           <div className="order-service-error">
             {errorMsg || '주문 정보를 표시할 수 없습니다.'}
           </div>
@@ -302,20 +330,9 @@ const OrderServicePage = () => {
   return (
     <div className="payment-wrapper">
       <div className="payment-container">
-        {/* Header */}
-        <header className="payment-header">
-          <button className="payment-back-btn" onClick={() => navigate(-1)} aria-label="뒤로 가기">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <h1 className="payment-title">결제 서비스 입력/확인 페이지</h1>
-        </header>
+        {renderHeader(pageTitle)}
 
         <div className="order-service-body">
-          {/* ==== 페이지 제목 ==== */}
-          <h2 className="order-service-page-title">{pageTitle}</h2>
-
           {/* ==== 주문 정보 ==== */}
           <div className="order-service-info">
             <p>
