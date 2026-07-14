@@ -203,7 +203,11 @@ export const orderAPI = {
     method: 'POST',
     body: JSON.stringify(orderData),
   }),
-  
+
+  // 결제 서비스 입력/확인 페이지에서 사용. 내부 주문번호(order_id 문자열)로 조회.
+  // 응답: { success, data: { order, attachments: [...] } }
+  getOrderByOrderId: (orderId) => fetchAPI(`/orders/by-order-id/${encodeURIComponent(orderId)}`),
+
   updateOrderStatus: (id, status) => fetchAPI(`/orders/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),

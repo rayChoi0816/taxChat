@@ -567,6 +567,7 @@ const AdminOrderPayment = () => {
                 <th>상품명</th>
                 <th>상품 가격</th>
                 <th>첨부 서류</th>
+                <th>링크</th>
                 <th>메모</th>
                 <th>상태</th>
                 <th>결제 취소</th>
@@ -575,7 +576,7 @@ const AdminOrderPayment = () => {
             <tbody>
               {visibleOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="admin-table-empty">
+                  <td colSpan="12" className="admin-table-empty">
                     검색 결과가 없습니다.
                   </td>
                 </tr>
@@ -605,6 +606,22 @@ const AdminOrderPayment = () => {
                         >
                           첨부 서류
                         </button>
+                      </td>
+                      <td data-label="링크">
+                        {/*
+                          각 주문의 "결제 서비스 입력/확인 페이지" 로 이동하는
+                          고유 URL. 관리자는 새 탭으로 열고, 회원에게는 이
+                          링크를 안내해서 첨부 서류를 접수받는 용도로 사용.
+                        */}
+                        <a
+                          className="admin-table-link"
+                          href={`/order/${order.orderId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="결제 서비스 입력/확인 페이지 열기"
+                        >
+                          바로가기
+                        </a>
                       </td>
                       <td data-label="메모">
                         {latestMemo ? (

@@ -24,6 +24,7 @@ import PaymentSuccess from './pages/PaymentSuccess'
 import PaymentFail from './pages/PaymentFail'
 import MyPage from './pages/MyPage'
 import ServiceHistory from './pages/ServiceHistory'
+import OrderServicePage from './pages/OrderServicePage'
 import DocumentStorage from './pages/DocumentStorage'
 import DocumentAttachment from './pages/DocumentAttachment'
 import MemberTypeSelection from './pages/MemberTypeSelection'
@@ -436,6 +437,15 @@ function App() {
                 <ServiceHistory />
               </ProtectedRoute>
             } 
+          />
+          {/* 결제 서비스 입력/확인 페이지: 단일 주문 상세 (관리자 링크에서도 진입) */}
+          <Route
+            path="/order/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderServicePage />
+              </ProtectedRoute>
+            }
           />
           <Route 
             path="/document-storage" 

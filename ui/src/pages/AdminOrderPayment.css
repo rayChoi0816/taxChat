@@ -1,5 +1,25 @@
 /* 주문 결제 관리 페이지 스타일 */
 
+/* 결제 서비스 입력/확인 페이지 바로가기 링크 */
+.admin-table-link {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: #ffffff;
+  color: #6b46c1;
+  border: 1px solid #6b46c1;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-table-link:hover {
+  background-color: #6b46c1;
+  color: #ffffff;
+}
+
 .admin-status-btn {
   padding: 0.375rem 0.75rem;
   background-color: #333;

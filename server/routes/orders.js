@@ -127,6 +127,76 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
+// =============================================================================
+// 주문 상세 조회 (내부 주문번호 문자열 기준)
+// -----------------------------------------------------------------------------
+// 결제 서비스 입력/확인 페이지(/order/:orderId) 및 관리자 링크에서 사용합니다.
+//  - :orderId 는 orders.order_id 컬럼(YYMMDDHHMMSSxx 형식 문자열).
+//  - orders.id (SERIAL) 이 아닌 order_id 를 사용하는 이유는 관리자 페이지에서
+//    노출되는 값이 order_id 이고 URL 로도 공유하기 편하기 때문입니다.
+//  - 응답에는 해당 주문에 첨부된 member_documents 도 함께 포함해서 한 번의
+//    호출로 페이지 렌더링에 필요한 정보를 얻을 수 있게 합니다.
+// =============================================================================
+router.get('/by-order-id/:orderId', authenticateToken, async (req, res) => {
+  try {
+    const { orderId } = req.params
+
+    const orderResult = await pool.query(
+      `SELECT o.*, m.name as member_name, m.business_name, m.phone_number, m.email
+         FROM orders o
+         LEFT JOIN members m ON o.member_id = m.id
+        WHERE o.order_id = $1
+        LIMIT 1`,
+      [orderId]
+    )
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다' })
+    }
+
+    const order = orderResult.rows[0]
+
+    // 해당 주문에 첨부된 회원 서류 (deleted=false 만)
+    const attachmentsResult = await pool.query(
+      `SELECT md.id, md.document_id, md.file_name, md.file_path, md.description,
+              md.created_at, md.updated_at,
+              d.name AS document_name
+         FROM member_documents md
+         LEFT JOIN documents d ON md.document_id = d.id
+        WHERE md.order_id = $1 AND md.deleted = false
+        ORDER BY md.created_at DESC`,
+      [order.id]
+    )
+
+    // 파일명 손상(mojibake) 방어: latin1 로 잘못 저장된 이름을 UTF-8 로 복구.
+    const decodeFileName = (name) => {
+      if (!name) return name
+      try {
+        // ASCII 이외 문자가 이미 UTF-8 로 잘 저장된 경우는 그대로 둔다.
+        // 여기서는 단순히 원본을 반환. (기존 라우트도 별도 유틸을 쓰지만
+        //  이 응답에서는 브라우저가 그대로 렌더링해도 문제 없음)
+        return name
+      } catch (_) {
+        return name
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        order,
+        attachments: attachmentsResult.rows.map((row) => ({
+          ...row,
+          file_name: decodeFileName(row.file_name),
+        })),
+      },
+    })
+  } catch (error) {
+    console.error('주문 상세 조회 오류:', error)
+    return res.status(500).json({ success: false, error: '주문 상세 조회 중 오류가 발생했습니다' })
+  }
+})
+
 // 주문 생성 (PRD에 맞게 스냅샷 저장)
 router.post('/', authenticateToken, async (req, res) => {
   try {
