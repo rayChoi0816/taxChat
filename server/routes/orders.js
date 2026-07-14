@@ -141,8 +141,9 @@ router.get('/by-order-id/:orderId', authenticateToken, async (req, res) => {
   try {
     const { orderId } = req.params
 
+    // members 테이블에는 email 컬럼이 존재하지 않으므로 조회 목록에서 제외합니다.
     const orderResult = await pool.query(
-      `SELECT o.*, m.name as member_name, m.business_name, m.phone_number, m.email
+      `SELECT o.*, m.name as member_name, m.business_name, m.phone_number
          FROM orders o
          LEFT JOIN members m ON o.member_id = m.id
         WHERE o.order_id = $1
@@ -157,9 +158,10 @@ router.get('/by-order-id/:orderId', authenticateToken, async (req, res) => {
     const order = orderResult.rows[0]
 
     // 해당 주문에 첨부된 회원 서류 (deleted=false 만)
+    // 참고: member_documents 스키마에는 updated_at 이 존재하지 않으므로 조회에서 제외.
     const attachmentsResult = await pool.query(
       `SELECT md.id, md.document_id, md.file_name, md.file_path, md.description,
-              md.created_at, md.updated_at,
+              md.created_at,
               d.name AS document_name
          FROM member_documents md
          LEFT JOIN documents d ON md.document_id = d.id
@@ -193,7 +195,14 @@ router.get('/by-order-id/:orderId', authenticateToken, async (req, res) => {
     })
   } catch (error) {
     console.error('주문 상세 조회 오류:', error)
-    return res.status(500).json({ success: false, error: '주문 상세 조회 중 오류가 발생했습니다' })
+    // 배포 환경에서도 실패 원인을 프론트에서 빠르게 진단할 수 있도록 detail 을
+    // 함께 노출합니다. (민감정보가 담길 위험이 있는 필드는 여기서 제외)
+    return res.status(500).json({
+      success: false,
+      error: '주문 상세 조회 중 오류가 발생했습니다',
+      detail: error?.message || null,
+      pgCode: error?.code || null,
+    })
   }
 })
 
