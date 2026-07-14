@@ -9,6 +9,7 @@ import './App.css'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CustomerMemoProvider } from './contexts/CustomerMemoContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import OrderAccessRoute from './components/OrderAccessRoute'
 import { settingsAPI } from './utils/api'
 import AdminCustomer from './pages/AdminCustomer'
 import AdminProductCategory from './pages/AdminProductCategory'
@@ -438,13 +439,14 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          {/* 결제 서비스 입력/확인 페이지: 단일 주문 상세 (관리자 링크에서도 진입) */}
+          {/* 결제 서비스 입력/확인 페이지: 단일 주문 상세 (관리자 링크에서도 진입).
+              회원 로그인 또는 관리자 로그인 중 하나라도 있으면 접근 가능. */}
           <Route
             path="/order/:orderId"
             element={
-              <ProtectedRoute>
+              <OrderAccessRoute>
                 <OrderServicePage />
-              </ProtectedRoute>
+              </OrderAccessRoute>
             }
           />
           <Route 
