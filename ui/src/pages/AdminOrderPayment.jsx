@@ -610,18 +610,28 @@ const AdminOrderPayment = () => {
                       <td data-label="링크">
                         {/*
                           각 주문의 "결제 서비스 입력/확인 페이지" 로 이동하는
-                          고유 URL. 관리자는 새 탭으로 열고, 회원에게는 이
-                          링크를 안내해서 첨부 서류를 접수받는 용도로 사용.
+                          고유 URL. 관리자가 회원에게 이 링크를 그대로 복사해서
+                          전달할 수 있도록 절대 URL을 텍스트로 노출합니다.
+                          텍스트 자체를 클릭하면 새 탭에서 페이지가 열립니다.
                         */}
-                        <a
-                          className="admin-table-link"
-                          href={`/order/${order.orderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="결제 서비스 입력/확인 페이지 열기"
-                        >
-                          바로가기
-                        </a>
+                        {(() => {
+                          const path = `/order/${order.orderId}`
+                          const absUrl =
+                            typeof window !== 'undefined'
+                              ? `${window.location.origin}${path}`
+                              : path
+                          return (
+                            <a
+                              className="admin-table-link-text"
+                              href={path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="결제 서비스 입력/확인 페이지 열기"
+                            >
+                              {absUrl}
+                            </a>
+                          )
+                        })()}
                       </td>
                       <td data-label="메모">
                         {latestMemo ? (

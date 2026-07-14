@@ -269,7 +269,7 @@ const OrderServicePage = () => {
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <h1 className="payment-title">주문 상세</h1>
+            <h1 className="payment-title">결제 서비스 입력/확인 페이지</h1>
           </header>
           <div className="order-service-loading">불러오는 중…</div>
         </div>
@@ -287,7 +287,7 @@ const OrderServicePage = () => {
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <h1 className="payment-title">주문 상세</h1>
+            <h1 className="payment-title">결제 서비스 입력/확인 페이지</h1>
           </header>
           <div className="order-service-error">
             {errorMsg || '주문 정보를 표시할 수 없습니다.'}
@@ -309,7 +309,7 @@ const OrderServicePage = () => {
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
-          <h1 className="payment-title">주문 상세</h1>
+          <h1 className="payment-title">결제 서비스 입력/확인 페이지</h1>
         </header>
 
         <div className="order-service-body">

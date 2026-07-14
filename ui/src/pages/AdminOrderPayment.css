@@ -1,23 +1,22 @@
 /* 주문 결제 관리 페이지 스타일 */
 
-/* 결제 서비스 입력/확인 페이지 바로가기 링크 */
-.admin-table-link {
+/* 결제 서비스 입력/확인 페이지 바로가기 링크 (텍스트 링크) */
+.admin-table-link-text {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background-color: #ffffff;
-  color: #6b46c1;
-  border: 1px solid #6b46c1;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  text-decoration: none;
-  transition: all 0.2s;
-  white-space: nowrap;
+  color: #2563eb;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  word-break: break-all;
   cursor: pointer;
+  transition: color 0.15s;
 }
 
-.admin-table-link:hover {
-  background-color: #6b46c1;
-  color: #ffffff;
+.admin-table-link-text:hover {
+  color: #1d4ed8;
+}
+
+.admin-table-link-text:active {
+  color: #1e40af;
 }
 
 .admin-status-btn {
