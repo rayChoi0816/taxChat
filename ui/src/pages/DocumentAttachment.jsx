@@ -238,7 +238,7 @@ const DocumentAttachment = () => {
         
         if (response.success) {
           alert('서류 수정이 완료되었습니다.')
-          navigate('/document-storage')
+          navigate('/service-history')
         } else {
           alert('서류 수정 중 오류가 발생했습니다.')
         }
@@ -282,9 +282,9 @@ const DocumentAttachment = () => {
             fileInputRef.current.value = ''
           }
           
-          // edit 모드가 아니면 document-storage로 이동
+          // edit 모드가 아니면 서비스 이용 내역으로 이동
           if (!isEditMode) {
-            navigate('/document-storage')
+            navigate('/service-history')
           }
         } else {
           alert('서류 첨부 중 오류가 발생했습니다.')
@@ -306,7 +306,7 @@ const DocumentAttachment = () => {
         {/* Header */}
         <header className="payment-header">
           <h1 className="payment-title">서류 첨부</h1>
-          <button className="document-close-btn" onClick={() => navigate('/document-storage')}>
+          <button className="document-close-btn" onClick={() => navigate('/service-history')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>

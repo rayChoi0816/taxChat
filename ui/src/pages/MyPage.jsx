@@ -103,9 +103,6 @@ const MyPage = () => {
           }
         })
         break
-      case 'document-storage':
-        navigate('/document-storage')
-        break
       case 'service-history':
         navigate('/service-history')
         break
@@ -191,12 +188,6 @@ const MyPage = () => {
 
           {/* Menu Items */}
           <div className="mypage-menu">
-            <div 
-              className="mypage-menu-item"
-              onClick={() => handleMenuClick('document-storage')}
-            >
-              서류 보관함
-            </div>
             <div 
               className="mypage-menu-item"
               onClick={() => handleMenuClick('service-history')}

@@ -26,7 +26,6 @@ import PaymentFail from './pages/PaymentFail'
 import MyPage from './pages/MyPage'
 import ServiceHistory from './pages/ServiceHistory'
 import OrderServicePage from './pages/OrderServicePage'
-import DocumentStorage from './pages/DocumentStorage'
 import DocumentAttachment from './pages/DocumentAttachment'
 import MemberTypeSelection from './pages/MemberTypeSelection'
 import AddMemberType from './pages/AddMemberType'
@@ -194,14 +193,6 @@ function Home() {
     navigate('/tax-preview')
   }
 
-  const handleDocumentClick = () => {
-    if (isAuthenticated) {
-    navigate('/document-storage')
-    } else {
-      navigate('/login')
-    }
-  }
-
   const handleLoginClick = () => {
     navigate('/login')
   }
@@ -302,12 +293,6 @@ function Home() {
                 <div className="button-content">
                   <h3>결제하기</h3>
                   <p>세금 신고가 필요한 서비스를 결제하세요.</p>
-                </div>
-              </button>
-              <button className="action-button secondary" onClick={handleDocumentClick}>
-                <div className="button-content">
-                  <h3>내 서류 관리</h3>
-                  <p>세금 신고에 필요한 서류를 첨부하세요.</p>
                 </div>
               </button>
               <button className="action-button admin" onClick={handleAdminClick}>
@@ -458,14 +443,6 @@ function App() {
                 <OrderServicePage />
               </OrderAccessRoute>
             }
-          />
-          <Route 
-            path="/document-storage" 
-            element={
-              <ProtectedRoute>
-                <DocumentStorage />
-              </ProtectedRoute>
-            } 
           />
           <Route 
             path="/document-attachment" 

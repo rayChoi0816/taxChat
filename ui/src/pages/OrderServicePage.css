@@ -6,6 +6,32 @@
    ========================================================================== */
 
 /* -----------------------------------------------------------------------------
+ * 카드 컨테이너 (OrderServiceCard)
+ *  - OrderServicePage: 카드 하나만 표시
+ *  - ServiceHistory: 여러 카드를 세로로 나열
+ * ----------------------------------------------------------------------------- */
+.order-service-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.order-service-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.4;
+  text-align: center;
+  word-break: keep-all;
+}
+
+/* -----------------------------------------------------------------------------
  * 헤더 (payment-header 기본 스타일에 order-service 전용 오버라이드)
  * - 좌측: 페이지 제목 (상품카테고리명 / 상품명)
  * - 우측: 닫기(X) 버튼

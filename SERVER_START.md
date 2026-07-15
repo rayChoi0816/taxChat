@@ -50,7 +50,7 @@ npm run dev
 - 홈페이지: http://localhost:5173/
 - 로그인: http://localhost:5173/login
 - 결제하기: http://localhost:5173/payment (로그인 필요)
-- 내 서류 관리: http://localhost:5173/document-storage (로그인 필요)
+- 서비스 이용 내역: http://localhost:5173/service-history (로그인 필요)
 - 마이페이지: http://localhost:5173/mypage (로그인 필요)
 
 ## 데이터베이스 설정

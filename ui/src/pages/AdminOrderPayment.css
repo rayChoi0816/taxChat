@@ -3,10 +3,14 @@
 /* 결제 서비스 입력/확인 페이지 바로가기 링크 (텍스트 링크) */
 .admin-table-link-text {
   display: inline-block;
+  max-width: 320px;
   color: #2563eb;
   font-size: 0.8rem;
   text-decoration: underline;
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
   cursor: pointer;
   transition: color 0.15s;
 }
@@ -17,6 +21,18 @@
 
 .admin-table-link-text:active {
   color: #1e40af;
+}
+
+@media (max-width: 1400px) {
+  .admin-table-link-text {
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .admin-table-link-text {
+    max-width: 160px;
+  }
 }
 
 .admin-status-btn {

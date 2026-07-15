@@ -490,6 +490,17 @@
   font-size: 0.875rem;
   color: #333;
   border-bottom: 1px solid #e0e0e0;
+  /* 데스크톱 테이블에서 모든 셀 내용을 1줄로 유지.
+     넘치면 부모 .admin-table-container 의 overflow-x 로 가로 스크롤 되고,
+     특정 셀(링크 URL, SMS 내용, 메모 등)은 max-width + text-overflow 로 말줄임. */
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* 셀 안에서 여러 태그를 flex-wrap 으로 표시하던 컨텐츠(예: 상품 이용 회원 유형)는
+   부모 td 의 nowrap 규칙에도 wrap 이 필요하므로 명시적으로 normal 로 복원. */
+.admin-table td > div[style*='flex-wrap'] {
+  white-space: normal;
 }
 
 /* 데스크톱 환경에서 "검색 결과가 없습니다" 메시지 가운데 정렬 */

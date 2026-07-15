@@ -275,7 +275,7 @@
 }
 
 .admin-sms-td {
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .admin-sms-td--check {
@@ -307,19 +307,16 @@
   color: #4b5563;
 }
 
-/* 긴 본문: 4줄 말줄임 + 전체는 title 로 확인 */
+/* 긴 본문: 1줄 말줄임(…) + 전체는 title 로 확인 */
 .admin-sms-content-cell {
+  display: block;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #374151;
-  max-height: 5.8em;
+  max-width: 100%;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-sms-td--result {
